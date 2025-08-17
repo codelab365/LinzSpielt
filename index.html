@@ -34,14 +34,25 @@
             <p class="text-lg text-blue-400">Spieleausleihe</p>
         </header>
 
+        <!-- Statistik Sektion -->
+        <div id="stats-section" class="mb-8 text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div id="total-games" class="text-2xl text-white mb-4"></div>
+            <div id="category-stats" class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-gray-400"></div>
+        </div>
+
         <!-- Filterleiste -->
-        <div class="bg-gray-800 p-4 rounded-lg mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
-            <div class="lg:col-span-2">
+        <div class="bg-gray-800 p-4 rounded-lg mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
+            <div class="md:col-span-2 lg:col-span-2">
                 <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <select id="category-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
                     <option value="all">Alle Kategorien</option>
+                </select>
+            </div>
+             <div>
+                <select id="shelf-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                    <option value="0">Alle Regale</option>
                 </select>
             </div>
             <div>
@@ -65,6 +76,13 @@
                     <option value="120">max. 120 Min.</option>
                 </select>
             </div>
+            <div>
+                <select id="status-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                    <option value="all">Alle Status</option>
+                    <option value="available">Nur Verfügbare</option>
+                    <option value="lent">Nur Ausgeliehene</option>
+                </select>
+            </div>
         </div>
 
         <!-- Spieletabelle -->
@@ -73,9 +91,10 @@
                 <thead class="bg-gray-700/50">
                     <tr>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Kategorie</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Regal</th>
-                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Spieler</th>
-                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Dauer</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Dauer</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Aktion</th>
                     </tr>
@@ -108,7 +127,7 @@
     <script>
         // --- DATENBANK ---
         const rawGamesData = [
-            { name: '7 Wonders', category: 'Strategiespiel', age: '10+', minAge: 10, players: '2-7', minPlayers: 2, maxPlayers: 7, duration: '30 Min.', minDuration: 30, maxDuration: 30, description: '<h3>Ziel des Spiels:</h3><p>Führe eine antike Zivilisation an und errichte das mächtigste Weltwunder. Sammle Siegpunkte durch militärische, wissenschaftliche, kulturelle und wirtschaftliche Entwicklungen.</p><h3>Spielablauf:</h3><p>Das Spiel geht über drei Zeitalter. In jedem Zeitalter erhalten die Spieler einen Stapel Karten. Sie wählen eine Karte aus, legen sie vor sich ab und geben die restlichen Karten an ihren Nachbarn weiter (Card-Drafting). Dieser Vorgang wird wiederholt, bis alle Karten verteilt sind. Mit den Karten baut man seine Stadt aus, sammelt Ressourcen, rüstet militärisch auf oder baut am eigenen Weltwunder.</p>' },
+             { name: '7 Wonders', category: 'Strategiespiel', age: '10+', minAge: 10, players: '2-7', minPlayers: 2, maxPlayers: 7, duration: '30 Min.', minDuration: 30, maxDuration: 30, description: '<h3>Ziel des Spiels:</h3><p>Führe eine antike Zivilisation an und errichte das mächtigste Weltwunder. Sammle Siegpunkte durch militärische, wissenschaftliche, kulturelle und wirtschaftliche Entwicklungen.</p><h3>Spielablauf:</h3><p>Das Spiel geht über drei Zeitalter. In jedem Zeitalter erhalten die Spieler einen Stapel Karten. Sie wählen eine Karte aus, legen sie vor sich ab und geben die restlichen Karten an ihren Nachbarn weiter (Card-Drafting). Dieser Vorgang wird wiederholt, bis alle Karten verteilt sind. Mit den Karten baut man seine Stadt aus, sammelt Ressourcen, rüstet militärisch auf oder baut am eigenen Weltwunder.</p>' },
             { name: '7 Wonders Architects', category: 'Familienspiel', age: '8+', minAge: 8, players: '2-7', minPlayers: 2, maxPlayers: 7, duration: '25 Min.', minDuration: 25, maxDuration: 25, description: '<h3>Ziel des Spiels:</h3><p>Werde zum größten Architekten der Antike, indem du als Erster dein Weltwunder vollständig errichtest oder am Ende die meisten Siegpunkte sammelst.</p><h3>Spielablauf:</h3><p>Eine vereinfachte und schnellere Version von 7 Wonders. Die Spieler wählen reihum eine von drei ausliegenden Karten (links, Mitte, rechts). Mit den Karten sammelt man Ressourcen zum Bau des eigenen Wunders, rüstet militärisch auf, macht wissenschaftliche Fortschritte oder nutzt die Hilfe einer Katze. Das Spiel endet, sobald ein Spieler sein Wunder fertiggestellt hat.</p>' },
             { name: '80 Days', category: 'Thematisches Spiel', age: '10+', minAge: 10, players: '2-4', minPlayers: 2, maxPlayers: 4, duration: '60 Min.', minDuration: 60, maxDuration: 60, description: '<h3>Ziel des Spiels:</h3><p>Reise in 80 Tagen um die Welt. Plane deine Route, packe deine Koffer und sei schneller als deine Mitstreiter.</p><h3>Spielablauf:</h3><p>Nutze Züge und Schiffe, aber achte auf dein Geld und unvorhergesehene Ereignisse. Ein spannendes Wettrennen gegen die Zeit und die anderen Spieler rund um den Globus.</p>' },
             { name: 'Abgestaubt!', category: 'Party- & Quizspiel', age: '8+', minAge: 8, players: '2-6', minPlayers: 2, maxPlayers: 6, duration: '20 Min.', minDuration: 20, maxDuration: 20, description: '<h3>Ziel des Spiels:</h3><p>Schätze, welche von fünf kuriosen Antworten auf eine Frage die richtige ist.</p><h3>Spielablauf:</h3><p>Wer am besten blufft und die Lügen der anderen durchschaut, sammelt die meisten Punkte. Ein lustiges Spiel für Raterunden.</p>' },
@@ -298,6 +317,8 @@
             const categoryFilter = document.getElementById('category-filter');
             const playersFilter = document.getElementById('players-filter');
             const durationFilter = document.getElementById('duration-filter');
+            const shelfFilter = document.getElementById('shelf-filter');
+            const statusFilter = document.getElementById('status-filter');
             const tableBody = document.getElementById('game-table-body');
             const noResultsDiv = document.getElementById('no-results');
 
@@ -326,6 +347,24 @@
                 }
             };
 
+            const renderStats = () => {
+                const totalGamesDiv = document.getElementById('total-games');
+                const categoryStatsDiv = document.getElementById('category-stats');
+
+                totalGamesDiv.innerHTML = `Gesamtanzahl der Spiele: <span class="font-bold text-blue-400">${gamesData.length}</span>`;
+
+                const categoryCounts = gamesData.flatMap(game => game.categories).reduce((acc, category) => {
+                    acc[category] = (acc[category] || 0) + 1;
+                    return acc;
+                }, {});
+
+                let statsHTML = '';
+                Object.keys(categoryCounts).sort().forEach(category => {
+                    statsHTML += `<span class="bg-gray-700 px-3 py-1 rounded-full text-sm whitespace-nowrap">${category}: ${categoryCounts[category]}</span>`;
+                });
+                categoryStatsDiv.innerHTML = statsHTML;
+            };
+
             const populateCategories = () => {
                 const categories = [...new Set(gamesData.flatMap(game => game.categories))];
                 categories.sort();
@@ -335,6 +374,15 @@
                     option.textContent = category;
                     categoryFilter.appendChild(option);
                 });
+            };
+            
+            const populateShelves = () => {
+                for (let i = 1; i <= 20; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `Regal ${i}`;
+                    shelfFilter.appendChild(option);
+                }
             };
 
             const renderTable = (filteredGames) => {
@@ -353,9 +401,10 @@
 
                     row.innerHTML = `
                         <td class="p-4 font-medium text-white cursor-pointer hover:text-blue-400 game-title-cell">${game.title}</td>
+                        <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.categories.join(', ')}</td>
                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.shelf}</td>
-                        <td class="p-4 text-center text-gray-300 hidden md:table-cell">${game.playerCount}</td>
-                        <td class="p-4 text-center text-gray-300 hidden sm:table-cell">${game.duration}</td>
+                        <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.playerCount}</td>
+                        <td class="p-4 text-center text-gray-300 hidden xl:table-cell">${game.duration}</td>
                         <td class="p-4 text-center font-semibold ${lentStatusClasses}">${lentStatusText}</td>
                         <td class="p-4 text-center">
                             <button class="status-button w-full sm:w-auto text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm ${buttonClasses}">
@@ -399,10 +448,13 @@
                 const selectedCategory = categoryFilter.value;
                 const selectedPlayers = parseInt(playersFilter.value, 10);
                 const selectedDuration = parseInt(durationFilter.value, 10);
+                const selectedShelf = parseInt(shelfFilter.value, 10);
+                const selectedStatus = statusFilter.value;
 
                 const filteredGames = gamesData.filter(game => {
                     const nameMatch = game.title.toLowerCase().includes(searchTerm);
                     const categoryMatch = selectedCategory === 'all' || game.categories.includes(selectedCategory);
+                    const shelfMatch = selectedShelf === 0 || game.shelf === selectedShelf;
                     
                     let playersMatch = true;
                     if (selectedPlayers > 0) {
@@ -415,13 +467,17 @@
                     
                     const durationMatch = selectedDuration === 0 || game.maxDuration <= selectedDuration;
                     
-                    return nameMatch && categoryMatch && playersMatch && durationMatch;
+                    const statusMatch = selectedStatus === 'all' ||
+                                        (selectedStatus === 'lent' && game.isLent) ||
+                                        (selectedStatus === 'available' && !game.isLent);
+
+                    return nameMatch && categoryMatch && playersMatch && durationMatch && shelfMatch && statusMatch;
                 });
                 renderTable(filteredGames);
             };
 
             // Event Listeners
-            [searchInput, categoryFilter, playersFilter, durationFilter].forEach(el => {
+            [searchInput, categoryFilter, playersFilter, durationFilter, shelfFilter, statusFilter].forEach(el => {
                 el.addEventListener('input', filterAndRender);
                 el.addEventListener('change', filterAndRender);
             });
@@ -450,6 +506,8 @@
             // Initialisierung
             loadStateFromCookie();
             populateCategories();
+            populateShelves();
+            renderStats(); // Statistik beim Start rendern
             filterAndRender();
         });
     </script>
