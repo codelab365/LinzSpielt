@@ -23,24 +23,44 @@
             <p class="text-lg text-gray-600 mt-2">Spieleausleihe-Helfer</p>
         </header>
 
-        <!-- Suchleiste -->
-        <div class="mb-8 max-w-2xl mx-auto">
-            <div class="relative">
-                <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full py-3 px-4 text-lg rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <!-- Filter- und Suchsektion -->
+        <div class="mb-8 max-w-3xl mx-auto bg-white p-4 rounded-lg shadow">
+            <!-- Suchleiste -->
+            <div class="relative mb-4">
+                <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full py-3 px-4 text-lg rounded-full shadow-inner bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <svg class="absolute right-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
+            
+            <!-- Neue Detail-Filter -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="player-count-input" class="block text-sm font-medium text-gray-700 mb-1">Personenanzahl</label>
+                    <input type="number" id="player-count-input" min="1" placeholder="z.B. 4" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="duration-select" class="block text-sm font-medium text-gray-700 mb-1">Maximale Spieldauer</label>
+                    <select id="duration-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="any">Beliebig</option>
+                        <option value="30">max. 30 min</option>
+                        <option value="60">max. 60 min</option>
+                        <option value="90">max. 90 min</option>
+                        <option value="120">max. 120 min</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Kategorie-Filter -->
+            <div id="filter-container" class="flex flex-wrap justify-center gap-2 md:gap-3">
+                <button data-filter="all" class="filter-btn bg-blue-500 text-white py-2 px-4 rounded-full shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Alle</button>
+                <button data-filter="lustig" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Lustig</button>
+                <button data-filter="thematisch" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Thematisch</button>
+                <button data-filter="strategisch" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Strategisch</button>
+                <button data-filter="kooperativ" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Kooperativ</button>
+            </div>
         </div>
 
-        <!-- Filter Sektion -->
-        <div id="filter-container" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
-            <button data-filter="all" class="filter-btn bg-blue-500 text-white py-2 px-4 rounded-full shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Alle anzeigen</button>
-            <button data-filter="lustig" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Lustig</button>
-            <button data-filter="thematisch" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Thematisch</button>
-            <button data-filter="strategisch" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Strategisch</button>
-            <button data-filter="kooperativ" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Kooperativ</button>
-        </div>
 
         <!-- Spiele-Liste -->
         <div id="games-list" class="space-y-3 max-w-5xl mx-auto">
@@ -49,76 +69,47 @@
     </div>
 
     <script>
-        // Spieledatenbank als Array von Objekten
+        // Spieledatenbank: Erweitert um min/max Spieler und max. Dauer für die Filterung
         const gamesData = [
             {
-                id: 1,
-                title: "SkyTeam",
-                shelf: 5,
-                categories: ["kooperativ", "strategisch"],
-                playerCount: "2",
-                age: "12+",
-                duration: "20 min",
-                isLent: false
+                id: 1, title: "SkyTeam", shelf: 5, categories: ["kooperativ", "strategisch"],
+                playerCount: "2", minPlayers: 2, maxPlayers: 2,
+                duration: "20 min", maxDuration: 20, age: "12+", isLent: false
             },
             {
-                id: 2,
-                title: "Karak",
-                shelf: 12,
-                categories: ["thematisch", "lustig"],
-                playerCount: "2-5",
-                age: "7+",
-                duration: "45 min",
-                isLent: false
+                id: 2, title: "Karak", shelf: 12, categories: ["thematisch", "lustig"],
+                playerCount: "2-5", minPlayers: 2, maxPlayers: 5,
+                duration: "45 min", maxDuration: 45, age: "7+", isLent: false
             },
             {
-                id: 3,
-                title: "Dixit",
-                shelf: 18,
-                categories: ["lustig"],
-                playerCount: "3-8",
-                age: "8+",
-                duration: "30 min",
-                isLent: false
+                id: 3, title: "Dixit", shelf: 18, categories: ["lustig"],
+                playerCount: "3-8", minPlayers: 3, maxPlayers: 8,
+                duration: "30 min", maxDuration: 30, age: "8+", isLent: false
             },
             {
-                id: 4,
-                title: "Dune Imperium: Uprising",
-                shelf: 3,
-                categories: ["thematisch", "strategisch"],
-                playerCount: "1-4",
-                age: "14+",
-                duration: "60-120 min",
-                isLent: false
+                id: 4, title: "Dune Imperium: Uprising", shelf: 3, categories: ["thematisch", "strategisch"],
+                playerCount: "1-4", minPlayers: 1, maxPlayers: 4,
+                duration: "60-120 min", maxDuration: 120, age: "14+", isLent: false
             },
             {
-                id: 5,
-                title: "Arche Nova",
-                shelf: 7,
-                categories: ["strategisch"],
-                playerCount: "1-4",
-                age: "14+",
-                duration: "90-150 min",
-                isLent: false
+                id: 5, title: "Arche Nova", shelf: 7, categories: ["strategisch"],
+                playerCount: "1-4", minPlayers: 1, maxPlayers: 4,
+                duration: "90-150 min", maxDuration: 150, age: "14+", isLent: false
             }
         ];
 
         const gamesList = document.getElementById('games-list');
         const filterContainer = document.getElementById('filter-container');
         const searchInput = document.getElementById('search-input');
+        const playerCountInput = document.getElementById('player-count-input');
+        const durationSelect = document.getElementById('duration-select');
 
         // --- Cookie-Funktionen ---
-        
-        // Funktion zum Speichern des Ausleihstatus in einem Cookie
         const saveStateToCookie = () => {
-            // Filtere nur die IDs der ausgeliehenen Spiele
             const lentGameIds = gamesData.filter(game => game.isLent).map(game => game.id);
-            // Speichere das Array als JSON-String in einem Cookie, der 2 Tage gültig ist
-            const expires = new Date(Date.now() + 2 * 864e5).toUTCString(); // 864e5 = 1 Tag in ms
+            const expires = new Date(Date.now() + 2 * 864e5).toUTCString();
             document.cookie = `lentGames=${JSON.stringify(lentGameIds)}; expires=${expires}; path=/; SameSite=Lax`;
         };
-
-        // Funktion zum Laden des Ausleihstatus aus dem Cookie beim Start
         const loadStateFromCookie = () => {
             const cookieString = document.cookie.split('; ').find(row => row.startsWith('lentGames='));
             if (cookieString) {
@@ -126,23 +117,16 @@
                     const lentGameIds = JSON.parse(cookieString.split('=')[1]);
                     if (Array.isArray(lentGameIds)) {
                         gamesData.forEach(game => {
-                            // Setze isLent auf true, wenn die ID des Spiels im Cookie-Array gefunden wird
-                            if (lentGameIds.includes(game.id)) {
-                                game.isLent = true;
-                            }
+                            if (lentGameIds.includes(game.id)) game.isLent = true;
                         });
                     }
-                } catch (e) {
-                    console.error("Fehler beim Parsen der Cookie-Daten:", e);
-                }
+                } catch (e) { console.error("Fehler beim Parsen der Cookie-Daten:", e); }
             }
         };
 
-        // --- Ende Cookie-Funktionen ---
-
-        // Funktion zum Rendern der Spiele als Liste
+        // --- Render-Funktion ---
         const renderGames = (gamesToRender) => {
-            gamesList.innerHTML = ''; // Leert die Liste vor dem Neuzeichnen
+            gamesList.innerHTML = '';
             if (gamesToRender.length === 0) {
                 gamesList.innerHTML = `<p class="text-center text-gray-500 col-span-full">Keine Spiele gefunden, die den Kriterien entsprechen.</p>`;
                 return;
@@ -151,14 +135,11 @@
                 const gameItem = document.createElement('div');
                 gameItem.className = `game-item bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${game.isLent ? 'opacity-60 bg-gray-50' : ''}`;
                 gameItem.dataset.gameId = game.id;
-
                 const lentStatusText = game.isLent ? 'Ausgeliehen' : 'Verfügbar';
                 const lentStatusBgColor = game.isLent ? 'bg-red-500' : 'bg-green-500';
                 const buttonText = game.isLent ? 'Zurückgeben' : 'Ausleihen';
                 const buttonBgColor = game.isLent ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600';
-                
                 const categoriesHTML = game.categories.map(cat => `<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">${cat}</span>`).join(' ');
-
                 gameItem.innerHTML = `
                     <div class="flex-grow">
                         <h3 class="text-xl font-bold text-gray-800">${game.title}</h3>
@@ -179,15 +160,31 @@
             });
         };
         
+        // --- Haupt-Filterlogik ---
         const updateDisplayedGames = () => {
             const searchTerm = searchInput.value.toLowerCase();
             const activeFilter = document.querySelector('.filter-btn.bg-blue-500').dataset.filter;
+            const playerCount = parseInt(playerCountInput.value, 10);
+            const maxDuration = durationSelect.value;
+
             let displayedGames = gamesData;
+
+            // 1. Nach Suchbegriff filtern
             if (searchTerm) {
                 displayedGames = displayedGames.filter(game => game.title.toLowerCase().includes(searchTerm));
             }
+            // 2. Nach Kategorie filtern
             if (activeFilter !== 'all') {
                 displayedGames = displayedGames.filter(game => game.categories.includes(activeFilter));
+            }
+            // 3. Nach Spieleranzahl filtern
+            if (!isNaN(playerCount) && playerCount > 0) {
+                displayedGames = displayedGames.filter(game => playerCount >= game.minPlayers && playerCount <= game.maxPlayers);
+            }
+            // 4. Nach Dauer filtern
+            if (maxDuration !== 'any') {
+                const durationValue = parseInt(maxDuration, 10);
+                displayedGames = displayedGames.filter(game => game.maxDuration <= durationValue);
             }
             renderGames(displayedGames);
         };
@@ -196,11 +193,12 @@
             const game = gamesData.find(g => g.id === gameId);
             if (game) {
                 game.isLent = !game.isLent;
-                saveStateToCookie(); // Speichere den neuen Zustand im Cookie
+                saveStateToCookie();
                 updateDisplayedGames();
             }
         };
         
+        // --- Event Listeners ---
         gamesList.addEventListener('click', (event) => {
             if (event.target.classList.contains('status-button')) {
                 const gameItem = event.target.closest('.game-item');
@@ -222,10 +220,12 @@
         });
         
         searchInput.addEventListener('input', updateDisplayedGames);
+        playerCountInput.addEventListener('input', updateDisplayedGames);
+        durationSelect.addEventListener('change', updateDisplayedGames);
 
         // --- Initialisierung ---
-        loadStateFromCookie(); // Lade den Status aus dem Cookie, bevor die Spiele zum ersten Mal angezeigt werden
-        updateDisplayedGames(); // Zeige die Spiele mit dem geladenen Status an
+        loadStateFromCookie();
+        updateDisplayedGames();
     </script>
 
 </body>
