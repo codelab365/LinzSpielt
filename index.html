@@ -10,7 +10,6 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Zusätzlicher Stil für einen sanften Übergang bei Statusänderungen */
         .status-button {
             transition: background-color 0.3s ease, color 0.3s ease;
         }
@@ -24,6 +23,16 @@
             <p class="text-lg text-gray-600 mt-2">Spieleausleihe-Helfer</p>
         </header>
 
+        <!-- Suchleiste -->
+        <div class="mb-8 max-w-2xl mx-auto">
+            <div class="relative">
+                <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full py-3 px-4 text-lg rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <svg class="absolute right-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+
         <!-- Filter Sektion -->
         <div id="filter-container" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
             <button data-filter="all" class="filter-btn bg-blue-500 text-white py-2 px-4 rounded-full shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Alle anzeigen</button>
@@ -33,9 +42,9 @@
             <button data-filter="kooperativ" class="filter-btn bg-white text-gray-700 py-2 px-4 rounded-full shadow-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Kooperativ</button>
         </div>
 
-        <!-- Spiele-Grid -->
-        <div id="games-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <!-- Spielkarten werden hier per JavaScript eingefügt -->
+        <!-- Spiele-Liste -->
+        <div id="games-list" class="space-y-3 max-w-5xl mx-auto">
+            <!-- Listeneinträge werden hier per JavaScript eingefügt -->
         </div>
     </div>
 
@@ -45,135 +54,178 @@
             {
                 id: 1,
                 title: "SkyTeam",
-                description: "Ein kooperatives Spiel für 2 Personen, bei dem ihr als Pilot und Co-Pilot ein Flugzeug landet. Kommunikation ist alles!",
-                image: "https://placehold.co/400x300/3498db/ffffff?text=SkyTeam",
                 shelf: 5,
                 categories: ["kooperativ", "strategisch"],
+                playerCount: "2",
+                age: "12+",
+                duration: "20 min",
                 isLent: false
             },
             {
                 id: 2,
                 title: "Karak",
-                description: "Ein einfaches Dungeon-Crawler-Abenteuer für die ganze Familie. Erkundet den Kerker, bekämpft Monster und sammelt Schätze.",
-                image: "https://placehold.co/400x300/e67e22/ffffff?text=Karak",
                 shelf: 12,
                 categories: ["thematisch", "lustig"],
+                playerCount: "2-5",
+                age: "7+",
+                duration: "45 min",
                 isLent: false
             },
             {
                 id: 3,
                 title: "Dixit",
-                description: "Ein kreatives und wunderschön illustriertes Spiel, bei dem es darum geht, Bilder zu beschreiben und die Karten der Mitspieler zu erraten.",
-                image: "https://placehold.co/400x300/9b59b6/ffffff?text=Dixit",
                 shelf: 18,
                 categories: ["lustig"],
+                playerCount: "3-8",
+                age: "8+",
+                duration: "30 min",
                 isLent: false
             },
             {
                 id: 4,
                 title: "Dune Imperium: Uprising",
-                description: "Ein komplexes Strategiespiel mit Deck-Building und Worker-Placement im Dune-Universum. Kämpft um die Kontrolle über Arrakis.",
-                image: "https://placehold.co/400x300/c0392b/ffffff?text=Dune",
                 shelf: 3,
                 categories: ["thematisch", "strategisch"],
+                playerCount: "1-4",
+                age: "14+",
+                duration: "60-120 min",
                 isLent: false
             },
             {
                 id: 5,
                 title: "Arche Nova",
-                description: "Plant und baut einen modernen, wissenschaftlich geführten Zoo. Ein anspruchsvolles Expertenspiel mit hohem Wiederspielreiz.",
-                image: "https://placehold.co/400x300/27ae60/ffffff?text=Arche+Nova",
                 shelf: 7,
                 categories: ["strategisch"],
+                playerCount: "1-4",
+                age: "14+",
+                duration: "90-150 min",
                 isLent: false
             }
         ];
 
-        const gamesGrid = document.getElementById('games-grid');
+        const gamesList = document.getElementById('games-list');
         const filterContainer = document.getElementById('filter-container');
+        const searchInput = document.getElementById('search-input');
 
-        // Funktion zum Rendern der Spiele
+        // --- Cookie-Funktionen ---
+        
+        // Funktion zum Speichern des Ausleihstatus in einem Cookie
+        const saveStateToCookie = () => {
+            // Filtere nur die IDs der ausgeliehenen Spiele
+            const lentGameIds = gamesData.filter(game => game.isLent).map(game => game.id);
+            // Speichere das Array als JSON-String in einem Cookie, der 2 Tage gültig ist
+            const expires = new Date(Date.now() + 2 * 864e5).toUTCString(); // 864e5 = 1 Tag in ms
+            document.cookie = `lentGames=${JSON.stringify(lentGameIds)}; expires=${expires}; path=/; SameSite=Lax`;
+        };
+
+        // Funktion zum Laden des Ausleihstatus aus dem Cookie beim Start
+        const loadStateFromCookie = () => {
+            const cookieString = document.cookie.split('; ').find(row => row.startsWith('lentGames='));
+            if (cookieString) {
+                try {
+                    const lentGameIds = JSON.parse(cookieString.split('=')[1]);
+                    if (Array.isArray(lentGameIds)) {
+                        gamesData.forEach(game => {
+                            // Setze isLent auf true, wenn die ID des Spiels im Cookie-Array gefunden wird
+                            if (lentGameIds.includes(game.id)) {
+                                game.isLent = true;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Fehler beim Parsen der Cookie-Daten:", e);
+                }
+            }
+        };
+
+        // --- Ende Cookie-Funktionen ---
+
+        // Funktion zum Rendern der Spiele als Liste
         const renderGames = (gamesToRender) => {
-            gamesGrid.innerHTML = ''; // Leert das Grid vor dem Neuzeichnen
+            gamesList.innerHTML = ''; // Leert die Liste vor dem Neuzeichnen
+            if (gamesToRender.length === 0) {
+                gamesList.innerHTML = `<p class="text-center text-gray-500 col-span-full">Keine Spiele gefunden, die den Kriterien entsprechen.</p>`;
+                return;
+            }
             gamesToRender.forEach(game => {
-                const gameCard = document.createElement('div');
-                gameCard.className = `game-card bg-white rounded-lg shadow-lg overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 ${game.isLent ? 'opacity-50' : ''}`;
-                gameCard.dataset.gameId = game.id;
+                const gameItem = document.createElement('div');
+                gameItem.className = `game-item bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${game.isLent ? 'opacity-60 bg-gray-50' : ''}`;
+                gameItem.dataset.gameId = game.id;
 
                 const lentStatusText = game.isLent ? 'Ausgeliehen' : 'Verfügbar';
                 const lentStatusBgColor = game.isLent ? 'bg-red-500' : 'bg-green-500';
                 const buttonText = game.isLent ? 'Zurückgeben' : 'Ausleihen';
                 const buttonBgColor = game.isLent ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600';
+                
+                const categoriesHTML = game.categories.map(cat => `<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">${cat}</span>`).join(' ');
 
-                gameCard.innerHTML = `
-                    <img src="${game.image}" alt="Bild von ${game.title}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x300/cccccc/ffffff?text=Bild+fehlt';">
-                    <div class="p-4 flex flex-col flex-grow">
-                        <h3 class="text-xl font-bold mb-2">${game.title}</h3>
-                        <p class="text-gray-600 text-sm flex-grow">${game.description}</p>
-                        <div class="mt-4 pt-4 border-t border-gray-200">
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-lg font-semibold">Regal: ${game.shelf}</span>
-                                <span class="text-sm font-medium text-white px-3 py-1 rounded-full ${lentStatusBgColor}">${lentStatusText}</span>
-                            </div>
-                            <button class="status-button w-full ${buttonBgColor} text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                ${buttonText}
-                            </button>
+                gameItem.innerHTML = `
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">${game.title}</h3>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+                            <span class="flex items-center gap-1.5" title="Spieleranzahl"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg><span>${game.playerCount}</span></span>
+                            <span class="flex items-center gap-1.5" title="Spieldauer"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clip-rule="evenodd" /></svg><span>${game.duration}</span></span>
+                            <span class="flex items-center gap-1.5" title="Altersempfehlung"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 5a3 3 0 015.255-2.193c.354.23.63.538.835.901a.75.75 0 01-1.313.766A1.5 1.5 0 006.5 5H5zm5.5 1.25a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zM5 8.5a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 015 8.5zM5 12a.75.75 0 01.75-.75h6.5a.75.75 0 010 1.5h-6.5a.75.75 0 01-.75-.75zM4 15.5a.75.75 0 000 1.5h9a.75.75 0 000-1.5H4z" clip-rule="evenodd" /></svg><span>${game.age}</span></span>
                         </div>
+                        <div class="flex flex-wrap items-center gap-2 text-xs mt-3">${categoriesHTML}</div>
+                    </div>
+                    <div class="flex-shrink-0 w-full sm:w-48 flex flex-col items-stretch sm:items-end gap-2 mt-4 sm:mt-0">
+                        <div class="font-bold text-lg">Regal: ${game.shelf}</div>
+                        <span class="text-sm font-medium text-white px-3 py-1 rounded-full ${lentStatusBgColor} text-center">${lentStatusText}</span>
+                        <button class="status-button w-full ${buttonBgColor} text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">${buttonText}</button>
                     </div>
                 `;
-                gamesGrid.appendChild(gameCard);
+                gamesList.appendChild(gameItem);
             });
         };
+        
+        const updateDisplayedGames = () => {
+            const searchTerm = searchInput.value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.bg-blue-500').dataset.filter;
+            let displayedGames = gamesData;
+            if (searchTerm) {
+                displayedGames = displayedGames.filter(game => game.title.toLowerCase().includes(searchTerm));
+            }
+            if (activeFilter !== 'all') {
+                displayedGames = displayedGames.filter(game => game.categories.includes(activeFilter));
+            }
+            renderGames(displayedGames);
+        };
 
-        // Funktion zum Umschalten des Ausleihstatus
         const toggleLentStatus = (gameId) => {
             const game = gamesData.find(g => g.id === gameId);
             if (game) {
                 game.isLent = !game.isLent;
-                // Finde die aktuell angezeigten Spiele, um die Ansicht zu aktualisieren
-                const activeFilter = document.querySelector('.filter-btn.bg-blue-500').dataset.filter;
-                filterGames(activeFilter);
+                saveStateToCookie(); // Speichere den neuen Zustand im Cookie
+                updateDisplayedGames();
             }
         };
         
-        // Event Listener für die Status-Buttons (delegiert vom Grid)
-        gamesGrid.addEventListener('click', (event) => {
+        gamesList.addEventListener('click', (event) => {
             if (event.target.classList.contains('status-button')) {
-                const gameCard = event.target.closest('.game-card');
-                const gameId = parseInt(gameCard.dataset.gameId, 10);
+                const gameItem = event.target.closest('.game-item');
+                const gameId = parseInt(gameItem.dataset.gameId, 10);
                 toggleLentStatus(gameId);
             }
         });
 
-        // Funktion zum Filtern der Spiele
-        const filterGames = (category) => {
-            let filteredGames;
-            if (category === 'all') {
-                filteredGames = gamesData;
-            } else {
-                filteredGames = gamesData.filter(game => game.categories.includes(category));
-            }
-            renderGames(filteredGames);
-        };
-
-        // Event Listener für die Filter-Buttons
         filterContainer.addEventListener('click', (event) => {
             if (event.target.tagName === 'BUTTON') {
-                // Visuelles Feedback für den aktiven Filter
                 document.querySelectorAll('.filter-btn').forEach(btn => {
                     btn.classList.remove('bg-blue-500', 'text-white');
                     btn.classList.add('bg-white', 'text-gray-700');
                 });
                 event.target.classList.add('bg-blue-500', 'text-white');
                 event.target.classList.remove('bg-white', 'text-gray-700');
-                
-                const filter = event.target.dataset.filter;
-                filterGames(filter);
+                updateDisplayedGames();
             }
         });
+        
+        searchInput.addEventListener('input', updateDisplayedGames);
 
-        // Initiales Rendern aller Spiele beim Laden der Seite
-        renderGames(gamesData);
+        // --- Initialisierung ---
+        loadStateFromCookie(); // Lade den Status aus dem Cookie, bevor die Spiele zum ersten Mal angezeigt werden
+        updateDisplayedGames(); // Zeige die Spiele mit dem geladenen Status an
     </script>
 
 </body>
