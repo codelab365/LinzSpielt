@@ -127,7 +127,7 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, writeBatch, onSnapshot, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- DATENBANK (LOKALE QUELLE) ---
@@ -167,7 +167,7 @@
         // Verarbeite die Rohdaten in das Format, das die App benötigt
         let gamesData = []; // Wird von Firebase gefüllt
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('search-input');
             const categoryFilter = document.getElementById('category-filter');
             const playersFilter = document.getElementById('players-filter');
@@ -198,15 +198,41 @@
             const db = getFirestore(app);
             const auth = getAuth(app);
             
-            // --- Authentifizierung ---
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-            }
+            // --- Authentifizierung und Datenlogik ---
+            // WICHTIG: Aktivieren Sie "Anonym" als Anmeldemethode in Ihrer Firebase-Konsole!
+            // (Authentication -> Sign-in method -> Add new provider -> Anonymous)
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    // User is signed in.
+                    console.log("Anonym angemeldet, User ID:", user.uid);
+                    initializeDatabaseAndListeners();
+                } else {
+                    // User is signed out.
+                    console.log("User ist nicht angemeldet. Versuche erneute Anmeldung.");
+                    signInAnonymously(auth).catch(error => {
+                        console.error("Fehler bei der anonymen Anmeldung:", error);
+                    });
+                }
+            });
+
 
             const gamesCollectionPath = `/artifacts/${appId}/public/data/games`;
             const gamesColRef = collection(db, gamesCollectionPath);
+
+            async function initializeDatabaseAndListeners() {
+                await initializeDatabase(); // Stellt sicher, dass die DB gefüllt ist
+
+                // --- Echtzeit-Listener ---
+                onSnapshot(query(gamesColRef), (snapshot) => {
+                    gamesData = snapshot.docs.map(doc => ({...doc.data(), firestoreId: doc.id}));
+                    gamesData.sort((a, b) => a.title.localeCompare(b.title));
+                    
+                    // UI nach Datenempfang aktualisieren
+                    populateCategories();
+                    renderStats();
+                    filterAndRender();
+                });
+            }
 
             // --- Einmalige Datenbank-Initialisierung ---
             async function initializeDatabase() {
@@ -239,18 +265,6 @@
                 }
             }
             
-            // --- Echtzeit-Listener ---
-            onSnapshot(query(gamesColRef), (snapshot) => {
-                gamesData = snapshot.docs.map(doc => ({...doc.data(), firestoreId: doc.id}));
-                gamesData.sort((a, b) => a.title.localeCompare(b.title));
-                
-                // UI nach Datenempfang aktualisieren
-                populateCategories();
-                renderStats();
-                filterAndRender();
-            });
-
-
             const renderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
@@ -415,7 +429,7 @@
 
             // Initialisierung
             populateShelves();
-            await initializeDatabase(); // Stellt sicher, dass die DB gefüllt ist, bevor der Listener startet
+            // Die Initialisierung der DB und der Listener wird durch onAuthStateChanged ausgelöst
         });
     </script>
 </body>
