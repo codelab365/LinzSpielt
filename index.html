@@ -130,7 +130,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, writeBatch, onSnapshot, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- DATENBANK (LOKALE QUELLE) ---
+        // --- DATENBANK (LOKALE QUELLE ZUM INITIALISIEREN) ---
         const rawGamesData = [
             { name: '7 Wonders', category: 'Strategiespiel', age: '10+', minAge: 10, players: '2-7', minPlayers: 2, maxPlayers: 7, duration: '30 Min.', minDuration: 30, maxDuration: 30, description: '<h3>Ziel des Spiels:</h3><p>Führe eine antike Zivilisation an und errichte das mächtigste Weltwunder...</p><h3>Spielablauf:</h3><p>Das Spiel geht über drei Zeitalter. In jedem Zeitalter erhalten die Spieler einen Stapel Karten...</p>' },
             { name: '7 Wonders Architects', category: 'Familienspiel', age: '8+', minAge: 8, players: '2-7', minPlayers: 2, maxPlayers: 7, duration: '25 Min.', minDuration: 25, maxDuration: 25, description: '<h3>Ziel des Spiels:</h3><p>Werde zum größten Architekten der Antike...</p><h3>Spielablauf:</h3><p>Eine vereinfachte und schnellere Version von 7 Wonders...</p>' },
@@ -164,8 +164,8 @@
             { name: 'Zug um Zug', category: 'Familienspiel', age: '8+', minAge: 8, players: '2-5', minPlayers: 2, maxPlayers: 5, duration: '30-60 Min.', minDuration: 30, maxDuration: 60, description: '<h3>Ziel des Spiels:</h3><p>Baue ein Eisenbahnnetz quer durch die USA...</p><h3>Spielablauf:</h3><p>Erfülle geheime Zielkarten, die dir vorgeben, welche Städte du verbinden musst...</p>' }
         ];
 
-        // Verarbeite die Rohdaten in das Format, das die App benötigt
-        let gamesData = []; // Wird von Firebase gefüllt
+        // Globale Variable für Spieldaten
+        let gamesData = []; 
 
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('search-input');
@@ -182,89 +182,45 @@
             const modalContent = document.getElementById('game-modal-content');
             const modalCloseBtn = document.getElementById('modal-close-btn');
             
-            // --- Firebase Konfiguration ---
-            const firebaseConfig = {
-              apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
-              authDomain: "linzspielt.firebaseapp.com",
-              projectId: "linzspielt",
-              storageBucket: "linzspielt.firebasestorage.app",
-              messagingSenderId: "41406614659",
-              appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
-              measurementId: "G-5X66HE5YLY"
+            // --- Cookie-Funktionen ---
+            const saveStateToCookie = () => {
+                const lentGameIds = gamesData.filter(game => game.isLent).map(game => game.id);
+                const expires = new Date(Date.now() + 2 * 864e5).toUTCString();
+                document.cookie = `lentGamesLinz=${JSON.stringify(lentGameIds)}; expires=${expires}; path=/; SameSite=Lax`;
             };
-            const appId = "linz-spielt-ausleihe"; // Feste ID für GitHub
-            
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const auth = getAuth(app);
-            
-            // --- Authentifizierung und Datenlogik ---
-            // WICHTIG: Aktivieren Sie "Anonym" als Anmeldemethode in Ihrer Firebase-Konsole!
-            // (Authentication -> Sign-in method -> Add new provider -> Anonymous)
-            onAuthStateChanged(auth, user => {
-                if (user) {
-                    // User is signed in.
-                    console.log("Anonym angemeldet, User ID:", user.uid);
-                    initializeDatabaseAndListeners();
-                } else {
-                    // User is signed out.
-                    console.log("User ist nicht angemeldet. Versuche erneute Anmeldung.");
-                    signInAnonymously(auth).catch(error => {
-                        console.error("Fehler bei der anonymen Anmeldung:", error);
-                    });
+            const loadStateFromCookie = () => {
+                const cookieString = document.cookie.split('; ').find(row => row.startsWith('lentGamesLinz='));
+                if (cookieString) {
+                    try {
+                        const lentGameIds = JSON.parse(cookieString.split('=')[1]);
+                        if (Array.isArray(lentGameIds)) {
+                            gamesData.forEach(game => {
+                                game.isLent = lentGameIds.includes(game.id);
+                            });
+                        }
+                    } catch (e) { console.error("Cookie-Fehler:", e); }
                 }
-            });
+            };
 
+            const initializeLocalData = () => {
+                 gamesData = rawGamesData.map((game, index) => ({
+                    id: index + 1,
+                    title: game.name,
+                    shelf: Math.floor(Math.random() * 20) + 1,
+                    categories: Array.isArray(game.category) ? game.category : [game.category],
+                    playerCount: game.players,
+                    minPlayers: game.minPlayers,
+                    maxPlayers: game.maxPlayers,
+                    duration: game.duration,
+                    maxDuration: game.maxDuration,
+                    age: game.age,
+                    description: game.description || 'Keine Beschreibung verfügbar.',
+                    isLent: false
+                }));
+                gamesData.sort((a, b) => a.title.localeCompare(b.title));
+                loadStateFromCookie();
+            };
 
-            const gamesCollectionPath = `/artifacts/${appId}/public/data/games`;
-            const gamesColRef = collection(db, gamesCollectionPath);
-
-            async function initializeDatabaseAndListeners() {
-                await initializeDatabase(); // Stellt sicher, dass die DB gefüllt ist
-
-                // --- Echtzeit-Listener ---
-                onSnapshot(query(gamesColRef), (snapshot) => {
-                    gamesData = snapshot.docs.map(doc => ({...doc.data(), firestoreId: doc.id}));
-                    gamesData.sort((a, b) => a.title.localeCompare(b.title));
-                    
-                    // UI nach Datenempfang aktualisieren
-                    populateCategories();
-                    renderStats();
-                    filterAndRender();
-                });
-            }
-
-            // --- Einmalige Datenbank-Initialisierung ---
-            async function initializeDatabase() {
-                const snapshot = await getDocs(gamesColRef);
-                if (snapshot.empty) {
-                    console.log("Datenbank ist leer. Initialisiere Spiele...");
-                    const batch = writeBatch(db);
-                    rawGamesData.forEach((game, index) => {
-                        const docData = {
-                            id: index + 1,
-                            title: game.name,
-                            shelf: Math.floor(Math.random() * 20) + 1,
-                            categories: Array.isArray(game.category) ? game.category : [game.category],
-                            playerCount: game.players,
-                            minPlayers: game.minPlayers,
-                            maxPlayers: game.maxPlayers,
-                            duration: game.duration,
-                            maxDuration: game.maxDuration,
-                            age: game.age,
-                            description: game.description || 'Keine Beschreibung verfügbar.',
-                            isLent: false
-                        };
-                        const gameDocRef = doc(db, gamesCollectionPath, String(docData.id));
-                        batch.set(gameDocRef, docData);
-                    });
-                    await batch.commit();
-                    console.log("Datenbank initialisiert.");
-                } else {
-                    console.log("Datenbank bereits vorhanden.");
-                }
-            }
-            
             const renderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
@@ -286,7 +242,6 @@
             const populateCategories = () => {
                 const categories = [...new Set(gamesData.flatMap(game => game.categories))];
                 categories.sort();
-                // Leeren, aber erste Option behalten
                 categoryFilter.innerHTML = '<option value="all">Alle Kategorien</option>';
                 categories.forEach(category => {
                     const option = document.createElement('option');
@@ -336,7 +291,6 @@
                 });
             };
             
-            // --- Modal Funktionen ---
             const showModal = (game) => {
                 document.getElementById('modal-title').textContent = game.title;
                 document.getElementById('modal-description').innerHTML = game.description;
@@ -354,19 +308,17 @@
                 }, 150);
             };
 
-            const toggleLentStatus = async (gameId) => {
+            const toggleLentStatus = (gameId) => {
                 const game = gamesData.find(g => g.id === gameId);
                 if (game) {
-                    const gameDocRef = doc(db, gamesCollectionPath, game.firestoreId);
-                    await updateDoc(gameDocRef, {
-                        isLent: !game.isLent
-                    });
-                    // UI wird automatisch durch onSnapshot aktualisiert
+                    game.isLent = !game.isLent;
+                    saveStateToCookie();
+                    filterAndRender();
                 }
             };
 
             const filterAndRender = () => {
-                if (!gamesData.length) return; // Nicht rendern, bevor Daten geladen sind
+                if (!gamesData.length) return; 
 
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedCategory = categoryFilter.value;
@@ -428,8 +380,11 @@
             });
 
             // Initialisierung
+            initializeLocalData();
+            populateCategories();
             populateShelves();
-            // Die Initialisierung der DB und der Listener wird durch onAuthStateChanged ausgelöst
+            renderStats();
+            filterAndRender();
         });
     </script>
 </body>
