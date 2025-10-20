@@ -25,6 +25,9 @@
             cursor: not-allowed;
         }
         .menu-hidden { transform: translateX(100%); }
+        .password-rules { font-size: 0.8rem; }
+        .password-rules li.valid { color: #4ade80; } /* green-400 */
+        .password-rules li.invalid { color: #f87171; } /* red-400 */
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
@@ -133,19 +136,45 @@
     <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"></div>
     <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform menu-hidden">
         <div id="auth-section">
-            <!-- Login Form (default) -->
-            <div id="login-form">
+            <!-- Login Form -->
+            <div id="login-view">
                 <h3 class="text-xl text-white font-bold mb-4">Admin Login</h3>
                 <input type="email" id="login-email" placeholder="E-Mail" class="w-full p-2 mb-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <input type="password" id="login-password" placeholder="Passwort" class="w-full p-2 mb-4 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Anmelden</button>
                 <p id="login-error" class="text-red-400 text-sm mt-2"></p>
+                <button id="show-register-btn" class="text-center w-full mt-4 text-sm text-blue-400 hover:underline">Noch kein Konto? Registrieren</button>
+            </div>
+            <!-- Register Form -->
+            <div id="register-view" class="hidden">
+                <h3 class="text-xl text-white font-bold mb-4">Admin Registrierung</h3>
+                <input type="email" id="register-email" placeholder="E-Mail" class="w-full p-2 mb-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="register-password" placeholder="Passwort" class="w-full p-2 mb-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <ul id="password-rules-list" class="password-rules text-gray-400 mb-4 pl-1 space-y-1">
+                    <li id="rule-length" class="invalid">Mindestens 8 Zeichen</li>
+                    <li id="rule-uppercase" class="invalid">Ein Großbuchstabe</li>
+                    <li id="rule-number" class="invalid">Eine Zahl</li>
+                    <li id="rule-special" class="invalid">Ein Sonderzeichen</li>
+                </ul>
+                <button id="register-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled-button" disabled>Registrieren</button>
+                <p id="register-error" class="text-red-400 text-sm mt-2"></p>
+                 <button id="show-login-btn" class="text-center w-full mt-4 text-sm text-blue-400 hover:underline">Bereits ein Konto? Anmelden</button>
             </div>
             <!-- User Info (when logged in) -->
             <div id="user-info" class="hidden">
                  <h3 class="text-xl text-white font-bold mb-2">Angemeldet</h3>
                  <p id="user-email" class="text-gray-400 mb-4 truncate"></p>
                  <button id="logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Abmelden</button>
+            </div>
+        </div>
+        <div id="admin-panel" class="hidden">
+            <hr class="my-6 border-gray-700">
+            <h3 class="text-xl text-white font-bold mb-4">Admin-Bereich</h3>
+            <div class="space-y-2">
+                <label for="json-import-data" class="text-sm text-gray-400">Spiele-JSON hier einfügen:</label>
+                <textarea id="json-import-data" rows="5" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                <button id="import-json-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Spiele importieren</button>
+                <p id="import-feedback" class="text-sm mt-2"></p>
             </div>
         </div>
         <hr class="my-6 border-gray-700">
@@ -174,7 +203,7 @@
         <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
             <div class="p-5 border-b border-gray-700 flex justify-between items-center">
                 <h2 id="info-modal-title" class="text-2xl font-bold text-white"></h2>
-                <button id="info-modal-close-btn-x" class="text-gray-400 hover:text-white">&times;</button>
+                <button id="info-modal-close-btn-x" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
             </div>
             <div id="info-modal-content" class="p-6 text-gray-300 space-y-4 overflow-y-auto"></div>
             <div class="p-4 bg-gray-800/50 border-t border-gray-700 text-right">
@@ -187,13 +216,18 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET", messagingSenderId: "YOUR_MESSAGING_SENDER_ID", appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+            authDomain: "linzspielt.firebaseapp.com",
+            projectId: "linzspielt",
+            storageBucket: "linzspielt.firebasestorage.app",
+            messagingSenderId: "41406614659",
+            appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+            measurementId: "G-5X66HE5YLY"
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -221,13 +255,28 @@
             const mobileMenu = document.getElementById('mobile-menu');
             const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
 
-            // Auth Elemente
-            const loginForm = document.getElementById('login-form');
+            // Auth Ansichten
+            const loginView = document.getElementById('login-view');
+            const registerView = document.getElementById('register-view');
             const userInfo = document.getElementById('user-info');
-            const userEmailDisplay = document.getElementById('user-email');
+            
+            // Auth Buttons & Formulare
+            const showRegisterBtn = document.getElementById('show-register-btn');
+            const showLoginBtn = document.getElementById('show-login-btn');
             const loginBtn = document.getElementById('login-btn');
             const logoutBtn = document.getElementById('logout-btn');
+            const registerBtn = document.getElementById('register-btn');
+            const registerPasswordInput = document.getElementById('register-password');
+            
+            // Auth Feedback
             const loginError = document.getElementById('login-error');
+            const registerError = document.getElementById('register-error');
+            const userEmailDisplay = document.getElementById('user-email');
+
+            // Admin Panel
+            const adminPanel = document.getElementById('admin-panel');
+            const importJsonBtn = document.getElementById('import-json-btn');
+            const importFeedback = document.getElementById('import-feedback');
 
             // Info Modals
             const infoModalOverlay = document.getElementById('info-modal-overlay');
@@ -256,27 +305,152 @@
             onAuthStateChanged(auth, user => {
                 if (user && !user.isAnonymous) {
                     currentUser = user;
-                    console.log("Angemeldet als:", user.email);
-                    loginForm.classList.add('hidden');
+                    loginView.classList.add('hidden');
+                    registerView.classList.add('hidden');
                     userInfo.classList.remove('hidden');
+                    adminPanel.classList.remove('hidden');
                     userEmailDisplay.textContent = user.email;
-                    loginError.textContent = '';
                 } else {
                     currentUser = null;
-                    loginForm.classList.remove('hidden');
                     userInfo.classList.add('hidden');
-                    userEmailDisplay.textContent = '';
-                    
-                    // Anonyme Anmeldung als Fallback für Lesezugriff
-                    if (!auth.currentUser && typeof __initial_auth_token === 'undefined') {
-                         signInAnonymously(auth).catch(error => console.error("Fehler bei anonymer Anmeldung:", error));
-                    }
+                    adminPanel.classList.add('hidden');
+                    loginView.classList.remove('hidden'); // Standardansicht
                 }
-                if (!allGames.length) setupGameListener(); // Listener starten, sobald Auth-Status klar ist
-                filterAndRender(); // Buttons (de)aktivieren
+                if (!allGames.length) setupGameListener();
+                filterAndRender();
             });
 
-            loginBtn.addEventListener('click', () => {
+            // Umschalten zwischen Login und Registrierung
+            showRegisterBtn.addEventListener('click', () => {
+                loginView.classList.add('hidden');
+                registerView.classList.remove('hidden');
+                loginError.textContent = '';
+            });
+             showLoginBtn.addEventListener('click', () => {
+                registerView.classList.add('hidden');
+                loginView.classList.remove('hidden');
+                registerError.textContent = '';
+            });
+
+
+            // Login
+            loginBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
+
+            // Passwort-Validierung
+            const validatePassword = () => {
+                const password = registerPasswordInput.value;
+                const rules = {
+                    length: password.length >= 8,
+                    uppercase: /[A-Z]/.test(password),
+                    number: /[0-9]/.test(password),
+                    special: /[\W_]/.test(password) // Non-word character or underscore
+                };
+
+                document.getElementById('rule-length').className = rules.length ? 'valid' : 'invalid';
+                document.getElementById('rule-uppercase').className = rules.uppercase ? 'valid' : 'invalid';
+                document.getElementById('rule-number').className = rules.number ? 'valid' : 'invalid';
+                document.getElementById('rule-special').className = rules.special ? 'valid' : 'invalid';
+                
+                const allValid = Object.values(rules).every(Boolean);
+                if (allValid) {
+                    registerBtn.disabled = false;
+                    registerBtn.classList.remove('disabled-button');
+                } else {
+                    registerBtn.disabled = true;
+                    registerBtn.classList.add('disabled-button');
+                }
+                return allValid;
+            };
+            registerPasswordInput.addEventListener('input', validatePassword);
+
+
+            // Registrierung
+            registerBtn.addEventListener('click', () => {
+                if (!validatePassword()) return;
+
+                const email = document.getElementById('register-email').value;
+                const password = registerPasswordInput.value;
+                registerError.textContent = '';
+
+                createUserWithEmailAndPassword(auth, email, password)
+                    .then((userCredential) => {
+                        registerError.textContent = 'Erfolgreich registriert! Eine Bestätigungs-E-Mail wurde gesendet.';
+                        registerError.classList.remove('text-red-400');
+                        registerError.classList.add('text-green-400');
+                        sendEmailVerification(auth.currentUser);
+                        setTimeout(() => {
+                           showLoginBtn.click(); // Zurück zum Login
+                           registerError.textContent = '';
+                           registerError.classList.remove('text-green-400');
+                           registerError.classList.add('text-red-400');
+                        }, 3000);
+                    })
+                    .catch((error) => {
+                        if (error.code === 'auth/email-already-in-use') {
+                             registerError.textContent = 'Diese E-Mail-Adresse wird bereits verwendet.';
+                        } else {
+                             registerError.textContent = 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.';
+                        }
+                    });
+            });
+
+            // Logout
+            logoutBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
+            
+            // --- ADMIN FUNKTIONEN ---
+            importJsonBtn.addEventListener('click', async () => {
+                const jsonData = document.getElementById('json-import-data').value;
+                if (!jsonData.trim()) {
+                    importFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                    importFeedback.className = 'text-red-400 text-sm mt-2';
+                    return;
+                }
+
+                try {
+                    const games = JSON.parse(jsonData);
+                    if (!Array.isArray(games)) throw new Error("JSON muss ein Array sein.");
+
+                    const batch = writeBatch(db);
+                    let count = 0;
+                    games.forEach(game => {
+                        if (!game.ean) {
+                            console.warn("Spiel ohne EAN übersprungen:", game.name);
+                            return; // Spiel ohne EAN kann nicht importiert werden
+                        }
+                        const gameRef = doc(db, "games", String(game.ean));
+                        batch.set(gameRef, game);
+                        count++;
+                    });
+
+                    await batch.commit();
+                    importFeedback.textContent = `${count} Spiele erfolgreich importiert!`;
+                    importFeedback.className = 'text-green-400 text-sm mt-2';
+                    document.getElementById('json-import-data').value = '';
+
+                } catch (error) {
+                    console.error("JSON Import Fehler:", error);
+                    importFeedback.textContent = 'Fehler beim Import. Prüfen Sie das JSON-Format.';
+                    importFeedback.className = 'text-red-400 text-sm mt-2';
+                }
+                 setTimeout(() => { importFeedback.textContent = '' }, 4000);
+            });
+
+
+            // --- DATENBANK-LISTENER ---
+            let unsubscribe = null;
+            const setupGameListener = () => { /* ... (unverändert) ... */ };
+
+            // --- INFO MODAL LOGIC ---
+            const showInfoModal = (title, content) => { /* ... (unverändert) ... */ };
+            const hideInfoModal = () => { /* ... (unverändert) ... */ };
+            
+            // --- RENDER & FILTER FUNKTIONEN ---
+            // Die Logik dieser Funktionen (renderStats, populateFilters, etc.) bleibt identisch
+            // zum vorherigen Stand und wird hier zur Übersichtlichkeit nicht wiederholt.
+            // ... (Hier stand der gesamte Block mit renderStats, populateFilters, renderTable, filterAndRender, etc.)
+
+            // Kopie der Funktionen aus der vorherigen Version, um sicherzustellen, dass sie da sind.
+             const originalLoginBtnListener = () => {
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
                 loginError.textContent = '';
@@ -289,19 +463,18 @@
                         console.error("Login-Fehler:", error.code);
                         loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
                     });
-            });
-
-            logoutBtn.addEventListener('click', () => {
+            };
+            loginBtn.addEventListener('click', originalLoginBtnListener);
+            
+            const originalLogoutBtnListener = () => {
                 signOut(auth).then(() => {
                     console.log("Erfolgreich abgemeldet.");
                     toggleMenu(true);
                 }).catch(error => console.error("Abmelde-Fehler:", error));
-            });
+            };
+            logoutBtn.addEventListener('click', originalLogoutBtnListener);
 
-
-            // --- DATENBANK-LISTENER ---
-            let unsubscribe = null;
-            const setupGameListener = () => {
+            const originalSetupGameListener = () => {
                 if (unsubscribe) unsubscribe(); // Alten listener entfernen
                 const gamesCollection = collection(db, "games");
                 unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
@@ -318,25 +491,20 @@
                     loadingStateDiv.textContent = "Fehler beim Laden der Daten.";
                 });
             };
+            const setupGameListener = originalSetupGameListener;
 
-            const renderStats = () => { /* ... unverändert ... */ };
-            const populateFilters = () => { /* ... unverändert ... */ };
-            const renderTable = (filteredGames) => { /* ... unverändert ... */ };
-            const filterAndRender = () => { /* ... unverändert ... */ };
-            const toggleLentStatus = async (gameId) => { /* ... unverändert ... */ };
-
-            // --- INFO MODAL LOGIC ---
-            const showInfoModal = (title, content) => {
+            const originalShowInfoModal = (title, content) => {
                 infoModalTitle.textContent = title;
                 infoModalContent.innerHTML = content;
                 infoModalOverlay.classList.remove('hidden');
             };
-            const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
+            const showInfoModal = originalShowInfoModal;
+            const originalHideInfoModal = () => infoModalOverlay.classList.add('hidden');
 
-            infoModalCloseBtn.addEventListener('click', hideInfoModal);
-            infoModalCloseBtnX.addEventListener('click', hideInfoModal);
+            infoModalCloseBtn.addEventListener('click', originalHideInfoModal);
+            infoModalCloseBtnX.addEventListener('click', originalHideInfoModal);
             infoModalOverlay.addEventListener('click', (e) => {
-                if (e.target === infoModalOverlay) hideInfoModal();
+                if (e.target === infoModalOverlay) originalHideInfoModal();
             });
 
             impressumBtn.addEventListener('click', () => {
@@ -348,7 +516,6 @@
                 showInfoModal("Impressum", content);
                 toggleMenu(true);
             });
-
             datenschutzBtn.addEventListener('click', () => {
                 const content = `
                     <p>Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst. Diese Anwendung nutzt für die Authentifizierung von Administratoren und zur Speicherung der Spieledaten die Firebase-Dienste von Google.</p>
@@ -359,12 +526,7 @@
                 showInfoModal("Datenschutzerklärung", content);
                 toggleMenu(true);
             });
-
-
-            // Initialisierungs- und Event-Listener-Code bleibt größtenteils gleich
-            // ... (restlicher Code von renderStats, populateFilters, renderTable, filterAndRender etc.)
-            // Der Code wurde zur Übersichtlichkeit gekürzt, die Funktionen sind aber noch vorhanden.
-            // Die Platzhalter-Kommentare sind nur zur Orientierung hier.
+            
             const originalRenderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
@@ -476,7 +638,6 @@
 
             const originalToggleLentStatus = async (gameId) => {
                 if (!currentUser) {
-                    // Verwenden Sie ein benutzerdefiniertes Modal anstelle von alert()
                     showInfoModal("Fehler", "<p>Bitte melden Sie sich an, um den Status zu ändern.</p>");
                     return;
                 }
@@ -493,7 +654,6 @@
                 }
             };
             
-            // Alte Funktionen wiederherstellen
             const renderStats = originalRenderStats;
             const populateFilters = originalPopulateFilters;
             const renderTable = originalRenderTable;
@@ -509,9 +669,7 @@
                 const target = event.target;
                 const gameRow = target.closest('tr');
                 if (!gameRow) return;
-
                 const gameId = gameRow.dataset.gameId;
-
                 if (target.classList.contains('status-button') && !target.disabled) {
                     toggleLentStatus(gameId);
                 } else if (target.closest('.game-title-cell')) {
