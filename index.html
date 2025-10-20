@@ -24,6 +24,13 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* Styles for Admin-only columns */
+        .ean-col {
+            display: none;
+        }
+        table.admin-view .ean-col {
+            display: table-cell;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
@@ -46,14 +53,9 @@
         </div>
 
         <!-- Filterleiste -->
-        <div class="bg-gray-800 p-4 rounded-lg mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
+        <div class="bg-gray-800 p-4 rounded-lg mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
             <div class="md:col-span-2 lg:col-span-2">
                 <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <select id="category-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                    <option value="all">Alle Kategorien</option>
-                </select>
             </div>
              <div>
                 <select id="location-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
@@ -103,10 +105,11 @@
 
         <!-- Spieletabelle -->
         <div class="overflow-x-auto bg-gray-800 rounded-lg shadow-lg border border-gray-700">
-            <table class="w-full min-w-max">
+            <table id="game-table" class="w-full min-w-max">
                 <thead class="bg-gray-700/50">
                     <tr>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider ean-col">EAN</th>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Kategorie</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Standort</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
@@ -242,17 +245,18 @@
         let allGames = [];
         let currentUser = null;
         let gameIdToDelete = null;
+        let selectedCategories = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             // UI Elemente
             const searchInput = document.getElementById('search-input');
-            const categoryFilter = document.getElementById('category-filter');
             const playersFilter = document.getElementById('players-filter');
             const durationFilter = document.getElementById('duration-filter');
             const locationFilter = document.getElementById('location-filter');
             const ageFilter = document.getElementById('age-filter');
             const statusFilter = document.getElementById('status-filter');
             const tableBody = document.getElementById('game-table-body');
+            const gameTable = document.getElementById('game-table');
             const noResultsDiv = document.getElementById('no-results');
             const loadingStateDiv = document.getElementById('loading-state');
             
@@ -318,11 +322,13 @@
                     userInfo.classList.remove('hidden');
                     adminPanel.classList.remove('hidden');
                     userEmailDisplay.textContent = user.email;
+                    gameTable.classList.add('admin-view');
                 } else {
                     currentUser = null;
                     userInfo.classList.add('hidden');
                     adminPanel.classList.add('hidden');
                     loginView.classList.remove('hidden'); 
+                    gameTable.classList.remove('admin-view');
                 }
                 if (unsubscribe === null) setupGameListener();
                 filterAndRender();
@@ -506,7 +512,9 @@
 
                 let statsHTML = '';
                 Object.keys(categoryCounts).sort().forEach(category => {
-                    statsHTML += `<button data-category="${category}" class="category-stat-btn bg-gray-700 px-3 py-1 rounded-full text-sm whitespace-nowrap hover:bg-gray-600 transition-colors">${category}: ${categoryCounts[category]}</button>`;
+                    const isActive = selectedCategories.includes(category);
+                    const activeClass = isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600';
+                    statsHTML += `<button data-category="${category}" class="category-stat-btn px-3 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${activeClass}">${category}: ${categoryCounts[category]}</button>`;
                 });
                 categoryStatsDiv.innerHTML = statsHTML;
             };
@@ -514,24 +522,18 @@
             document.getElementById('category-stats').addEventListener('click', (e) => {
                 if(e.target.classList.contains('category-stat-btn')) {
                     const category = e.target.dataset.category;
-                    categoryFilter.value = category;
-                    filterAndRender();
+                    const index = selectedCategories.indexOf(category);
+                    if (index > -1) {
+                        selectedCategories.splice(index, 1); // remove
+                    } else {
+                        selectedCategories.push(category); // add
+                    }
+                    renderStats(); // Update button colors
+                    filterAndRender(); // Update table
                 }
             });
 
             const populateFilters = () => {
-                const categories = [...new Set(allGames.map(game => game.category).filter(Boolean))];
-                categories.sort();
-                const currentCategory = categoryFilter.value;
-                categoryFilter.innerHTML = '<option value="all">Alle Kategorien</option>';
-                categories.forEach(category => {
-                    const option = new Option(category, category);
-                    categoryFilter.add(option);
-                });
-                if ([...categoryFilter.options].some(o => o.value === currentCategory)) {
-                    categoryFilter.value = currentCategory;
-                }
-                
                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))];
                 locations.sort();
                 const currentLocation = locationFilter.value;
@@ -564,6 +566,7 @@
 
                     row.innerHTML = `
                         <td class="p-4 font-medium text-white cursor-pointer hover:text-blue-400 game-title-cell">${game.name}</td>
+                        <td class="p-4 font-mono text-sm text-gray-400 ean-col">${game.id}</td>
                         <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                         <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers}-${game.maxPlayers}</td>
@@ -599,7 +602,6 @@
                 if (allGames.length === 0) return;
 
                 const searchTerm = searchInput.value.toLowerCase();
-                const selectedCategory = categoryFilter.value;
                 const selectedLocation = locationFilter.value;
                 const selectedPlayers = parseInt(playersFilter.value, 10);
                 const selectedDuration = parseInt(durationFilter.value, 10);
@@ -608,7 +610,7 @@
 
                 const filteredGames = allGames.filter(game => {
                     const nameMatch = game.name.toLowerCase().includes(searchTerm);
-                    const categoryMatch = selectedCategory === 'all' || game.category === selectedCategory;
+                    const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(game.category);
                     const locationMatch = selectedLocation === 'all' || game.lagerort === selectedLocation;
                     const statusMatch = selectedStatus === 'all' || game.ausleihstatus === selectedStatus;
                     const ageMatch = selectedAge === 0 || (game.minAge && game.minAge >= selectedAge);
@@ -646,7 +648,7 @@
                 }
             };
             
-            [searchInput, categoryFilter, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter].forEach(el => {
+            [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter].forEach(el => {
                 el.addEventListener('input', filterAndRender);
                 el.addEventListener('change', filterAndRender);
             });
