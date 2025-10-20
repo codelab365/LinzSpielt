@@ -24,12 +24,18 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-        /* Styles for Admin-only columns */
-        .ean-col {
+        /* Styles for conditional column visibility */
+        .admin-col {
             display: none;
         }
-        table.admin-view .ean-col {
+        table.admin-view .admin-col {
             display: table-cell;
+        }
+        .public-col {
+            display: table-cell;
+        }
+        table.admin-view .public-col {
+            display: none;
         }
     </style>
 </head>
@@ -109,15 +115,15 @@
                 <thead class="bg-gray-700/50">
                     <tr>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
-                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider ean-col">EAN</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider admin-col">EAN</th>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Kategorie</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Standort</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
-                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Dauer</th>
-                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Alter ab</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider public-col hidden xl:table-cell">Dauer</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider public-col hidden xl:table-cell">Alter ab</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
-                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Aktion</th>
-                        <th class="w-12 p-4"></th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider admin-col">Aktion</th>
+                        <th class="w-12 p-4 admin-col"></th>
                     </tr>
                 </thead>
                 <tbody id="game-table-body" class="divide-y divide-gray-700">
@@ -411,18 +417,30 @@
                     
                     const batch = writeBatch(db);
                     let count = 0;
+                    let notFoundCount = 0;
+                    const gameIds = new Set(allGames.map(g => g.id));
+
                     locations.forEach(item => {
                         if (!item.ean || typeof item.lagerort === 'undefined') {
                             console.warn("Eintrag ohne EAN/Lagerort übersprungen:", item);
                             return;
                         }
-                        const gameRef = doc(db, "games", String(item.ean));
-                        batch.update(gameRef, { lagerort: item.lagerort });
-                        count++;
+                        if (gameIds.has(String(item.ean))) {
+                            const gameRef = doc(db, "games", String(item.ean));
+                            batch.update(gameRef, { lagerort: item.lagerort });
+                            count++;
+                        } else {
+                            console.warn("EAN für Standort-Update nicht gefunden:", item.ean);
+                            notFoundCount++;
+                        }
                     });
 
                     await batch.commit();
-                    locationImportFeedback.textContent = `${count} Standorte erfolgreich aktualisiert!`;
+                    let feedbackText = `${count} Standorte erfolgreich aktualisiert!`;
+                    if (notFoundCount > 0) {
+                        feedbackText += ` (${notFoundCount} EANs nicht gefunden.)`;
+                    }
+                    locationImportFeedback.textContent = feedbackText;
                     locationImportFeedback.className = 'text-green-400 text-sm mt-2';
                     document.getElementById('location-json-data').value = '';
 
@@ -431,7 +449,7 @@
                     locationImportFeedback.textContent = 'Fehler. Prüfen Sie das JSON-Format.';
                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
                 }
-                 setTimeout(() => { locationImportFeedback.textContent = '' }, 4000);
+                 setTimeout(() => { locationImportFeedback.textContent = '' }, 5000);
             });
 
              // --- DATENBANK-LISTENER ---
@@ -562,30 +580,27 @@
                     const statusClasses = isLent ? 'text-red-400' : 'text-green-400';
                     const buttonText = isLent ? 'Zurückgeben' : 'Ausleihen';
                     const buttonClasses = isLent ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-blue-600 hover:bg-blue-500';
-                    const isButtonDisabled = !currentUser;
 
                     row.innerHTML = `
                         <td class="p-4 font-medium text-white cursor-pointer hover:text-blue-400 game-title-cell">${game.name}</td>
-                        <td class="p-4 font-mono text-sm text-gray-400 ean-col">${game.id}</td>
+                        <td class="p-4 font-mono text-sm text-gray-400 admin-col">${game.id}</td>
                         <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                         <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers}-${game.maxPlayers}</td>
-                        <td class="p-4 text-center text-gray-300 hidden xl:table-cell">${game.Duration || '-'} Min.</td>
-                        <td class="p-4 text-center text-gray-300 hidden xl:table-cell">${game.minAge ? game.minAge + '+' : '-'}</td>
+                        <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell">${game.Duration || '-'} Min.</td>
+                        <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell">${game.minAge ? game.minAge + '+' : '-'}</td>
                         <td class="p-4 text-center font-semibold ${statusClasses}">${statusText}</td>
-                        <td class="p-4 text-center">
+                        <td class="p-4 text-center admin-col">
                             <button 
-                                class="status-button w-full sm:w-auto text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm ${buttonClasses} ${isButtonDisabled ? 'disabled-button' : ''}"
-                                ${isButtonDisabled ? 'disabled title="Anmeldung erforderlich"' : ''}>
+                                class="status-button w-full sm:w-auto text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm ${buttonClasses}"
+                                title="Status ändern">
                                 ${buttonText}
                             </button>
                         </td>
-                        <td class="p-4 text-center">
-                            ${currentUser ? `
+                        <td class="p-4 text-center admin-col">
                             <button class="delete-button text-gray-400 hover:text-red-500 transition-colors" title="Spiel löschen">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
-                            ` : ''}
                         </td>
                     `;
                     tableBody.appendChild(row);
@@ -665,7 +680,8 @@
                     return;
                 }
 
-                if (target.classList.contains('status-button') && !target.disabled) {
+                const statusButton = target.closest('.status-button');
+                if (statusButton) {
                     toggleLentStatus(gameId);
                 } else if (target.closest('.game-title-cell')) {
                     const game = allGames.find(g => g.id === gameId);
