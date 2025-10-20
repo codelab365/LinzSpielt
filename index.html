@@ -25,14 +25,21 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* Stile für Hamburger-Menü */
+        .menu-hidden { transform: translateX(100%); }
     </style>
 </head>
 <body class="text-gray-200 p-4 sm:p-6 md:p-8">
 
     <div class="max-w-7xl mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl sm:text-5xl font-bold text-white">Spieleversum</h1>
-            <p class="text-lg text-blue-400">Digitale Spieleausleihe</p>
+        <header class="flex justify-between items-center mb-8">
+            <div class="text-left">
+                <h1 class="text-4xl sm:text-5xl font-bold text-white">Spieleversum</h1>
+                <p class="text-lg text-blue-400">Digitale Spieleausleihe</p>
+            </div>
+            <button id="hamburger-btn" class="p-2 rounded-md hover:bg-blue-900/50 focus:outline-none focus:ring-2 focus:ring-blue-500 z-30">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
         </header>
 
         <!-- Statistik Sektion -->
@@ -124,36 +131,60 @@
         </div>
     </div>
 
-    <!-- Modal für Spieldetails -->
-    <div id="game-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
-        <div id="game-modal-content" class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div class="p-5 border-b border-gray-700">
-                <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+    <!-- Hamburger Menü -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"></div>
+    <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform menu-hidden">
+        <div id="auth-section">
+            <!-- Login Form (default) -->
+            <div id="login-form">
+                <h3 class="text-xl text-white font-bold mb-4">Admin Login</h3>
+                <input type="email" id="login-email" placeholder="E-Mail" class="w-full p-2 mb-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="login-password" placeholder="Passwort" class="w-full p-2 mb-4 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Anmelden</button>
+                <p id="login-error" class="text-red-400 text-sm mt-2"></p>
             </div>
-            <div id="modal-description" class="p-6 text-gray-300 space-y-4 overflow-y-auto"></div>
+            <!-- User Info (when logged in) -->
+            <div id="user-info" class="hidden">
+                 <h3 class="text-xl text-white font-bold mb-2">Angemeldet</h3>
+                 <p id="user-email" class="text-gray-400 mb-4 truncate"></p>
+                 <button id="logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Abmelden</button>
+            </div>
+        </div>
+        <hr class="my-6 border-gray-700">
+        <nav>
+            <ul>
+                <li><button id="impressum-btn" class="text-left w-full py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2">Impressum</button></li>
+                <li><button id="datenschutz-btn" class="text-left w-full py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2">Datenschutz</button></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Universal Modal -->
+    <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+                <h2 id="info-modal-title" class="text-2xl font-bold text-white"></h2>
+                <button id="info-modal-close-btn-x" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="info-modal-content" class="p-6 text-gray-300 space-y-4 overflow-y-auto"></div>
             <div class="p-4 bg-gray-800/50 border-t border-gray-700 text-right">
-                <button id="modal-close-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">Schließen</button>
+                <button id="info-modal-close-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">Schließen</button>
             </div>
         </div>
     </div>
 
+
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
-        // Diese Konfiguration wird automatisch von der Umgebung bereitgestellt.
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET", messagingSenderId: "YOUR_MESSAGING_SENDER_ID", appId: "YOUR_APP_ID"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -163,6 +194,7 @@
         let currentUser = null;
 
         document.addEventListener('DOMContentLoaded', () => {
+            // UI Elemente
             const searchInput = document.getElementById('search-input');
             const categoryFilter = document.getElementById('category-filter');
             const playersFilter = document.getElementById('players-filter');
@@ -170,53 +202,104 @@
             const locationFilter = document.getElementById('location-filter');
             const ageFilter = document.getElementById('age-filter');
             const statusFilter = document.getElementById('status-filter');
-            
             const tableBody = document.getElementById('game-table-body');
             const noResultsDiv = document.getElementById('no-results');
             const loadingStateDiv = document.getElementById('loading-state');
             
-            const modalOverlay = document.getElementById('game-modal-overlay');
-            const modalCloseBtn = document.getElementById('modal-close-btn');
+            // Hamburger Menu
+            const hamburgerBtn = document.getElementById('hamburger-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+
+            // Auth Elemente
+            const loginForm = document.getElementById('login-form');
+            const userInfo = document.getElementById('user-info');
+            const userEmailDisplay = document.getElementById('user-email');
+            const loginBtn = document.getElementById('login-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const loginError = document.getElementById('login-error');
+
+            // Info Modals
+            const infoModalOverlay = document.getElementById('info-modal-overlay');
+            const infoModalTitle = document.getElementById('info-modal-title');
+            const infoModalContent = document.getElementById('info-modal-content');
+            const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
+            const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
+            const impressumBtn = document.getElementById('impressum-btn');
+            const datenschutzBtn = document.getElementById('datenschutz-btn');
+
+            const toggleMenu = (forceClose = false) => {
+                const isHidden = mobileMenu.classList.contains('menu-hidden');
+                if (forceClose || !isHidden) {
+                    mobileMenu.classList.add('menu-hidden');
+                    mobileMenuOverlay.classList.add('hidden');
+                } else {
+                    mobileMenu.classList.remove('menu-hidden');
+                    mobileMenuOverlay.classList.remove('hidden');
+                }
+            };
+            
+            hamburgerBtn.addEventListener('click', () => toggleMenu());
+            mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
 
             // --- AUTHENTIFIZIERUNG ---
             onAuthStateChanged(auth, user => {
-                if (user) {
+                if (user && !user.isAnonymous) {
                     currentUser = user;
-                    console.log("Angemeldet als:", user.uid);
-                    // Sobald der Benutzer angemeldet ist, lauschen wir auf Datenbank-Änderungen
-                    setupGameListener();
+                    console.log("Angemeldet als:", user.email);
+                    loginForm.classList.add('hidden');
+                    userInfo.classList.remove('hidden');
+                    userEmailDisplay.textContent = user.email;
+                    loginError.textContent = '';
                 } else {
                     currentUser = null;
-                    console.log("Benutzer abgemeldet. Anonyme Anmeldung wird versucht.");
-                    // Versuche, anonym anzumelden, falls kein Token da ist.
-                    if (typeof __initial_auth_token !== 'undefined') {
-                        signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        signInAnonymously(auth).catch(error => {
-                            console.error("Fehler bei anonymer Anmeldung:", error);
-                        });
+                    loginForm.classList.remove('hidden');
+                    userInfo.classList.add('hidden');
+                    userEmailDisplay.textContent = '';
+                    
+                    // Anonyme Anmeldung als Fallback für Lesezugriff
+                    if (!auth.currentUser && typeof __initial_auth_token === 'undefined') {
+                         signInAnonymously(auth).catch(error => console.error("Fehler bei anonymer Anmeldung:", error));
                     }
                 }
-                filterAndRender(); // Neu rendern, um Button-Status zu aktualisieren
+                if (!allGames.length) setupGameListener(); // Listener starten, sobald Auth-Status klar ist
+                filterAndRender(); // Buttons (de)aktivieren
+            });
+
+            loginBtn.addEventListener('click', () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                loginError.textContent = '';
+                signInWithEmailAndPassword(auth, email, password)
+                    .then(userCredential => {
+                        console.log("Erfolgreich angemeldet:", userCredential.user.email);
+                        toggleMenu(true);
+                    })
+                    .catch(error => {
+                        console.error("Login-Fehler:", error.code);
+                        loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
+                    });
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                signOut(auth).then(() => {
+                    console.log("Erfolgreich abgemeldet.");
+                    toggleMenu(true);
+                }).catch(error => console.error("Abmelde-Fehler:", error));
             });
 
 
             // --- DATENBANK-LISTENER ---
+            let unsubscribe = null;
             const setupGameListener = () => {
+                if (unsubscribe) unsubscribe(); // Alten listener entfernen
                 const gamesCollection = collection(db, "games");
-                onSnapshot(gamesCollection, (snapshot) => {
-                    allGames = snapshot.docs.map(doc => ({
-                        id: doc.id, // Die EAN ist die Dokumenten-ID
-                        ...doc.data()
-                    }));
+                unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
+                    allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     allGames.sort((a, b) => a.name.localeCompare(b.name));
                     
                     loadingStateDiv.classList.add('hidden');
-                    
-                    // Filter nur einmal initial befüllen
-                    if (categoryFilter.length <= 1) {
-                         populateFilters();
-                    }
+                    if (categoryFilter.length <= 1) populateFilters();
                    
                     renderStats();
                     filterAndRender();
@@ -226,7 +309,53 @@
                 });
             };
 
-            const renderStats = () => {
+            const renderStats = () => { /* ... unverändert ... */ };
+            const populateFilters = () => { /* ... unverändert ... */ };
+            const renderTable = (filteredGames) => { /* ... unverändert ... */ };
+            const filterAndRender = () => { /* ... unverändert ... */ };
+            const toggleLentStatus = async (gameId) => { /* ... unverändert ... */ };
+
+            // --- INFO MODAL LOGIC ---
+            const showInfoModal = (title, content) => {
+                infoModalTitle.textContent = title;
+                infoModalContent.innerHTML = content;
+                infoModalOverlay.classList.remove('hidden');
+            };
+            const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
+
+            infoModalCloseBtn.addEventListener('click', hideInfoModal);
+            infoModalCloseBtnX.addEventListener('click', hideInfoModal);
+            infoModalOverlay.addEventListener('click', (e) => {
+                if (e.target === infoModalOverlay) hideInfoModal();
+            });
+
+            impressumBtn.addEventListener('click', () => {
+                const content = `
+                    <p>Diese Webseite ist ein Teilprojekt des Vereins Spieleversum.</p>
+                    <p class="mt-4">Für alle rechtlichen Informationen, einschließlich der Offenlegung gemäß § 25 Mediengesetz und Angaben gemäß § 5 ECG, verweisen wir auf das offizielle Impressum unserer Hauptseite:</p>
+                    <a href="https://spieleversum.at/impressum/" target="_blank" class="text-blue-400 hover:underline mt-2 inline-block">Zum Impressum auf spieleversum.at</a>
+                `;
+                showInfoModal("Impressum", content);
+                toggleMenu(true);
+            });
+
+            datenschutzBtn.addEventListener('click', () => {
+                const content = `
+                    <p>Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst. Diese Anwendung nutzt für die Authentifizierung von Administratoren und zur Speicherung der Spieledaten die Firebase-Dienste von Google.</p>
+                    <p class="mt-2">Der verwendete Serverstandort für die Firebase Datenbank (Firestore) befindet sich in Frankfurt, Deutschland.</p>
+                     <p class="mt-4">Für eine vollständige Übersicht über die Verarbeitung Ihrer Daten verweisen wir auf die offizielle Datenschutzerklärung unserer Hauptseite:</p>
+                    <a href="https://spieleversum.at/datenschutz/" target="_blank" class="text-blue-400 hover:underline mt-2 inline-block">Zur Datenschutzerklärung auf spieleversum.at</a>
+                `;
+                showInfoModal("Datenschutzerklärung", content);
+                toggleMenu(true);
+            });
+
+
+            // Initialisierungs- und Event-Listener-Code bleibt größtenteils gleich
+            // ... (restlicher Code von renderStats, populateFilters, renderTable, filterAndRender etc.)
+            // Der Code wurde zur Übersichtlichkeit gekürzt, die Funktionen sind aber noch vorhanden.
+            // Die Platzhalter-Kommentare sind nur zur Orientierung hier.
+            const originalRenderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
                 if (!totalGamesDiv || !categoryStatsDiv) return;
@@ -246,7 +375,7 @@
                 categoryStatsDiv.innerHTML = statsHTML;
             };
 
-            const populateFilters = () => {
+            const originalPopulateFilters = () => {
                 const categories = [...new Set(allGames.map(game => game.category).filter(Boolean))];
                 categories.sort();
                 categoryFilter.innerHTML = '<option value="all">Alle Kategorien</option>';
@@ -264,7 +393,7 @@
                 });
             };
             
-            const renderTable = (filteredGames) => {
+            const originalRenderTable = (filteredGames) => {
                 tableBody.innerHTML = '';
                 noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
 
@@ -279,7 +408,7 @@
                     const statusClasses = isLent ? 'text-red-400' : 'text-green-400';
                     const buttonText = isLent ? 'Zurückgeben' : 'Ausleihen';
                     const buttonClasses = isLent ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-blue-600 hover:bg-blue-500';
-                    const isButtonDisabled = !currentUser; // Button deaktiviert, wenn niemand angemeldet ist
+                    const isButtonDisabled = !currentUser;
 
                     row.innerHTML = `
                         <td class="p-4 font-medium text-white cursor-pointer hover:text-blue-400 game-title-cell">${game.name}</td>
@@ -300,12 +429,11 @@
                 });
             };
 
-            const filterAndRender = () => {
+            const originalFilterAndRender = () => {
                 if (!allGames.length) {
                     renderTable([]);
                     return;
                 }
-
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedCategory = categoryFilter.value;
                 const selectedLocation = locationFilter.value;
@@ -336,19 +464,10 @@
                 renderTable(filteredGames);
             };
 
-            const showModal = (game) => {
-                document.getElementById('modal-title').textContent = game.name;
-                document.getElementById('modal-description').innerHTML = game.description || 'Keine Beschreibung verfügbar.';
-                modalOverlay.classList.remove('hidden');
-            };
-
-            const hideModal = () => {
-                modalOverlay.classList.add('hidden');
-            };
-
-            const toggleLentStatus = async (gameId) => {
+            const originalToggleLentStatus = async (gameId) => {
                 if (!currentUser) {
-                    alert("Bitte melden Sie sich an, um den Status zu ändern.");
+                    // Verwenden Sie ein benutzerdefiniertes Modal anstelle von alert()
+                    showInfoModal("Fehler", "<p>Bitte melden Sie sich an, um den Status zu ändern.</p>");
                     return;
                 }
                 const game = allGames.find(g => g.id === gameId);
@@ -357,15 +476,20 @@
                     const gameRef = doc(db, "games", gameId);
                     try {
                         await updateDoc(gameRef, { ausleihstatus: newStatus });
-                        // Das onSnapshot-Update rendert die Tabelle automatisch neu.
                     } catch (error) {
                         console.error("Fehler beim Aktualisieren des Status: ", error);
-                        alert("Der Status konnte nicht geändert werden. Bitte versuchen Sie es erneut.");
+                        showInfoModal("Fehler", "<p>Der Status konnte nicht geändert werden. Bitte versuchen Sie es erneut.</p>");
                     }
                 }
             };
+            
+            // Alte Funktionen wiederherstellen
+            const renderStats = originalRenderStats;
+            const populateFilters = originalPopulateFilters;
+            const renderTable = originalRenderTable;
+            const filterAndRender = originalFilterAndRender;
+            const toggleLentStatus = originalToggleLentStatus;
 
-            // Event Listeners
             [searchInput, categoryFilter, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter].forEach(el => {
                 el.addEventListener('input', filterAndRender);
                 el.addEventListener('change', filterAndRender);
@@ -382,14 +506,12 @@
                     toggleLentStatus(gameId);
                 } else if (target.closest('.game-title-cell')) {
                     const game = allGames.find(g => g.id === gameId);
-                    if (game) showModal(game);
+                    if (game) {
+                         showInfoModal(game.name, game.description || 'Keine Beschreibung verfügbar.');
+                    }
                 }
             });
-            
-            modalCloseBtn.addEventListener('click', hideModal);
-            modalOverlay.addEventListener('click', (event) => {
-                if (event.target === modalOverlay) hideModal();
-            });
+
         });
     </script>
 </body>
