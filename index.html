@@ -25,9 +25,6 @@
             cursor: not-allowed;
         }
         .menu-hidden { transform: translateX(100%); }
-        .password-rules { font-size: 0.8rem; }
-        .password-rules li.valid { color: #4ade80; } /* green-400 */
-        .password-rules li.invalid { color: #f87171; } /* red-400 */
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
@@ -143,23 +140,8 @@
                 <input type="password" id="login-password" placeholder="Passwort" class="w-full p-2 mb-4 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Anmelden</button>
                 <p id="login-error" class="text-red-400 text-sm mt-2"></p>
-                <button id="show-register-btn" class="text-center w-full mt-4 text-sm text-blue-400 hover:underline">Noch kein Konto? Registrieren</button>
             </div>
-            <!-- Register Form -->
-            <div id="register-view" class="hidden">
-                <h3 class="text-xl text-white font-bold mb-4">Admin Registrierung</h3>
-                <input type="email" id="register-email" placeholder="E-Mail" class="w-full p-2 mb-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="password" id="register-password" placeholder="Passwort" class="w-full p-2 mb-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <ul id="password-rules-list" class="password-rules text-gray-400 mb-4 pl-1 space-y-1">
-                    <li id="rule-length" class="invalid">Mindestens 8 Zeichen</li>
-                    <li id="rule-uppercase" class="invalid">Ein Großbuchstabe</li>
-                    <li id="rule-number" class="invalid">Eine Zahl</li>
-                    <li id="rule-special" class="invalid">Ein Sonderzeichen</li>
-                </ul>
-                <button id="register-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled-button" disabled>Registrieren</button>
-                <p id="register-error" class="text-red-400 text-sm mt-2"></p>
-                 <button id="show-login-btn" class="text-center w-full mt-4 text-sm text-blue-400 hover:underline">Bereits ein Konto? Anmelden</button>
-            </div>
+           
             <!-- User Info (when logged in) -->
             <div id="user-info" class="hidden">
                  <h3 class="text-xl text-white font-bold mb-2">Angemeldet</h3>
@@ -179,26 +161,24 @@
         </div>
         <hr class="my-6 border-gray-700">
         <nav>
-            <ul class="space-y-1">
-                <li><button id="impressum-btn" class="text-left w-full py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2">Impressum (Diese App)</button></li>
-                <li class="pl-4">
-                     <a href="https://spieleversum.at/impressum/" target="_blank" class="flex items-center text-sm text-gray-400 hover:text-blue-400 hover:underline">
-                        Vereins-Impressum
-                        <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            <ul class="space-y-2">
+                <li>
+                     <a href="https://spieleversum.at/impressum/" target="_blank" class="flex items-center text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2 py-2">
+                        Impressum
+                        <svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     </a>
                 </li>
-                <li class="pt-2"><button id="datenschutz-btn" class="text-left w-full py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2">Datenschutz (Diese App)</button></li>
-                <li class="pl-4">
-                     <a href="https://spieleversum.at/datenschutz/" target="_blank" class="flex items-center text-sm text-gray-400 hover:text-blue-400 hover:underline">
-                        Vereins-Datenschutz
-                        <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                <li>
+                     <a href="https://spieleversum.at/datenschutz/" target="_blank" class="flex items-center text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2 py-2">
+                        Datenschutz
+                        <svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     </a>
                 </li>
             </ul>
         </nav>
     </div>
 
-    <!-- Universal Modal -->
+    <!-- Universal Modal for Game Details -->
     <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
             <div class="p-5 border-b border-gray-700 flex justify-between items-center">
@@ -216,8 +196,8 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
@@ -257,20 +237,14 @@
 
             // Auth Ansichten
             const loginView = document.getElementById('login-view');
-            const registerView = document.getElementById('register-view');
             const userInfo = document.getElementById('user-info');
             
             // Auth Buttons & Formulare
-            const showRegisterBtn = document.getElementById('show-register-btn');
-            const showLoginBtn = document.getElementById('show-login-btn');
             const loginBtn = document.getElementById('login-btn');
             const logoutBtn = document.getElementById('logout-btn');
-            const registerBtn = document.getElementById('register-btn');
-            const registerPasswordInput = document.getElementById('register-password');
             
             // Auth Feedback
             const loginError = document.getElementById('login-error');
-            const registerError = document.getElementById('register-error');
             const userEmailDisplay = document.getElementById('user-email');
 
             // Admin Panel
@@ -284,8 +258,6 @@
             const infoModalContent = document.getElementById('info-modal-content');
             const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
             const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
-            const impressumBtn = document.getElementById('impressum-btn');
-            const datenschutzBtn = document.getElementById('datenschutz-btn');
 
             const toggleMenu = (forceClose = false) => {
                 const isHidden = mobileMenu.classList.contains('menu-hidden');
@@ -306,7 +278,6 @@
                 if (user && !user.isAnonymous) {
                     currentUser = user;
                     loginView.classList.add('hidden');
-                    registerView.classList.add('hidden');
                     userInfo.classList.remove('hidden');
                     adminPanel.classList.remove('hidden');
                     userEmailDisplay.textContent = user.email;
@@ -314,88 +285,35 @@
                     currentUser = null;
                     userInfo.classList.add('hidden');
                     adminPanel.classList.add('hidden');
-                    loginView.classList.remove('hidden'); // Standardansicht
+                    loginView.classList.remove('hidden'); 
                 }
-                if (!allGames.length) setupGameListener();
+                if (unsubscribe === null) setupGameListener();
                 filterAndRender();
             });
 
-            // Umschalten zwischen Login und Registrierung
-            showRegisterBtn.addEventListener('click', () => {
-                loginView.classList.add('hidden');
-                registerView.classList.remove('hidden');
-                loginError.textContent = '';
-            });
-             showLoginBtn.addEventListener('click', () => {
-                registerView.classList.add('hidden');
-                loginView.classList.remove('hidden');
-                registerError.textContent = '';
-            });
-
-
             // Login
-            loginBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
-
-            // Passwort-Validierung
-            const validatePassword = () => {
-                const password = registerPasswordInput.value;
-                const rules = {
-                    length: password.length >= 8,
-                    uppercase: /[A-Z]/.test(password),
-                    number: /[0-9]/.test(password),
-                    special: /[\W_]/.test(password) // Non-word character or underscore
-                };
-
-                document.getElementById('rule-length').className = rules.length ? 'valid' : 'invalid';
-                document.getElementById('rule-uppercase').className = rules.uppercase ? 'valid' : 'invalid';
-                document.getElementById('rule-number').className = rules.number ? 'valid' : 'invalid';
-                document.getElementById('rule-special').className = rules.special ? 'valid' : 'invalid';
-                
-                const allValid = Object.values(rules).every(Boolean);
-                if (allValid) {
-                    registerBtn.disabled = false;
-                    registerBtn.classList.remove('disabled-button');
-                } else {
-                    registerBtn.disabled = true;
-                    registerBtn.classList.add('disabled-button');
-                }
-                return allValid;
-            };
-            registerPasswordInput.addEventListener('input', validatePassword);
-
-
-            // Registrierung
-            registerBtn.addEventListener('click', () => {
-                if (!validatePassword()) return;
-
-                const email = document.getElementById('register-email').value;
-                const password = registerPasswordInput.value;
-                registerError.textContent = '';
-
-                createUserWithEmailAndPassword(auth, email, password)
-                    .then((userCredential) => {
-                        registerError.textContent = 'Erfolgreich registriert! Eine Bestätigungs-E-Mail wurde gesendet.';
-                        registerError.classList.remove('text-red-400');
-                        registerError.classList.add('text-green-400');
-                        sendEmailVerification(auth.currentUser);
-                        setTimeout(() => {
-                           showLoginBtn.click(); // Zurück zum Login
-                           registerError.textContent = '';
-                           registerError.classList.remove('text-green-400');
-                           registerError.classList.add('text-red-400');
-                        }, 3000);
+            loginBtn.addEventListener('click', () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                loginError.textContent = '';
+                signInWithEmailAndPassword(auth, email, password)
+                    .then(userCredential => {
+                        console.log("Erfolgreich angemeldet:", userCredential.user.email);
+                        toggleMenu(true);
                     })
-                    .catch((error) => {
-                        if (error.code === 'auth/email-already-in-use') {
-                             registerError.textContent = 'Diese E-Mail-Adresse wird bereits verwendet.';
-                        } else {
-                             registerError.textContent = 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.';
-                        }
+                    .catch(error => {
+                        console.error("Login-Fehler:", error.code);
+                        loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
                     });
             });
 
             // Logout
-            logoutBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
+            logoutBtn.addEventListener('click', () => {
+                 signOut(auth).then(() => {
+                    console.log("Erfolgreich abgemeldet.");
+                    toggleMenu(true);
+                }).catch(error => console.error("Abmelde-Fehler:", error));
+            });
             
             // --- ADMIN FUNKTIONEN ---
             importJsonBtn.addEventListener('click', async () => {
@@ -415,7 +333,7 @@
                     games.forEach(game => {
                         if (!game.ean) {
                             console.warn("Spiel ohne EAN übersprungen:", game.name);
-                            return; // Spiel ohne EAN kann nicht importiert werden
+                            return; 
                         }
                         const gameRef = doc(db, "games", String(game.ean));
                         batch.set(gameRef, game);
@@ -438,51 +356,15 @@
 
             // --- DATENBANK-LISTENER ---
             let unsubscribe = null;
-            const setupGameListener = () => { /* ... (unverändert) ... */ };
-
-            // --- INFO MODAL LOGIC ---
-            const showInfoModal = (title, content) => { /* ... (unverändert) ... */ };
-            const hideInfoModal = () => { /* ... (unverändert) ... */ };
-            
-            // --- RENDER & FILTER FUNKTIONEN ---
-            // Die Logik dieser Funktionen (renderStats, populateFilters, etc.) bleibt identisch
-            // zum vorherigen Stand und wird hier zur Übersichtlichkeit nicht wiederholt.
-            // ... (Hier stand der gesamte Block mit renderStats, populateFilters, renderTable, filterAndRender, etc.)
-
-            // Kopie der Funktionen aus der vorherigen Version, um sicherzustellen, dass sie da sind.
-             const originalLoginBtnListener = () => {
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                loginError.textContent = '';
-                signInWithEmailAndPassword(auth, email, password)
-                    .then(userCredential => {
-                        console.log("Erfolgreich angemeldet:", userCredential.user.email);
-                        toggleMenu(true);
-                    })
-                    .catch(error => {
-                        console.error("Login-Fehler:", error.code);
-                        loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
-                    });
-            };
-            loginBtn.addEventListener('click', originalLoginBtnListener);
-            
-            const originalLogoutBtnListener = () => {
-                signOut(auth).then(() => {
-                    console.log("Erfolgreich abgemeldet.");
-                    toggleMenu(true);
-                }).catch(error => console.error("Abmelde-Fehler:", error));
-            };
-            logoutBtn.addEventListener('click', originalLogoutBtnListener);
-
-            const originalSetupGameListener = () => {
-                if (unsubscribe) unsubscribe(); // Alten listener entfernen
+            const setupGameListener = () => {
+                if (unsubscribe) unsubscribe(); 
                 const gamesCollection = collection(db, "games");
                 unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
                     allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     allGames.sort((a, b) => a.name.localeCompare(b.name));
                     
                     loadingStateDiv.classList.add('hidden');
-                    if (categoryFilter.length <= 1) populateFilters();
+                    populateFilters();
                    
                     renderStats();
                     filterAndRender();
@@ -491,43 +373,22 @@
                     loadingStateDiv.textContent = "Fehler beim Laden der Daten.";
                 });
             };
-            const setupGameListener = originalSetupGameListener;
 
-            const originalShowInfoModal = (title, content) => {
+            // --- INFO MODAL LOGIC ---
+            const showInfoModal = (title, content) => {
                 infoModalTitle.textContent = title;
                 infoModalContent.innerHTML = content;
                 infoModalOverlay.classList.remove('hidden');
             };
-            const showInfoModal = originalShowInfoModal;
-            const originalHideInfoModal = () => infoModalOverlay.classList.add('hidden');
+            const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
 
-            infoModalCloseBtn.addEventListener('click', originalHideInfoModal);
-            infoModalCloseBtnX.addEventListener('click', originalHideInfoModal);
+            infoModalCloseBtn.addEventListener('click', hideInfoModal);
+            infoModalCloseBtnX.addEventListener('click', hideInfoModal);
             infoModalOverlay.addEventListener('click', (e) => {
-                if (e.target === infoModalOverlay) originalHideInfoModal();
-            });
-
-            impressumBtn.addEventListener('click', () => {
-                const content = `
-                    <p>Diese Webseite ist ein Teilprojekt des Vereins Spieleversum.</p>
-                    <p class="mt-4">Für alle rechtlichen Informationen, einschließlich der Offenlegung gemäß § 25 Mediengesetz und Angaben gemäß § 5 ECG, verweisen wir auf das offizielle Impressum unserer Hauptseite:</p>
-                    <a href="https://spieleversum.at/impressum/" target="_blank" class="text-blue-400 hover:underline mt-2 inline-block">Zum Impressum auf spieleversum.at</a>
-                `;
-                showInfoModal("Impressum", content);
-                toggleMenu(true);
-            });
-            datenschutzBtn.addEventListener('click', () => {
-                const content = `
-                    <p>Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst. Diese Anwendung nutzt für die Authentifizierung von Administratoren und zur Speicherung der Spieledaten die Firebase-Dienste von Google.</p>
-                    <p class="mt-2">Der verwendete Serverstandort für die Firebase Datenbank (Firestore) befindet sich in Frankfurt, Deutschland.</p>
-                     <p class="mt-4">Für eine vollständige Übersicht über die Verarbeitung Ihrer Daten verweisen wir auf die offizielle Datenschutzerklärung unserer Hauptseite:</p>
-                    <a href="https://spieleversum.at/datenschutz/" target="_blank" class="text-blue-400 hover:underline mt-2 inline-block">Zur Datenschutzerklärung auf spieleversum.at</a>
-                `;
-                showInfoModal("Datenschutzerklärung", content);
-                toggleMenu(true);
+                if (e.target === infoModalOverlay) hideInfoModal();
             });
             
-            const originalRenderStats = () => {
+            const renderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
                 if (!totalGamesDiv || !categoryStatsDiv) return;
@@ -547,25 +408,29 @@
                 categoryStatsDiv.innerHTML = statsHTML;
             };
 
-            const originalPopulateFilters = () => {
+            const populateFilters = () => {
                 const categories = [...new Set(allGames.map(game => game.category).filter(Boolean))];
                 categories.sort();
+                const currentCategory = categoryFilter.value;
                 categoryFilter.innerHTML = '<option value="all">Alle Kategorien</option>';
                 categories.forEach(category => {
                     const option = new Option(category, category);
                     categoryFilter.add(option);
                 });
+                categoryFilter.value = currentCategory;
                 
                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))];
                 locations.sort();
+                const currentLocation = locationFilter.value;
                 locationFilter.innerHTML = '<option value="all">Alle Standorte</option>';
                  locations.forEach(location => {
                     const option = new Option(location, location);
                     locationFilter.add(option);
                 });
+                locationFilter.value = currentLocation;
             };
             
-            const originalRenderTable = (filteredGames) => {
+            const renderTable = (filteredGames) => {
                 tableBody.innerHTML = '';
                 noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
 
@@ -601,11 +466,15 @@
                 });
             };
 
-            const originalFilterAndRender = () => {
-                if (!allGames.length) {
+            const filterAndRender = () => {
+                if (allGames.length === 0 && unsubscribe !== null) {
+                    loadingStateDiv.classList.add('hidden');
+                    noResultsDiv.classList.remove('hidden');
                     renderTable([]);
                     return;
-                }
+                };
+                if (allGames.length === 0) return;
+
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedCategory = categoryFilter.value;
                 const selectedLocation = locationFilter.value;
@@ -636,7 +505,7 @@
                 renderTable(filteredGames);
             };
 
-            const originalToggleLentStatus = async (gameId) => {
+            const toggleLentStatus = async (gameId) => {
                 if (!currentUser) {
                     showInfoModal("Fehler", "<p>Bitte melden Sie sich an, um den Status zu ändern.</p>");
                     return;
@@ -654,12 +523,6 @@
                 }
             };
             
-            const renderStats = originalRenderStats;
-            const populateFilters = originalPopulateFilters;
-            const renderTable = originalRenderTable;
-            const filterAndRender = originalFilterAndRender;
-            const toggleLentStatus = originalToggleLentStatus;
-
             [searchInput, categoryFilter, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter].forEach(el => {
                 el.addEventListener('input', filterAndRender);
                 el.addEventListener('change', filterAndRender);
@@ -684,5 +547,4 @@
     </script>
 </body>
 </html>
-
 
