@@ -111,6 +111,7 @@
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Standort</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Dauer</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Alter ab</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Aktion</th>
                     </tr>
@@ -151,11 +152,19 @@
         <div id="admin-panel" class="hidden">
             <hr class="my-6 border-gray-700">
             <h3 class="text-xl text-white font-bold mb-4">Admin-Bereich</h3>
-            <div class="space-y-2">
-                <label for="json-import-data" class="text-sm text-gray-400">Spiele-JSON hier einfügen:</label>
-                <textarea id="json-import-data" rows="5" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                <button id="import-json-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Spiele importieren</button>
-                <p id="import-feedback" class="text-sm mt-2"></p>
+            <div class="space-y-4">
+                <div>
+                    <label for="json-import-data" class="text-sm text-gray-400">Neues Spiel importieren (JSON):</label>
+                    <textarea id="json-import-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <button id="import-json-btn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Spiele importieren</button>
+                    <p id="import-feedback" class="text-sm mt-2"></p>
+                </div>
+                <div>
+                    <label for="location-json-data" class="text-sm text-gray-400">Standorte aktualisieren (JSON):</label>
+                    <textarea id="location-json-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder='[{"ean": "123...", "lagerort": "Regal A"}]'></textarea>
+                    <button id="import-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Standorte aktualisieren</button>
+                    <p id="location-import-feedback" class="text-sm mt-2"></p>
+                </div>
             </div>
         </div>
         <hr class="my-6 border-gray-700">
@@ -250,6 +259,8 @@
             const adminPanel = document.getElementById('admin-panel');
             const importJsonBtn = document.getElementById('import-json-btn');
             const importFeedback = document.getElementById('import-feedback');
+            const importLocationBtn = document.getElementById('import-location-btn');
+            const locationImportFeedback = document.getElementById('location-import-feedback');
 
             // Info Modals
             const infoModalOverlay = document.getElementById('info-modal-overlay');
@@ -261,12 +272,10 @@
             const toggleMenu = (forceClose = false) => {
                 const isHidden = mobileMenu.classList.contains('translate-x-full');
                 if (forceClose || !isHidden) {
-                    // Close menu
                     mobileMenu.classList.add('translate-x-full');
                     mobileMenu.classList.remove('translate-x-0');
                     mobileMenuOverlay.classList.add('hidden');
                 } else {
-                    // Open menu
                     mobileMenu.classList.remove('translate-x-full');
                     mobileMenu.classList.add('translate-x-0');
                     mobileMenuOverlay.classList.remove('hidden');
@@ -321,6 +330,7 @@
             // --- ADMIN FUNKTIONEN ---
             importJsonBtn.addEventListener('click', async () => {
                 const jsonData = document.getElementById('json-import-data').value;
+                importFeedback.textContent = '';
                 if (!jsonData.trim()) {
                     importFeedback.textContent = 'Bitte JSON-Daten einfügen.';
                     importFeedback.className = 'text-red-400 text-sm mt-2';
@@ -344,7 +354,7 @@
                     });
 
                     await batch.commit();
-                    importFeedback.textContent = `${count} Spiele erfolgreich importiert!`;
+                    importFeedback.textContent = `${count} Spiele erfolgreich importiert/überschrieben!`;
                     importFeedback.className = 'text-green-400 text-sm mt-2';
                     document.getElementById('json-import-data').value = '';
 
@@ -354,6 +364,43 @@
                     importFeedback.className = 'text-red-400 text-sm mt-2';
                 }
                  setTimeout(() => { importFeedback.textContent = '' }, 4000);
+            });
+
+            importLocationBtn.addEventListener('click', async () => {
+                const jsonData = document.getElementById('location-json-data').value;
+                locationImportFeedback.textContent = '';
+                if (!jsonData.trim()) {
+                    locationImportFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                    locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                    return;
+                }
+                try {
+                    const locations = JSON.parse(jsonData);
+                    if (!Array.isArray(locations)) throw new Error("JSON muss ein Array sein.");
+                    
+                    const batch = writeBatch(db);
+                    let count = 0;
+                    locations.forEach(item => {
+                        if (!item.ean || typeof item.lagerort === 'undefined') {
+                            console.warn("Eintrag ohne EAN/Lagerort übersprungen:", item);
+                            return;
+                        }
+                        const gameRef = doc(db, "games", String(item.ean));
+                        batch.update(gameRef, { lagerort: item.lagerort });
+                        count++;
+                    });
+
+                    await batch.commit();
+                    locationImportFeedback.textContent = `${count} Standorte erfolgreich aktualisiert!`;
+                    locationImportFeedback.className = 'text-green-400 text-sm mt-2';
+                    document.getElementById('location-json-data').value = '';
+
+                } catch(error) {
+                    console.error("Standort-Import Fehler:", error);
+                    locationImportFeedback.textContent = 'Fehler. Prüfen Sie das JSON-Format.';
+                    locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                }
+                 setTimeout(() => { locationImportFeedback.textContent = '' }, 4000);
             });
 
 
@@ -406,10 +453,18 @@
 
                 let statsHTML = '';
                 Object.keys(categoryCounts).sort().forEach(category => {
-                    statsHTML += `<span class="bg-gray-700 px-3 py-1 rounded-full text-sm whitespace-nowrap">${category}: ${categoryCounts[category]}</span>`;
+                    statsHTML += `<button data-category="${category}" class="category-stat-btn bg-gray-700 px-3 py-1 rounded-full text-sm whitespace-nowrap hover:bg-gray-600 transition-colors">${category}: ${categoryCounts[category]}</button>`;
                 });
                 categoryStatsDiv.innerHTML = statsHTML;
             };
+
+            document.getElementById('category-stats').addEventListener('click', (e) => {
+                if(e.target.classList.contains('category-stat-btn')) {
+                    const category = e.target.dataset.category;
+                    categoryFilter.value = category;
+                    filterAndRender();
+                }
+            });
 
             const populateFilters = () => {
                 const categories = [...new Set(allGames.map(game => game.category).filter(Boolean))];
@@ -420,7 +475,9 @@
                     const option = new Option(category, category);
                     categoryFilter.add(option);
                 });
-                categoryFilter.value = currentCategory;
+                if ([...categoryFilter.options].some(o => o.value === currentCategory)) {
+                    categoryFilter.value = currentCategory;
+                }
                 
                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))];
                 locations.sort();
@@ -430,7 +487,9 @@
                     const option = new Option(location, location);
                     locationFilter.add(option);
                 });
-                locationFilter.value = currentLocation;
+                 if ([...locationFilter.options].some(o => o.value === currentLocation)) {
+                    locationFilter.value = currentLocation;
+                }
             };
             
             const renderTable = (filteredGames) => {
@@ -456,6 +515,7 @@
                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                         <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers}-${game.maxPlayers}</td>
                         <td class="p-4 text-center text-gray-300 hidden xl:table-cell">${game.Duration || '-'} Min.</td>
+                        <td class="p-4 text-center text-gray-300 hidden xl:table-cell">${game.minAge ? game.minAge + '+' : '-'}</td>
                         <td class="p-4 text-center font-semibold ${statusClasses}">${statusText}</td>
                         <td class="p-4 text-center">
                             <button 
