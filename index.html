@@ -114,6 +114,7 @@
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden xl:table-cell">Alter ab</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Aktion</th>
+                        <th class="w-12 p-4"></th>
                     </tr>
                 </thead>
                 <tbody id="game-table-body" class="divide-y divide-gray-700">
@@ -199,13 +200,29 @@
             </div>
         </div>
     </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full">
+            <div class="p-5 border-b border-gray-700">
+                <h2 class="text-xl font-bold text-white">Löschen bestätigen</h2>
+            </div>
+            <div class="p-6 text-gray-300">
+                <p>Sind Sie sicher, dass Sie das Spiel "<span id="game-to-delete-name" class="font-bold"></span>" endgültig löschen möchten?</p>
+            </div>
+            <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-end gap-4">
+                <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition-colors">Abbrechen</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors">Löschen</button>
+            </div>
+        </div>
+    </div>
 
 
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
@@ -224,6 +241,7 @@
         // Globale Variablen
         let allGames = [];
         let currentUser = null;
+        let gameIdToDelete = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             // UI Elemente
@@ -268,6 +286,13 @@
             const infoModalContent = document.getElementById('info-modal-content');
             const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
             const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
+
+            // Delete Modal
+            const deleteConfirmModalOverlay = document.getElementById('delete-confirm-modal-overlay');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const gameToDeleteNameSpan = document.getElementById('game-to-delete-name');
+
 
             const toggleMenu = (forceClose = false) => {
                 const isHidden = mobileMenu.classList.contains('translate-x-full');
@@ -403,8 +428,7 @@
                  setTimeout(() => { locationImportFeedback.textContent = '' }, 4000);
             });
 
-
-            // --- DATENBANK-LISTENER ---
+             // --- DATENBANK-LISTENER ---
             let unsubscribe = null;
             const setupGameListener = () => {
                 if (unsubscribe) unsubscribe(); 
@@ -424,7 +448,7 @@
                 });
             };
 
-            // --- INFO MODAL LOGIC ---
+            // --- MODAL LOGIC (Info & Delete) ---
             const showInfoModal = (title, content) => {
                 infoModalTitle.textContent = title;
                 infoModalContent.innerHTML = content;
@@ -437,6 +461,35 @@
             infoModalOverlay.addEventListener('click', (e) => {
                 if (e.target === infoModalOverlay) hideInfoModal();
             });
+
+            const showDeleteModal = (gameId) => {
+                const game = allGames.find(g => g.id === gameId);
+                if (game) {
+                    gameIdToDelete = gameId;
+                    gameToDeleteNameSpan.textContent = game.name;
+                    deleteConfirmModalOverlay.classList.remove('hidden');
+                }
+            };
+            const hideDeleteModal = () => {
+                deleteConfirmModalOverlay.classList.add('hidden');
+                gameIdToDelete = null;
+            };
+
+            cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+            confirmDeleteBtn.addEventListener('click', async () => {
+                if (gameIdToDelete) {
+                    try {
+                        await deleteDoc(doc(db, "games", gameIdToDelete));
+                        console.log("Spiel gelöscht:", gameIdToDelete);
+                    } catch (error) {
+                        console.error("Fehler beim Löschen:", error);
+                        showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden.");
+                    } finally {
+                        hideDeleteModal();
+                    }
+                }
+            });
+
             
             const renderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
@@ -524,6 +577,13 @@
                                 ${buttonText}
                             </button>
                         </td>
+                        <td class="p-4 text-center">
+                            ${currentUser ? `
+                            <button class="delete-button text-gray-400 hover:text-red-500 transition-colors" title="Spiel löschen">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                            ` : ''}
+                        </td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -596,6 +656,13 @@
                 const gameRow = target.closest('tr');
                 if (!gameRow) return;
                 const gameId = gameRow.dataset.gameId;
+
+                const deleteButton = target.closest('.delete-button');
+                if (deleteButton) {
+                    showDeleteModal(gameId);
+                    return;
+                }
+
                 if (target.classList.contains('status-button') && !target.disabled) {
                     toggleLentStatus(gameId);
                 } else if (target.closest('.game-title-cell')) {
