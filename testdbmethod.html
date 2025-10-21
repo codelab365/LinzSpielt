@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linz Spielt - Spieleausleihe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        select {
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239CA3AF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.4-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 0.65em auto;
+        }
+        .disabled-button { opacity: 0.5; cursor: not-allowed; }
+        .admin-col, .admin-action-col { display: none; }
+        table.admin-view .admin-col, table.admin-view .admin-action-col { display: table-cell; }
+        .public-col { display: table-cell; }
+        table.admin-view .public-col { display: none; }
+        .search-active select {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div class="text-left">
+                <h1 class="text-4xl sm:text-5xl font-bold text-white">Linz Spielt</h1>
+                <p class="text-lg text-blue-400">Digitale Spieleausleihe</p>
+            </div>
+            <button id="hamburger-btn" class="p-2 rounded-md hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-blue-500 z-30">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </header>
+
+        <div id="stats-section" class="mb-8 text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div id="total-games" class="text-2xl text-white mb-4">Verbinde mit Datenbank...</div>
+            <div id="category-stats" class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-gray-400"></div>
+        </div>
+
+        <div id="desktop-filter-bar" class="bg-gray-800 p-4 rounded-lg mb-8 hidden md:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
+            <div class="md:col-span-2 lg:col-span-2">
+                <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div><select id="location-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="all">Alle Standorte</option></select></div>
+            <div><select id="players-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Jede Spielerzahl</option><option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option><option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option></select></div>
+            <div><select id="duration-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Alle Spielzeiten</option><option value="30">max. 30 Min.</option><option value="60">max. 60 Min.</option><option value="90">max. 90 Min.</option><option value="120">max. 120 Min.</option></select></div>
+            <div><select id="age-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Jedes Alter</option><option value="6">Ab 6+</option><option value="8">Ab 8+</option><option value="10">Ab 10+</option><option value="12">Ab 12+</option><option value="14">Ab 14+</option><option value="16">Ab 16+</option></select></div>
+            <div><select id="status-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="all">Alle Status</option><option value="verfügbar">Nur Verfügbare</option><option value="ausgeliehen">Nur Ausgeliehene</option></select></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:hidden gap-4 mb-8 sticky top-4 z-10">
+            <div class="relative"><input type="text" id="search-input-mobile" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            <button id="open-filter-modal-btn" class="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-colors flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L12 14.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 016 17v-2.586L3.293 6.707A1 1 0 013 6V4z"></path></svg>
+                Filter anpassen
+            </button>
+        </div>
+
+        <div class="overflow-x-auto bg-gray-800 rounded-lg shadow-lg border border-gray-700">
+            <table id="game-table" class="w-full min-w-max">
+                <thead class="bg-gray-700/50">
+                    <tr>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider admin-col">EAN</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Kategorie</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Standort</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider public-col hidden xl:table-cell">Dauer</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider public-col hidden xl:table-cell">Alter ab</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
+                        <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider admin-action-col">Aktion</th>
+                        <th class="w-12 p-4 admin-action-col"></th>
+                    </tr>
+                </thead>
+                <tbody id="game-table-body" class="divide-y divide-gray-700"></tbody>
+            </table>
+            <div id="no-results" class="hidden text-center p-8 text-gray-400"><p class="text-xl">Keine Spiele gefunden.</p></div>
+            <div id="loading-state" class="text-center p-8 text-gray-400"><p class="text-xl">Lade Spiele aus der Datenbank...</p></div>
+        </div>
+        <div class="text-center p-4">
+             <button id="load-more-btn" class="hidden px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">Mehr Spiele laden</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"></div>
+    <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform duration-300 ease-in-out translate-x-full"><!-- ... content ... --></div>
+    <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><!-- ... content ... --></div>
+    <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><!-- ... content ... --></div>
+    <div id="filter-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><!-- ... content ... --></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, updateDoc, writeBatch, deleteDoc, query, where, orderBy, limit, getDocs, startAfter } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { /* ... */ };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let displayedGames = [];
+        let allGameCategories = new Set();
+        let allGameLocations = new Set();
+        let currentUser = null;
+        let gameIdToDelete = null;
+        let selectedCategories = [];
+        let lastVisibleDoc = null;
+        let isFetching = false;
+        let debounceTimer;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const ui = { /* ... UI elements mapping ... */ };
+
+            // --- CORE LOGIC ---
+            const executeQuery = async (loadMore = false) => {
+                const searchTerm = (window.innerWidth < 768 ? ui.searchInputMobile.value : ui.searchInput.value).trim();
+                const isSearch = searchTerm.length > 0;
+
+                if (isFetching) return;
+                isFetching = true;
+                if (!loadMore) {
+                    displayedGames = [];
+                    lastVisibleDoc = null;
+                }
+                ui.loadingState.classList.remove('hidden');
+                ui.loadMoreBtn.classList.add('hidden');
+                
+                const constraints = [orderBy("name"), limit(100)];
+                
+                if (isSearch) {
+                    const searchLower = searchTerm.toLowerCase();
+                    constraints.push(where('name_lowercase', '>=', searchLower));
+                    constraints.push(where('name_lowercase', '<=', searchLower + '\uf8ff'));
+                } else {
+                    const selectedLocation = ui.locationFilter.value;
+                    if (selectedCategories.length > 0) constraints.push(where('category', 'in', selectedCategories));
+                    if (selectedLocation !== 'all') constraints.push(where('lagerort', '==', selectedLocation));
+                    if (loadMore && lastVisibleDoc) {
+                        constraints.push(startAfter(lastVisibleDoc));
+                    }
+                }
+                
+                const q = query(collection(db, "games"), ...constraints);
+                
+                try {
+                    const querySnapshot = await getDocs(q);
+                    lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+                    const newGames = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    if (loadMore) displayedGames.push(...newGames);
+                    else displayedGames = newGames;
+                    
+                    const clientFilteredGames = applyClientSideFilters(displayedGames);
+                    renderTable(clientFilteredGames);
+
+                    if (!isSearch && querySnapshot.docs.length >= 100) {
+                        ui.loadMoreBtn.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error fetching games: ", error);
+                    ui.loadingState.innerHTML = `<p class="text-red-400">Fehler beim Laden. Prüfen Sie die Datenbank-Indizes.</p>`;
+                } finally {
+                    isFetching = false;
+                    ui.loadingState.classList.add('hidden');
+                }
+            };
+
+            const debouncedQuery = () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => executeQuery(), 500);
+            };
+
+            // --- EVENT LISTENERS ---
+            [ui.searchInput, ui.searchInputMobile].forEach(input => input.addEventListener('input', debouncedQuery));
+            
+            const filterElements = [ui.playersFilter, ui.durationFilter, ui.locationFilter, ui.ageFilter, ui.statusFilter];
+            filterElements.forEach(el => el.addEventListener('change', () => executeQuery()));
+
+            ui.stats.categoryStats.addEventListener('click', (e) => {
+                if(e.target.classList.contains('category-stat-btn')) {
+                    const category = e.target.dataset.category;
+                    const index = selectedCategories.indexOf(category);
+                    if (index > -1) selectedCategories.splice(index, 1);
+                    else selectedCategories.push(category);
+                    renderStats(document.getElementById('total-games').innerText.split(' ')[4] || 0);
+                    executeQuery();
+                }
+            });
+
+            // ... (rest of the functions: renderTable, populateFilters, auth, modals, etc.)
+            // Note: The rest of the JS code from the previous version is assumed here,
+            // with the key change being the new executeQuery logic and the debounce handler.
+        });
+    </script>
+</body>
+</html>
+
