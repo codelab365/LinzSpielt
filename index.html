@@ -374,8 +374,27 @@
                 else filterAndRender();
             });
             
-            loginBtn.addEventListener('click', () => { /* ... */ });
-            logoutBtn.addEventListener('click', () => { /* ... */ });
+            loginBtn.addEventListener('click', () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                loginError.textContent = '';
+                signInWithEmailAndPassword(auth, email, password)
+                    .then(userCredential => {
+                        console.log("Erfolgreich angemeldet:", userCredential.user.email);
+                        toggleMenu(true);
+                    })
+                    .catch(error => {
+                        console.error("Login-Fehler:", error.code);
+                        loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
+                    });
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                 signOut(auth).then(() => {
+                    console.log("Erfolgreich abgemeldet.");
+                    toggleMenu(true);
+                }).catch(error => console.error("Abmelde-Fehler:", error));
+            });
             
             // --- Mobile Filter Modal Logic ---
             const showFilterModal = () => filterModalOverlay.classList.remove('hidden');
@@ -399,95 +418,7 @@
             });
 
             // --- ADMIN FUNKTIONEN ---
-            importJsonBtn.addEventListener('click', async () => { /* ... */ });
-            importLocationBtn.addEventListener('click', async () => { /* ... */ });
-
-            // --- DATENBANK-LISTENER ---
-            const setupGameListener = () => { /* ... */ };
-
-            // --- MODAL LOGIC (Info & Delete) ---
-            const showInfoModal = (title, content) => { /* ... */ };
-            const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
-            infoModalCloseBtn.addEventListener('click', hideInfoModal);
-            infoModalCloseBtnX.addEventListener('click', hideInfoModal);
-            infoModalOverlay.addEventListener('click', (e) => { if (e.target === infoModalOverlay) hideInfoModal(); });
-
-            const showDeleteModal = (gameId) => { /* ... */ };
-            const hideDeleteModal = () => { /* ... */ };
-            cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-            confirmDeleteBtn.addEventListener('click', async () => { /* ... */ });
-
-            // --- RENDER & FILTER ---
-            const renderStats = () => { /* ... */ };
-            const populateFilters = () => { /* ... */ };
-            const renderTable = (filteredGames) => { /* ... */ };
-            const filterAndRender = () => { /* ... */ };
-            const toggleLentStatus = async (gameId) => { /* ... */ };
-
-            // Syncs filters between desktop and mobile views
-            const syncFilters = (fromMobileToDesktop) => {
-                if(fromMobileToDesktop) {
-                    locationFilter.value = locationFilterMobile.value;
-                    playersFilter.value = playersFilterMobile.value;
-                    durationFilter.value = durationFilterMobile.value;
-                    ageFilter.value = ageFilterMobile.value;
-                    statusFilter.value = statusFilterMobile.value;
-                } else {
-                    locationFilterMobile.innerHTML = locationFilter.innerHTML;
-                    playersFilterMobile.innerHTML = playersFilter.innerHTML;
-                    durationFilterMobile.innerHTML = durationFilter.innerHTML;
-                    ageFilterMobile.innerHTML = ageFilter.innerHTML;
-                    statusFilterMobile.innerHTML = statusFilter.innerHTML;
-
-                    locationFilterMobile.value = locationFilter.value;
-                    playersFilterMobile.value = playersFilter.value;
-                    durationFilterMobile.value = durationFilter.value;
-                    ageFilterMobile.value = ageFilter.value;
-                    statusFilterMobile.value = statusFilter.value;
-                }
-            };
-            
-            // --- EVENT LISTENERS ---
-            document.getElementById('category-stats').addEventListener('click', (e) => { /* ... */ });
-            
-            const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
-            desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
-            searchInput.addEventListener('input', filterAndRender);
-            searchInputMobile.addEventListener('input', () => {
-                searchInput.value = searchInputMobile.value;
-                filterAndRender();
-            });
-            tableBody.addEventListener('click', (event) => { /* ... */ });
-
-            // --- INITIALIZATION ---
-            // (Helper functions will be inlined below)
-             const init = () => {
-                // All the logic from DOMContentLoaded goes here
-                // We're just wrapping it to keep it tidy
-            // Re-pasting original functions to ensure they are complete
-            loginBtn.onclick = () => {
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                loginError.textContent = '';
-                signInWithEmailAndPassword(auth, email, password)
-                    .then(userCredential => {
-                        console.log("Erfolgreich angemeldet:", userCredential.user.email);
-                        toggleMenu(true);
-                    })
-                    .catch(error => {
-                        console.error("Login-Fehler:", error.code);
-                        loginError.textContent = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.";
-                    });
-            };
-
-            logoutBtn.onclick = () => {
-                 signOut(auth).then(() => {
-                    console.log("Erfolgreich abgemeldet.");
-                    toggleMenu(true);
-                }).catch(error => console.error("Abmelde-Fehler:", error));
-            };
-            
-            importJsonBtn.onclick = async () => {
+            importJsonBtn.addEventListener('click', async () => {
                 const jsonData = document.getElementById('json-import-data').value;
                 importFeedback.textContent = '';
                 if (!jsonData.trim()) {
@@ -515,9 +446,9 @@
                     importFeedback.className = 'text-red-400 text-sm mt-2';
                 }
                  setTimeout(() => { importFeedback.textContent = '' }, 4000);
-            };
+            });
 
-            importLocationBtn.onclick = async () => {
+            importLocationBtn.addEventListener('click', async () => {
                 const jsonData = document.getElementById('location-json-data').value;
                 locationImportFeedback.textContent = '';
                 if (!jsonData.trim()) {
@@ -555,9 +486,10 @@
                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
                 }
                  setTimeout(() => { locationImportFeedback.textContent = '' }, 5000);
-            };
+            });
 
-            const originalSetupGameListener = () => {
+            // --- DATENBANK-LISTENER ---
+            const setupGameListener = () => {
                 if (unsubscribe) unsubscribe(); 
                 const gamesCollection = collection(db, "games");
                 unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
@@ -571,16 +503,19 @@
                     loadingStateDiv.textContent = "Fehler beim Laden der Daten.";
                 });
             };
-            window.setupGameListener = originalSetupGameListener;
 
-            const originalShowInfoModal = (title, content) => {
+            // --- MODAL LOGIC (Info & Delete) ---
+            const showInfoModal = (title, content) => {
                 infoModalTitle.textContent = title;
                 infoModalContent.innerHTML = content;
                 infoModalOverlay.classList.remove('hidden');
             };
-             window.showInfoModal = originalShowInfoModal;
+            const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
+            infoModalCloseBtn.addEventListener('click', hideInfoModal);
+            infoModalCloseBtnX.addEventListener('click', hideInfoModal);
+            infoModalOverlay.addEventListener('click', (e) => { if (e.target === infoModalOverlay) hideInfoModal(); });
 
-            const originalShowDeleteModal = (gameId) => {
+            const showDeleteModal = (gameId) => {
                 const game = allGames.find(g => g.id === gameId);
                 if (game) {
                     gameIdToDelete = gameId;
@@ -588,26 +523,26 @@
                     deleteConfirmModalOverlay.classList.remove('hidden');
                 }
             };
-            window.showDeleteModal = originalShowDeleteModal;
-            const originalHideDeleteModal = () => {
+            const hideDeleteModal = () => {
                 deleteConfirmModalOverlay.classList.add('hidden');
                 gameIdToDelete = null;
             };
-            cancelDeleteBtn.onclick = originalHideDeleteModal;
+            cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
-            confirmDeleteBtn.onclick = async () => {
+            confirmDeleteBtn.addEventListener('click', async () => {
                 if (gameIdToDelete) {
                     try {
                         await deleteDoc(doc(db, "games", gameIdToDelete));
                     } catch (error) {
                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden.");
                     } finally {
-                        originalHideDeleteModal();
+                        hideDeleteModal();
                     }
                 }
-            };
+            });
 
-            const originalRenderStats = () => {
+            // --- RENDER & FILTER ---
+            const renderStats = () => {
                 const totalGamesDiv = document.getElementById('total-games');
                 const categoryStatsDiv = document.getElementById('category-stats');
                 if (!totalGamesDiv || !categoryStatsDiv) return;
@@ -625,9 +560,8 @@
                 });
                 categoryStatsDiv.innerHTML = statsHTML;
             };
-            window.renderStats = originalRenderStats;
 
-            document.getElementById('category-stats').onclick = (e) => {
+            document.getElementById('category-stats').addEventListener('click', (e) => {
                 if(e.target.classList.contains('category-stat-btn')) {
                     const category = e.target.dataset.category;
                     const index = selectedCategories.indexOf(category);
@@ -636,9 +570,9 @@
                     renderStats();
                     filterAndRender();
                 }
-            };
+            });
 
-            const originalPopulateFilters = () => {
+            const populateFilters = () => {
                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))].sort();
                 const currentLocation = locationFilter.value;
                 locationFilter.innerHTML = '<option value="all">Alle Standorte</option>';
@@ -646,9 +580,8 @@
                 if ([...locationFilter.options].some(o => o.value === currentLocation)) locationFilter.value = currentLocation;
                 syncFilters(false);
             };
-             window.populateFilters = originalPopulateFilters;
             
-            const originalRenderTable = (filteredGames) => {
+            const renderTable = (filteredGames) => {
                 tableBody.innerHTML = '';
                 noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
                 filteredGames.forEach(game => {
@@ -679,9 +612,8 @@
                     tableBody.appendChild(row);
                 });
             };
-            window.renderTable = originalRenderTable;
 
-            const originalFilterAndRender = () => {
+            const filterAndRender = () => {
                 if (allGames.length === 0 && unsubscribe !== null) {
                     loadingStateDiv.classList.add('hidden');
                     noResultsDiv.classList.remove('hidden');
@@ -711,9 +643,8 @@
                 });
                 renderTable(filteredGames);
             };
-            window.filterAndRender = originalFilterAndRender;
 
-            const originalToggleLentStatus = async (gameId) => {
+            const toggleLentStatus = async (gameId) => {
                 if (!currentUser) { showInfoModal("Fehler", "<p>Bitte melden Sie sich an.</p>"); return; }
                 const game = allGames.find(g => g.id === gameId);
                 if (game) {
@@ -724,7 +655,37 @@
                 }
             };
 
-            tableBody.onclick = (event) => {
+            const syncFilters = (fromMobileToDesktop) => {
+                if(fromMobileToDesktop) {
+                    locationFilter.value = locationFilterMobile.value;
+                    playersFilter.value = playersFilterMobile.value;
+                    durationFilter.value = durationFilterMobile.value;
+                    ageFilter.value = ageFilterMobile.value;
+                    statusFilter.value = statusFilterMobile.value;
+                } else {
+                    locationFilterMobile.innerHTML = locationFilter.innerHTML;
+                    playersFilterMobile.innerHTML = playersFilter.innerHTML;
+                    durationFilterMobile.innerHTML = durationFilter.innerHTML;
+                    ageFilterMobile.innerHTML = ageFilter.innerHTML;
+                    statusFilterMobile.innerHTML = statusFilter.innerHTML;
+
+                    locationFilterMobile.value = locationFilter.value;
+                    playersFilterMobile.value = playersFilter.value;
+                    durationFilterMobile.value = durationFilter.value;
+                    ageFilterMobile.value = ageFilter.value;
+                    statusFilterMobile.value = statusFilter.value;
+                }
+            };
+            
+            // --- EVENT LISTENERS ---
+            const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
+            desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
+            searchInput.addEventListener('input', filterAndRender);
+            searchInputMobile.addEventListener('input', () => {
+                searchInput.value = searchInputMobile.value;
+                filterAndRender();
+            });
+            tableBody.addEventListener('click', (event) => {
                 const target = event.target;
                 const gameRow = target.closest('tr');
                 if (!gameRow) return;
@@ -732,14 +693,15 @@
                 const deleteButton = target.closest('.delete-button');
                 const statusButton = target.closest('.status-button');
                 if (deleteButton) { showDeleteModal(gameId); return; }
-                if (statusButton) { originalToggleLentStatus(gameId); } 
+                if (statusButton) { toggleLentStatus(gameId); } 
                 else if (target.closest('.game-title-cell')) {
                     const game = allGames.find(g => g.id === gameId);
                     if (game) showInfoModal(game.name, game.description || 'Keine Beschreibung verfügbar.');
                 }
-            };
-            };
-            init();
+            });
+
+             // --- INITIALIZATION ---
+            setupGameListener();
         });
     </script>
 </body>
