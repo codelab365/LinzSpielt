@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGG Enrichment Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        .result-item { cursor: pointer; transition: background-color 0.2s; }
+        .result-item:hover { background-color: #f0f4f8; } /* gray-100 */
+        .result-item.selected { background-color: #dbeafe; } /* blue-100 */
+        textarea { font-family: monospace; }
+        #final-json { background-color: #e5e7eb; color: #1f2937 } /* gray-200, gray-800 */
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-8">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-700">BGG Enrichment Tool</h1>
+
+        <!-- Step 1: Input JSON -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
+            <label for="initial-json" class="block text-sm font-medium text-gray-700 mb-1">1. Von Gem generiertes JSON einfügen:</label>
+            <textarea id="initial-json" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder='[{"ean": "...", "bggId": ..., "name": "Spielname", ...}]'></textarea>
+            <button id="search-bgg-btn" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Spiel auf BGG suchen</button>
+            <p id="json-parse-error" class="text-red-500 text-sm mt-1"></p>
+        </div>
+
+        <!-- Step 2: Select BGG Result -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-1">2. Passendes BGG-Ergebnis auswählen:</label>
+            <div id="search-results" class="bg-gray-50 p-3 rounded-md border border-gray-200 h-48 overflow-y-auto">
+                <p class="text-sm text-gray-500 italic">Hier erscheinen die BGG-Suchergebnisse...</p>
+            </div>
+            <button id="generate-final-json-btn" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Finale JSON generieren</button>
+        </div>
+
+         <!-- API Token Section -->
+         <div class="mb-6 border-b pb-6 border-gray-200">
+             <label for="api-token" class="block text-sm font-medium text-gray-700 mb-1">Optional: BGG API Token (Bearer):</label>
+             <input type="text" id="api-token" placeholder="Dein BGG Application Token" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <p class="text-xs text-gray-500 mt-1">
+                Kann erforderlich sein. <a href="https://boardgamegeek.com/applications" target="_blank" class="text-blue-600 hover:underline">Hier registrieren/Token erstellen</a>.
+            </p>
+         </div>
+
+        <!-- Step 3: Final JSON Output -->
+        <div>
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">3. Finales JSON für Import:</h2>
+             <div class="bg-gray-800 p-4 rounded-md border border-gray-700 h-64 overflow-y-auto">
+                <pre id="final-json" class="text-sm text-gray-300">{
+    // Hier erscheint das finale JSON
+}</pre>
+            </div>
+             <p id="final-json-feedback" class="text-sm mt-2"></p>
+             <button id="copy-json-btn" class="mt-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>JSON kopieren</button>
+        </div>
+        <hr class="my-6">
+         <div>
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">BGG Detail-Antwort (XML):</h2>
+            <div id="response-output-details" class="bg-gray-50 p-4 rounded-md border border-gray-200 h-40 overflow-y-auto">
+                <pre class="text-sm text-gray-600">Hier wird die XML-Antwort der Detailabfrage angezeigt...</pre>
+            </div>
+            <p id="error-output" class="text-red-500 text-sm mt-2"></p>
+        </div>
+    </div>
+
+    <script>
+        const ui = {
+            initialJson: document.getElementById('initial-json'),
+            searchBggBtn: document.getElementById('search-bgg-btn'),
+            jsonParseError: document.getElementById('json-parse-error'),
+            searchResults: document.getElementById('search-results'),
+            generateFinalJsonBtn: document.getElementById('generate-final-json-btn'),
+            apiToken: document.getElementById('api-token'),
+            finalJson: document.getElementById('final-json'),
+            finalJsonFeedback: document.getElementById('final-json-feedback'),
+            copyJsonBtn: document.getElementById('copy-json-btn'),
+            responseOutputDetails: document.getElementById('response-output-details').querySelector('pre'),
+            errorOutput: document.getElementById('error-output'),
+            selectedBggId: null,
+            parsedInitialGame: null // To store the game object from the textarea
+        };
+
+         // --- API Call Helper (same as before) ---
+        async function callBggApi(endpoint, params = {}, useToken = true) {
+            // ... (Copy the exact same function from the previous bgg_api_test.html)
+             const apiToken = ui.apiToken.value.trim();
+            const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+            const headers = new Headers();
+            if (useToken && apiToken) {
+                headers.append('Authorization', `Bearer ${apiToken}`);
+            }
+
+            ui.errorOutput.textContent = ''; // Clear previous errors
+
+            try {
+                // Add retry logic for 202 status
+                let response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                let retries = 0;
+                const maxRetries = 5;
+                const retryDelay = 2000; // 2 seconds
+
+                while (response.status === 202 && retries < maxRetries) {
+                    retries++;
+                    ui.errorOutput.textContent = `BGG API hat die Anfrage in die Warteschlange gestellt. Versuch ${retries}/${maxRetries}...`;
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                }
+
+                 if (response.status === 202) {
+                     ui.errorOutput.textContent = 'BGG API Anfrage nach mehreren Versuchen noch in der Warteschlange. Bitte später erneut versuchen.';
+                     throw new Error('Request queued after retries');
+                 }
+
+
+                if (!response.ok) {
+                    let errorText = `HTTP Fehler: ${response.status} ${response.statusText}`;
+                    try { const body = await response.text(); errorText += ` Response: ${body.substring(0, 100)}`; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+                const parserError = xmlDoc.querySelector("parsererror");
+                if (parserError) {
+                    throw new Error("Fehler beim Parsen der XML-Antwort.");
+                }
+                return { xmlText, xmlDoc };
+
+            } catch (error) {
+                 console.error('API Error:', error);
+                 if (!error.message.startsWith('Request queued')) {
+                     ui.errorOutput.textContent = `API Fehler: ${error.message}. CORS-Problem möglich.`;
+                 }
+                 throw error;
+            }
+        }
+
+
+        // --- Step 1: Parse JSON and Search BGG ---
+        ui.searchBggBtn.addEventListener('click', async () => {
+            ui.jsonParseError.textContent = '';
+            ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Suche läuft...</p>';
+            ui.generateFinalJsonBtn.disabled = true;
+            ui.selectedBggId = null;
+            resetFinalOutputs();
+
+            let initialJsonText = ui.initialJson.value.trim();
+            try {
+                 // Try parsing directly as an array first
+                 let parsedData = JSON.parse(initialJsonText);
+                 if (Array.isArray(parsedData) && parsedData.length > 0) {
+                     ui.parsedInitialGame = parsedData[0]; // Take the first game object
+                 } else if (typeof parsedData === 'object' && parsedData !== null) {
+                     // If it's a single object, wrap it in an array for consistency
+                     // and store the object itself
+                     ui.parsedInitialGame = parsedData;
+                      // Optionally update the textarea to show the array format
+                     // ui.initialJson.value = JSON.stringify([parsedData], null, 2);
+                 } else {
+                    throw new Error("JSON muss ein Array mit mindestens einem Spielobjekt oder ein einzelnes Spielobjekt sein.");
+                 }
+
+                if (!ui.parsedInitialGame || !ui.parsedInitialGame.name) {
+                    throw new Error("Spielname fehlt im eingegebenen JSON.");
+                }
+
+                // Proceed to BGG search
+                const params = { query: ui.parsedInitialGame.name, type: 'boardgame', exact: '1' }; // Start with exact search
+
+                try {
+                    let { xmlDoc } = await callBggApi('search', params);
+                    let items = xmlDoc.querySelectorAll('item');
+
+                    // If exact search yields no results, try non-exact search
+                    if (items.length === 0) {
+                         ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Exakte Suche erfolglos, versuche breitere Suche...</p>';
+                         delete params.exact; // Remove exact parameter
+                         const nonExactResult = await callBggApi('search', params);
+                         xmlDoc = nonExactResult.xmlDoc;
+                         items = xmlDoc.querySelectorAll('item');
+                    }
+
+
+                    if (items.length === 0) {
+                        ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Keine Spiele auf BGG gefunden.</p>';
+                        return;
+                    }
+
+                    // Display results (same as before)
+                    let resultsHtml = '<ul class="space-y-1">';
+                    items.forEach(item => { /* ... build results list ... */
+                        const id = item.getAttribute('id');
+                        const nameNode = item.querySelector('name');
+                        const yearNode = item.querySelector('yearpublished');
+                        const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannter Name';
+                        const year = yearNode ? `(${yearNode.getAttribute('value')})` : '';
+                        resultsHtml += `<li class="result-item p-1 rounded border border-transparent" data-id="${id}">
+                                            <span class="text-sm font-medium">${name}</span>
+                                            <span class="text-xs text-gray-500 ml-1">${year}</span>
+                                        </li>`;
+                    });
+                     resultsHtml += '</ul>';
+                    ui.searchResults.innerHTML = resultsHtml;
+
+                } catch (error) {
+                    ui.searchResults.innerHTML = '<p class="text-sm text-red-500 italic">Fehler bei der BGG-Suche.</p>';
+                }
+
+            } catch (error) {
+                ui.jsonParseError.textContent = `JSON-Fehler: ${error.message}`;
+                ui.parsedInitialGame = null;
+                ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Warte auf gültiges JSON...</p>';
+            }
+        });
+
+        // --- Step 2: Select Result ---
+        ui.searchResults.addEventListener('click', (e) => {
+             const targetItem = e.target.closest('.result-item');
+            if (!targetItem) return;
+            ui.searchResults.querySelectorAll('.result-item.selected').forEach(el => el.classList.remove('selected'));
+            targetItem.classList.add('selected');
+            ui.selectedBggId = targetItem.dataset.id;
+            ui.generateFinalJsonBtn.disabled = false;
+        });
+
+         // --- Step 3: Generate Final JSON ---
+        ui.generateFinalJsonBtn.addEventListener('click', async () => {
+            if (!ui.selectedBggId || !ui.parsedInitialGame) return;
+
+            resetFinalOutputs();
+            ui.responseOutputDetails.textContent = 'Lade BGG Details...';
+            ui.finalJsonFeedback.textContent = 'Generiere finales JSON...';
+
+            try {
+                const { xmlText, xmlDoc } = await callBggApi('thing', { id: ui.selectedBggId });
+                ui.responseOutputDetails.textContent = xmlText;
+
+                const item = xmlDoc.querySelector('item');
+                if (!item) {
+                     throw new Error("Keine Spieldetails in BGG-Antwort gefunden.");
+                }
+
+                 // Extract needed BGG data
+                 const getTxt = (selector) => item.querySelector(selector)?.textContent || null;
+                 const bggImageUrl = getTxt('image') || getTxt('thumbnail'); // Prefer full image
+                 const bggId = item.getAttribute('id') ? parseInt(item.getAttribute('id')) : null;
+
+                // Create the final game object, merging initial JSON with BGG data
+                const finalGame = {
+                    ...ui.parsedInitialGame, // Start with all data from the initial JSON
+                    bggId: bggId || ui.parsedInitialGame.bggId || null, // Prioritize fresh BGG ID
+                    imageUrl: bggImageUrl || ui.parsedInitialGame.imageUrl || null // Prioritize fresh image URL
+                };
+
+                 // Ensure required fields have defaults if missing in both sources
+                 finalGame.lagerort = finalGame.lagerort !== undefined ? finalGame.lagerort : null;
+                 finalGame.ausleihstatus = finalGame.ausleihstatus || "verfügbar";
+                 finalGame.ean = finalGame.ean || ""; // Ensure EAN is at least an empty string
+
+                // Display the final JSON (wrapped in an array)
+                ui.finalJson.textContent = JSON.stringify([finalGame], null, 2);
+                ui.finalJsonFeedback.textContent = 'Finales JSON generiert. EAN ggf. prüfen/ergänzen.';
+                ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
+                ui.copyJsonBtn.disabled = false;
+
+            } catch (error) {
+                ui.responseOutputDetails.textContent = 'Fehler beim Laden der BGG-Details.';
+                ui.finalJsonFeedback.textContent = 'Fehler beim Generieren des finalen JSON.';
+                ui.finalJsonFeedback.className = 'text-red-500 text-sm mt-2';
+                ui.copyJsonBtn.disabled = true;
+            }
+        });
+
+         // --- Copy JSON Button ---
+        ui.copyJsonBtn.addEventListener('click', () => {
+             const jsonText = ui.finalJson.textContent;
+             navigator.clipboard.writeText(jsonText).then(() => {
+                ui.finalJsonFeedback.textContent = 'JSON in die Zwischenablage kopiert!';
+                setTimeout(() => {
+                     // Optionally revert feedback message after a delay
+                     if (!ui.errorOutput.textContent && !ui.jsonParseError.textContent) {
+                         ui.finalJsonFeedback.textContent = 'Finales JSON generiert. EAN ggf. prüfen/ergänzen.';
+                         ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
+                     }
+                 }, 2000);
+             }).catch(err => {
+                 ui.finalJsonFeedback.textContent = 'Fehler beim Kopieren.';
+                 ui.finalJsonFeedback.className = 'text-red-500 text-sm mt-2';
+                 console.error('Copy error:', err);
+             });
+        });
+
+
+        // --- Reset Helper ---
+        function resetFinalOutputs() {
+             ui.finalJson.textContent = JSON.stringify([{ /* default structure */ }], null, 2);
+             ui.responseOutputDetails.textContent = 'Hier wird die XML-Antwort der Detailabfrage angezeigt...';
+             ui.finalJsonFeedback.textContent = '';
+             ui.copyJsonBtn.disabled = true;
+        }
+
+    </script>
+</body>
+</html>
