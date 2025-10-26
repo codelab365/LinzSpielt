@@ -66,10 +66,11 @@
                 </div>
             </div>
             <div>
-                 <h2 class="text-xl font-semibold mb-3 text-gray-700">4. Generiertes JSON:</h2>
+                 <h2 class="text-xl font-semibold mb-3 text-gray-700">4. Generiertes JSON für Import:</h2>
                  <div class="bg-gray-800 p-4 rounded-md border border-gray-700 h-64 overflow-y-auto">
                     <pre id="generated-json" class="text-sm text-gray-300">{
     "ean": "...",
+    "bggId": "...",
     "name": "...",
     "category": "...",
     "minAge": "...",
@@ -82,7 +83,7 @@
     "ausleihstatus": "verfügbar"
 }</pre>
                 </div>
-                <p class="text-xs text-gray-500 mt-1"><span class="font-bold">Hinweis:</span> EAN wird nicht immer von BGG geliefert. Falls nicht vorhanden, bleibt das Feld leer.</p>
+                <p class="text-xs text-gray-500 mt-1"><span class="font-bold">Hinweis:</span> EAN wird nicht immer von BGG geliefert und muss ggf. manuell ergänzt werden.</p>
             </div>
         </div>
          <hr class="my-6">
@@ -242,43 +243,41 @@
             const getVal = (selector, attribute = 'value') => item.querySelector(selector)?.[attribute] || '';
             const getTxt = (selector) => item.querySelector(selector)?.textContent || '';
 
-            // Helper to get primary name
             const getPrimaryName = () => {
                 const names = item.querySelectorAll('name');
                 for(let name of names) {
                     if(name.getAttribute('type') === 'primary') return name.getAttribute('value');
                 }
-                return names.length > 0 ? names[0].getAttribute('value') : 'N/A'; // Fallback
+                return names.length > 0 ? names[0].getAttribute('value') : 'N/A';
             }
             
-            // Helper to decode HTML entities
              const decodeHTML = (html) => {
                 const txt = document.createElement("textarea");
                 txt.innerHTML = html;
                 return txt.value;
             }
 
-             // Find categories
              const categories = Array.from(item.querySelectorAll('link[type="boardgamecategory"]')).map(link => link.getAttribute('value')).join(', ') || 'N/A';
-
-            // Try to find barcode (often UPC, sometimes EAN - not reliable)
-            const barcode = getVal('barcode'); // BGG might add this, but often empty or UPC
+             const barcode = getVal('barcode'); // BGG might add this, but often empty or UPC
+             const bggId = item.getAttribute('id'); // Get the BGG ID itself
 
             const details = {
-                ean: barcode, // Placeholder - BGG might not provide EAN!
+                ean: barcode,
+                bggId: bggId ? parseInt(bggId) : null,
                 name: getPrimaryName(),
                 category: categories,
                 minAge: getVal('minage'),
                 minPlayers: getVal('minplayers'),
                 maxPlayers: getVal('maxplayers'),
-                duration: getVal('playingtime') || getVal('minplaytime') + '-' + getVal('maxplaytime'), // Combine if playingtime missing
+                duration: getVal('playingtime') || getVal('minplaytime') + '-' + getVal('maxplaytime'),
                 description: decodeHTML(getTxt('description')),
-                imageUrl: getTxt('image') || getTxt('thumbnail'), // Prefer image over thumbnail
+                imageUrl: getTxt('image') || getTxt('thumbnail'),
                 year: getVal('yearpublished'),
             };
 
             // Format for display
              let detailsHtml = `
+                <p><strong>BGG ID:</strong> <span class="detail-value">${details.bggId || 'N/A'}</span></p>
                 <p><strong>Name:</strong> <span class="detail-value">${details.name} ${details.year ? '('+details.year+')' : ''}</span></p>
                 <p><strong>Kategorie:</strong> <span class="detail-value">${details.category}</span></p>
                 <p><strong>Alter:</strong> <span class="detail-value">${details.minAge}+</span></p>
@@ -291,38 +290,43 @@
             `;
             ui.formattedDetails.innerHTML = detailsHtml;
 
-            // Generate JSON
+            // Generate JSON according to the new format
             const outputJson = {
-                ean: details.ean, // Might be UPC or empty!
+                ean: details.ean || "", // EAN might be UPC or empty! Default to empty string.
+                bggId: details.bggId,
                 name: details.name,
                 category: categories.split(', ')[0] || null, // Take first category
                 minAge: parseInt(details.minAge) || null,
                 minPlayers: parseInt(details.minPlayers) || null,
                 maxPlayers: parseInt(details.maxPlayers) || null,
-                Duration: parseInt(details.duration) || null, // Assuming single value if range used fallback above
+                Duration: parseInt(getVal('playingtime')) || parseInt(getVal('maxplaytime')) || parseInt(getVal('minplaytime')) || null, // Prioritize playingtime, then max, then min
                 description: details.description || null,
                 imageUrl: details.imageUrl || null,
                 lagerort: null, // Default
                 ausleihstatus: "verfügbar" // Default
             };
-            
-             // Refine Duration: If min/max exist, use max or average? Using playingtime if available.
-             if (!outputJson.Duration) {
-                 const minT = parseInt(getVal('minplaytime'));
-                 const maxT = parseInt(getVal('maxplaytime'));
-                 if (maxT) outputJson.Duration = maxT;
-                 else if (minT) outputJson.Duration = minT;
-             }
 
-
-            ui.generatedJson.textContent = JSON.stringify([outputJson], null, 2); // Wrap in array as requested
+            ui.generatedJson.textContent = JSON.stringify([outputJson], null, 2); // Wrap in array
 
         }
 
         // --- Reset Helper ---
         function resetDetailOutputs() {
             ui.formattedDetails.innerHTML = '<p class="text-gray-500 italic">Hier werden die Details angezeigt...</p>';
-            ui.generatedJson.textContent = JSON.stringify([{ /* default structure */ }], null, 2);
+             ui.generatedJson.textContent = JSON.stringify([{
+                "ean": "...",
+                "bggId": "...",
+                "name": "...",
+                "category": "...",
+                "minAge": "...",
+                "minPlayers": "...",
+                "maxPlayers": "...",
+                "Duration": "...",
+                "description": "...",
+                "imageUrl": "...",
+                "lagerort": null,
+                "ausleihstatus": "verfügbar"
+             }], null, 2);
              ui.responseOutputDetails.textContent = 'Hier wird die XML-Antwort der Detailabfrage angezeigt...';
         }
 
