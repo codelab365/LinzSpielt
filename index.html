@@ -299,7 +299,14 @@
                  adminPanel.classList.toggle('hidden', !isAdmin);
                  gameTable.classList.toggle('admin-view', isAdmin);
                  if (isAdmin) userEmailDisplay.textContent = user.email;
-                 if (unsubscribe === null) setupGameListener(); else filterAndRender(); // Re-render needed for potential column changes
+                 
+                 // Listener starten oder UI neu rendern
+                 if (unsubscribe === null) {
+                    setupGameListener(); // Start listening if not already doing so
+                 } else {
+                    // Listener exists, re-render might be needed if auth state changed visibility rules
+                    filterAndRender(); 
+                 }
              });
              loginBtn.addEventListener('click', () => {
                  const email = document.getElementById('login-email').value;
@@ -307,7 +314,7 @@
                  loginError.textContent = '';
                  signInWithEmailAndPassword(auth, email, password)
                      .then(userCredential => { console.log("Logged in:", userCredential.user.email); toggleMenu(true); })
-                     .catch(error => { console.error("Login Error:", error.code); loginError.textContent = "Login failed."; });
+                     .catch(error => { console.error("Login Error:", error.code, error.message); loginError.textContent = "Login failed."; });
              });
              logoutBtn.addEventListener('click', () => {
                  signOut(auth).then(() => { console.log("Logged out."); toggleMenu(true); })
@@ -329,9 +336,142 @@
                  hideFilterModal();
              });
 
-             // --- ADMIN FUNKTIONEN ---
-             importJsonBtn.addEventListener('click', async () => { /* ... (Import Game logic) ... */ });
-             importLocationBtn.addEventListener('click', async () => { /* ... (Import Location logic) ... */ });
+            // --- ADMIN FUNKTIONEN ---
+             importJsonBtn.addEventListener('click', async () => {
+                 const jsonData = document.getElementById('json-import-data').value;
+                 importFeedback.textContent = '';
+                 if (!jsonData.trim()) {
+                     importFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+                 let games;
+                 try {
+                     games = JSON.parse(jsonData);
+                     if (!Array.isArray(games)) throw new Error("JSON muss ein Array sein.");
+                 } catch (error) {
+                     importFeedback.textContent = 'Fehler beim Parsen des JSON. Prüfen Sie das Format.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+
+                 const batch = writeBatch(db);
+                 let count = 0;
+                 let skippedCount = 0;
+
+                 games.forEach(game => {
+                     if (!game || typeof game !== 'object') {
+                         console.warn("Ungültiges Spielobjekt übersprungen:", game);
+                         skippedCount++;
+                         return;
+                     }
+                     let gameEan = game.ean ? String(game.ean).trim() : "";
+                     if (!gameEan || gameEan === "0") {
+                         console.warn("Spiel ohne gültige EAN übersprungen:", game.name || 'Unbekannt');
+                         skippedCount++;
+                         return;
+                     }
+                     
+                     const gameRef = doc(db, "games", gameEan);
+                     const preparedGame = {
+                         ean: gameEan,
+                         bggId: game.bggId === null || game.bggId === undefined ? null : Number(game.bggId) || null,
+                         name: String(game.name || 'Unbenannt').trim(),
+                         category: String(game.category || '').trim() || null,
+                         minAge: game.minAge === null || game.minAge === undefined ? null : Number(game.minAge) || null,
+                         minPlayers: game.minPlayers === null || game.minPlayers === undefined ? null : Number(game.minPlayers) || null,
+                         maxPlayers: game.maxPlayers === null || game.maxPlayers === undefined ? null : Number(game.maxPlayers) || null,
+                         Duration: game.Duration === null || game.Duration === undefined ? null : Number(game.Duration) || null,
+                         description: String(game.description || '').trim() || null,
+                         imageUrl: String(game.imageUrl || '').trim() || null,
+                         lagerort: String(game.lagerort || '').trim() || null,
+                         ausleihstatus: String(game.ausleihstatus || 'verfügbar').trim().toLowerCase() === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'
+                     };
+                     if (preparedGame.lagerort === '') preparedGame.lagerort = null;
+                     if (preparedGame.imageUrl === '') preparedGame.imageUrl = null; // Ensure empty imageUrl becomes null
+
+                     batch.set(gameRef, preparedGame);
+                     count++;
+                 });
+
+                 try {
+                     await batch.commit();
+                     let feedbackText = `${count} Spiele erfolgreich importiert/überschrieben!`;
+                     if (skippedCount > 0) {
+                         feedbackText += ` (${skippedCount} Spiele ohne gültige EAN oder als ungültiges Objekt übersprungen.)`;
+                         importFeedback.className = 'text-yellow-400 text-sm mt-2';
+                     } else {
+                         importFeedback.className = 'text-green-400 text-sm mt-2';
+                     }
+                     importFeedback.textContent = feedbackText;
+                     document.getElementById('json-import-data').value = '';
+
+                 } catch (error) {
+                     console.error("Firestore Batch Commit Fehler:", error);
+                     importFeedback.textContent = 'Fehler beim Schreiben in die Datenbank. Details siehe Konsole.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                 }
+
+                 setTimeout(() => { importFeedback.textContent = '' }, 5000);
+             });
+
+             importLocationBtn.addEventListener('click', async () => {
+                 const jsonData = document.getElementById('location-json-data').value;
+                 locationImportFeedback.textContent = '';
+                 if (!jsonData.trim()) {
+                     locationImportFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+                 try {
+                     const locations = JSON.parse(jsonData);
+                     if (!Array.isArray(locations)) throw new Error("JSON muss ein Array sein.");
+                     const batch = writeBatch(db);
+                     let count = 0;
+                     let notFoundCount = 0;
+                     let skippedCount = 0;
+                     const gameIds = allGames.length > 0 ? new Set(allGames.map(g => g.id)) : null;
+                     
+                     if (!gameIds) {
+                          locationImportFeedback.textContent = 'Spieldaten werden noch geladen. Bitte kurz warten.';
+                          locationImportFeedback.className = 'text-yellow-400 text-sm mt-2';
+                           setTimeout(() => { locationImportFeedback.textContent = '' }, 3000);
+                          return;
+                     }
+
+                     for (const item of locations) {
+                         const currentEan = item.ean ? String(item.ean).trim() : "";
+                         const lagerOrtInput = item.lagerort;
+                         const lagerOrt = (lagerOrtInput !== undefined && lagerOrtInput !== null && String(lagerOrtInput).trim() !== "") ? String(lagerOrtInput).trim() : null;
+
+                         if (currentEan && currentEan !== "0") {
+                             if (gameIds.has(currentEan)) {
+                                 const gameRef = doc(db, "games", currentEan);
+                                 batch.update(gameRef, { lagerort: lagerOrt }); 
+                                 count++;
+                             } else {
+                                 console.warn("EAN für Standort-Update nicht gefunden:", currentEan);
+                                 notFoundCount++;
+                             }
+                         } else {
+                              console.warn("Eintrag ohne gültige EAN übersprungen:", item);
+                              skippedCount++;
+                         }
+                     }
+                     await batch.commit();
+                     let feedbackText = `${count} Standorte erfolgreich aktualisiert!`;
+                     if (notFoundCount > 0) feedbackText += ` (${notFoundCount} EANs nicht in DB gefunden.)`;
+                     if (skippedCount > 0) feedbackText += ` (${skippedCount} Einträge übersprungen.)`;
+                     locationImportFeedback.textContent = feedbackText;
+                     locationImportFeedback.className = (notFoundCount > 0 || skippedCount > 0) ? 'text-yellow-400 text-sm mt-2' : 'text-green-400 text-sm mt-2';
+                     document.getElementById('location-json-data').value = '';
+                 } catch(error) {
+                     console.error("Standort-Import Fehler:", error);
+                     locationImportFeedback.textContent = 'Fehler beim Import. Prüfen Sie das JSON-Format oder Datenbankzugriff.';
+                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                 }
+                  setTimeout(() => { locationImportFeedback.textContent = '' }, 5000);
+             });
 
              deleteLocationSelect.addEventListener('change', () => {
                  deleteLocationBtn.disabled = !deleteLocationSelect.value;
@@ -342,13 +482,18 @@
                  showDeleteModal(locationToDelete, 'location');
              });
 
-             // --- DATENBANK-LISTENER ---
+            // --- DATENBANK-LISTENER ---
             const setupGameListener = () => {
-                if (unsubscribe) unsubscribe();
+                if (unsubscribe) {
+                    console.log("Removing previous listener.");
+                    unsubscribe(); // Remove previous listener if exists
+                }
                 loadingStateDiv.classList.remove('hidden');
                 noResultsDiv.classList.add('hidden');
+                console.log("Setting up Firestore listener...");
                 const gamesCollection = collection(db, "games");
                 unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
+                    console.log(`Received ${snapshot.docs.length} games from Firestore.`);
                     allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     allGames.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
                     loadingStateDiv.classList.add('hidden');
@@ -360,6 +505,8 @@
                     console.error("Fehler beim Abhören der Datenbank:", error);
                     loadingStateDiv.innerHTML = `<p class="text-red-500">Fehler beim Laden der Spieldaten. Prüfen Sie Konsole & DB-Regeln.</p>`;
                     noResultsDiv.classList.add('hidden');
+                     // Optionally set unsubscribe to null here to allow retrying setupGameListener?
+                     // unsubscribe = null; 
                 });
             };
 
@@ -402,16 +549,15 @@
              cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
              confirmDeleteBtn.addEventListener('click', async () => {
-                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; } // Simplified guard
+                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; }
 
                  if (deleteType === 'game') {
                      try {
                          await deleteDoc(doc(db, "games", idToDelete));
                          console.log("Spiel gelöscht:", idToDelete);
-                         // UI updated by listener
                      } catch (error) {
                           console.error("Fehler beim Löschen des Spiels:", error);
-                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden."); // Use info modal for error
+                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden.");
                      } finally {
                          hideDeleteModal();
                      }
@@ -421,25 +567,20 @@
                      deleteLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
                      try {
                           const q = query(collection(db, "games"), where("lagerort", "==", locationName));
-                          const querySnapshot = await getDocs(q); // Need getDocs for batch updates
+                          const querySnapshot = await getDocs(q);
 
                           if (querySnapshot.empty) {
                               deleteLocationFeedback.textContent = `Keine Spiele am Standort "${locationName}" gefunden.`;
                               deleteLocationFeedback.className = 'text-gray-400 text-sm mt-2';
-                              hideDeleteModal();
-                              setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 3000);
-                              return;
+                              hideDeleteModal(); setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 3000); return;
                           }
 
                           const batch = writeBatch(db);
-                          querySnapshot.forEach((gameDoc) => {
-                              batch.update(gameDoc.ref, { lagerort: null }); // Set location to null
-                          });
+                          querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null }));
                           await batch.commit();
                           console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
-                          deleteLocationFeedback.textContent = `Standort "${locationName}" erfolgreich entfernt (${querySnapshot.size} Spiele aktualisiert).`;
+                          deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
                           deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
-                          // Filter dropdowns will update via onSnapshot listener triggering populateFilters
 
                      } catch (error) {
                           console.error(`Fehler beim Entfernen des Standorts "${locationName}":`, error);
@@ -447,8 +588,7 @@
                           deleteLocationFeedback.className = 'text-red-400 text-sm mt-2';
                      } finally {
                           hideDeleteModal();
-                          deleteLocationSelect.value = ""; // Reset dropdown selection
-                          deleteLocationBtn.disabled = true; // Disable button again
+                          deleteLocationSelect.value = ""; deleteLocationBtn.disabled = true;
                           setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 5000);
                      }
                  }
@@ -456,39 +596,33 @@
 
 
              // --- RENDER & FILTER ---
-             const renderStats = () => { /* ... unverändert ... */ };
-             document.getElementById('category-stats').addEventListener('click', (e) => { /* ... unverändert ... */ });
-             const populateFilters = () => { /* ... unverändert (inkl. deleteLocationSelect) ... */ };
-             const renderTable = (filteredGames) => { /* ... unverändert (mit inline delete button) ... */ };
-             const filterAndRender = () => { /* ... unverändert ... */ };
-             const toggleLentStatus = async (gameId) => { /* ... unverändert ... */ };
-             const syncFilters = (fromMobileToDesktop) => { /* ... unverändert ... */ };
+             const renderStats = () => { /* ... (Unverändert, rendert basierend auf allGames) ... */ };
+             document.getElementById('category-stats').addEventListener('click', (e) => { /* ... (Unverändert, filtert allGames) ... */ });
+             const populateFilters = () => { /* ... (Unverändert, befüllt Filter basierend auf allGames inkl. deleteLocationSelect) ... */ };
+             const renderTable = (filteredGames) => { /* ... (Unverändert, rendert die übergebene Liste) ... */ };
+             const filterAndRender = () => { /* ... (Unverändert, filtert allGames und ruft renderTable) ... */ };
+             const toggleLentStatus = async (gameId) => { /* ... (Unverändert, aktualisiert DB) ... */ };
+             const syncFilters = (fromMobileToDesktop) => { /* ... (Unverändert) ... */ };
              
              // --- EVENT LISTENERS ---
              const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
              desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
              searchInput.addEventListener('input', filterAndRender);
-             searchInputMobile.addEventListener('input', () => { /* ... unverändert ... */ });
-             tableBody.addEventListener('click', (event) => { /* ... unverändert (mit inline delete button check) ... */ });
+             searchInputMobile.addEventListener('input', () => { /* ... (Unverändert) ... */ });
+             tableBody.addEventListener('click', (event) => { /* ... (Unverändert, mit inline delete button check) ... */ });
 
              // --- INITIALIZATION ---
              setupGameListener(); // Start listening to the database
 
-              // Re-inline missing functions/event listeners for clarity
-              // These functions are simplified here but represent the full logic from previous versions
-              loginBtn.onclick = () => { /* Login logic */ };
-              logoutBtn.onclick = () => { /* Logout logic */ };
-              importJsonBtn.onclick = async () => { /* Import Game logic */ };
-              importLocationBtn.onclick = async () => { /* Import Location logic */ };
-              window.renderStats = renderStats;
-              window.populateFilters = populateFilters;
-              window.renderTable = renderTable;
-              window.filterAndRender = filterAndRender;
-              window.toggleLentStatus = toggleLentStatus;
-              window.syncFilters = syncFilters;
-              window.showInfoModal = showInfoModal;
-              window.showDeleteModal = showDeleteModal;
-
+             // --- Re-inline Key Functions for Clarity ---
+             window.renderStats = renderStats;
+             window.populateFilters = populateFilters;
+             window.renderTable = renderTable;
+             window.filterAndRender = filterAndRender;
+             window.toggleLentStatus = toggleLentStatus;
+             window.syncFilters = syncFilters;
+             window.showInfoModal = showInfoModal;
+             window.showDeleteModal = showDeleteModal;
 
         });
     </script>
