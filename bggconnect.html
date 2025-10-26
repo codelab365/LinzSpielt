@@ -9,16 +9,22 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         pre { white-space: pre-wrap; word-wrap: break-word; }
+        .result-item { cursor: pointer; transition: background-color 0.2s; }
+        .result-item:hover { background-color: #f0f4f8; } /* gray-100 */
+        .result-item.selected { background-color: #dbeafe; } /* blue-100 */
+        .detail-value { font-weight: 500; color: #374151; } /* gray-700 */
+        #generated-json { background-color: #e5e7eb; color: #1f2937 } /* gray-200, gray-800 */
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 p-8">
     <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-700">BoardGameGeek API Explorer</h1>
 
-        <div class="mb-6">
-            <label for="search-query" class="block text-sm font-medium text-gray-700 mb-1">Spielname suchen:</label>
+        <!-- Search Section -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
+            <label for="search-query" class="block text-sm font-medium text-gray-700 mb-1">1. Spielname suchen:</label>
             <div class="flex flex-col sm:flex-row gap-2">
-                <input type="text" id="search-query" value="Catan" placeholder="z.B. Catan, Codenames..." class="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="search-query" value="Arnak" placeholder="z.B. Catan, Arnak..." class="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button id="search-game-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Spiele suchen</button>
             </div>
             <div class="mt-2 flex items-center space-x-4">
@@ -33,95 +39,293 @@
             </div>
         </div>
 
-        <div class="mb-6">
+        <!-- Results Section -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-1">2. Suchergebnis auswählen:</label>
+            <div id="search-results" class="bg-gray-50 p-3 rounded-md border border-gray-200 h-48 overflow-y-auto">
+                <p class="text-sm text-gray-500 italic">Hier erscheinen die Suchergebnisse...</p>
+            </div>
+            <button id="fetch-details-btn" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Details abrufen</button>
+        </div>
+
+        <!-- API Token Section -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
              <label for="api-token" class="block text-sm font-medium text-gray-700 mb-1">Optional: BGG API Token (Bearer):</label>
-             <input type="text" id="api-token" placeholder="Dein BGG Application Token (optional für erste Tests)" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <input type="text" id="api-token" placeholder="Dein BGG Application Token" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
              <p class="text-xs text-gray-500 mt-1">
-                Erforderlich, sobald BGG die Autorisierung erzwingt. <a href="https://boardgamegeek.com/applications" target="_blank" class="text-blue-600 hover:underline">Hier registrieren/Token erstellen</a>.
+                Kann erforderlich sein. <a href="https://boardgamegeek.com/applications" target="_blank" class="text-blue-600 hover:underline">Hier registrieren/Token erstellen</a>.
             </p>
         </div>
 
-        <hr class="my-6">
-
-        <div>
-            <h2 class="text-xl font-semibold mb-2 text-gray-700">API Antwort (XML):</h2>
-            <div id="response-output" class="bg-gray-50 p-4 rounded-md border border-gray-200 h-96 overflow-y-auto">
-                <pre class="text-sm text-gray-600">Hier wird die XML-Antwort angezeigt...</pre>
+        <!-- Details Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-xl font-semibold mb-3 text-gray-700">3. Formatierte Spieldetails:</h2>
+                <div id="formatted-details" class="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-2 text-sm">
+                    <p class="text-gray-500 italic">Hier werden die Details angezeigt...</p>
+                </div>
+            </div>
+            <div>
+                 <h2 class="text-xl font-semibold mb-3 text-gray-700">4. Generiertes JSON:</h2>
+                 <div class="bg-gray-800 p-4 rounded-md border border-gray-700 h-64 overflow-y-auto">
+                    <pre id="generated-json" class="text-sm text-gray-300">{
+    "ean": "...",
+    "name": "...",
+    "category": "...",
+    "minAge": "...",
+    "minPlayers": "...",
+    "maxPlayers": "...",
+    "Duration": "...",
+    "description": "...",
+    "imageUrl": "...",
+    "lagerort": null,
+    "ausleihstatus": "verfügbar"
+}</pre>
+                </div>
+                <p class="text-xs text-gray-500 mt-1"><span class="font-bold">Hinweis:</span> EAN wird nicht immer von BGG geliefert. Falls nicht vorhanden, bleibt das Feld leer.</p>
+            </div>
+        </div>
+         <hr class="my-6">
+         <div>
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Detail-Antwort (XML):</h2>
+            <div id="response-output-details" class="bg-gray-50 p-4 rounded-md border border-gray-200 h-60 overflow-y-auto">
+                <pre class="text-sm text-gray-600">Hier wird die XML-Antwort der Detailabfrage angezeigt...</pre>
             </div>
             <p id="error-output" class="text-red-500 text-sm mt-2"></p>
         </div>
     </div>
 
     <script>
-        const searchGameBtn = document.getElementById('search-game-btn');
-        const searchQueryInput = document.getElementById('search-query');
-        const typeBoardgameCheckbox = document.getElementById('type-boardgame');
-        const exactMatchCheckbox = document.getElementById('exact-match');
-        const apiTokenInput = document.getElementById('api-token');
-        const responseOutput = document.getElementById('response-output').querySelector('pre');
-        const errorOutput = document.getElementById('error-output');
+        const ui = {
+            searchQuery: document.getElementById('search-query'),
+            searchBtn: document.getElementById('search-game-btn'),
+            typeBoardgame: document.getElementById('type-boardgame'),
+            exactMatch: document.getElementById('exact-match'),
+            apiToken: document.getElementById('api-token'),
+            searchResults: document.getElementById('search-results'),
+            fetchDetailsBtn: document.getElementById('fetch-details-btn'),
+            formattedDetails: document.getElementById('formatted-details'),
+            generatedJson: document.getElementById('generated-json'),
+            responseOutputDetails: document.getElementById('response-output-details').querySelector('pre'),
+            errorOutput: document.getElementById('error-output'),
+            selectedGameId: null
+        };
 
-        searchGameBtn.addEventListener('click', async () => {
-            const query = searchQueryInput.value.trim();
-            const apiToken = apiTokenInput.value.trim();
-            const typeBoardgame = typeBoardgameCheckbox.checked;
-            const exactMatch = exactMatchCheckbox.checked;
-
-            responseOutput.textContent = 'Lade Daten...';
-            errorOutput.textContent = '';
-
-            if (!query) {
-                responseOutput.textContent = 'Bitte einen Suchbegriff eingeben.';
-                return;
-            }
-
-            // BGG API v2 - 'search' endpoint
-            let apiUrl = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(query)}`;
-            if (typeBoardgame) {
-                apiUrl += '&type=boardgame';
-            }
-            if (exactMatch) {
-                apiUrl += '&exact=1';
-            }
+        // --- API Call Helper ---
+        async function callBggApi(endpoint, params = {}, useToken = true) {
+            const apiToken = ui.apiToken.value.trim();
+            const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
             const headers = new Headers();
-            if (apiToken) {
+            if (useToken && apiToken) {
                 headers.append('Authorization', `Bearer ${apiToken}`);
             }
 
+            ui.errorOutput.textContent = ''; // Clear previous errors
+
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: headers
-                });
+                const response = await fetch(url.toString(), { method: 'GET', headers: headers });
+
+                // Handle BGG's 202 Accepted for queued requests
+                if (response.status === 202) {
+                     ui.errorOutput.textContent = 'BGG API hat die Anfrage in die Warteschlange gestellt. Bitte versuchen Sie es in Kürze erneut.';
+                     throw new Error('Request queued');
+                }
 
                 if (!response.ok) {
                     let errorText = `HTTP Fehler: ${response.status} ${response.statusText}`;
-                     try {
-                        const bodyText = await response.text();
-                        if(bodyText && bodyText.toLowerCase().includes('<html')) {
-                             errorText += ' (Antwort war HTML, mögl. Rate-Limit oder ungültige Anfrage)';
-                        } else if(bodyText) {
-                            errorText += `\nAntwort-Body: ${bodyText.substring(0, 200)}...`;
-                        }
-                    } catch (e) { /* ignore */ }
+                    try { const body = await response.text(); errorText += ` Response: ${body.substring(0, 100)}`; } catch(e){}
                     throw new Error(errorText);
                 }
-
                 const xmlText = await response.text();
-                responseOutput.textContent = xmlText;
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+                 // Check for parser errors
+                const parserError = xmlDoc.querySelector("parsererror");
+                if (parserError) {
+                    throw new Error("Fehler beim Parsen der XML-Antwort.");
+                }
+
+                return { xmlText, xmlDoc };
 
             } catch (error) {
-                console.error('Fehler beim Abrufen der BGG API:', error);
-                responseOutput.textContent = 'Fehler beim Abrufen der Daten.';
-
-                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                     errorOutput.textContent = 'Netzwerkfehler oder CORS-Problem. Ein direkter Abruf vom Browser ist möglicherweise blockiert.';
-                 } else {
-                     errorOutput.textContent = `Fehler: ${error.message}`;
+                 console.error('API Error:', error);
+                 if (error.message !== 'Request queued') { // Don't show generic error for queued
+                     ui.errorOutput.textContent = `API Fehler: ${error.message}. CORS-Problem möglich.`;
                  }
+                 throw error; // Re-throw to stop further processing
+            }
+        }
+
+        // --- Search Functionality ---
+        ui.searchBtn.addEventListener('click', async () => {
+            const query = ui.searchQuery.value.trim();
+            if (!query) return;
+
+            ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Suche läuft...</p>';
+            ui.fetchDetailsBtn.disabled = true;
+            ui.selectedGameId = null;
+            resetDetailOutputs();
+
+            const params = { query: query };
+            if (ui.typeBoardgame.checked) params.type = 'boardgame';
+            if (ui.exactMatch.checked) params.exact = '1';
+
+            try {
+                const { xmlDoc } = await callBggApi('search', params);
+                const items = xmlDoc.querySelectorAll('item');
+                if (items.length === 0) {
+                    ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Keine Spiele gefunden.</p>';
+                    return;
+                }
+
+                let resultsHtml = '<ul class="space-y-1">';
+                items.forEach(item => {
+                    const id = item.getAttribute('id');
+                    const nameNode = item.querySelector('name');
+                    const yearNode = item.querySelector('yearpublished');
+                    const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannter Name';
+                    const year = yearNode ? `(${yearNode.getAttribute('value')})` : '';
+                    resultsHtml += `<li class="result-item p-1 rounded border border-transparent" data-id="${id}">
+                                        <span class="text-sm font-medium">${name}</span>
+                                        <span class="text-xs text-gray-500 ml-1">${year}</span>
+                                    </li>`;
+                });
+                resultsHtml += '</ul>';
+                ui.searchResults.innerHTML = resultsHtml;
+
+            } catch (error) {
+                ui.searchResults.innerHTML = '<p class="text-sm text-red-500 italic">Fehler bei der Suche.</p>';
             }
         });
+
+        // --- Result Selection ---
+        ui.searchResults.addEventListener('click', (e) => {
+            const targetItem = e.target.closest('.result-item');
+            if (!targetItem) return;
+
+            // Remove selection from previous
+            ui.searchResults.querySelectorAll('.result-item.selected').forEach(el => el.classList.remove('selected'));
+            
+            // Add selection to current
+            targetItem.classList.add('selected');
+            ui.selectedGameId = targetItem.dataset.id;
+            ui.fetchDetailsBtn.disabled = false;
+        });
+
+        // --- Fetch Details Functionality ---
+        ui.fetchDetailsBtn.addEventListener('click', async () => {
+            if (!ui.selectedGameId) return;
+
+            resetDetailOutputs();
+            ui.responseOutputDetails.textContent = 'Lade Details...';
+
+            try {
+                const { xmlText, xmlDoc } = await callBggApi('thing', { id: ui.selectedGameId, stats: 1 });
+                ui.responseOutputDetails.textContent = xmlText;
+                processAndDisplayDetails(xmlDoc);
+
+            } catch (error) {
+                ui.responseOutputDetails.textContent = 'Fehler beim Laden der Details.';
+            }
+        });
+
+        // --- Process and Display Details ---
+        function processAndDisplayDetails(xmlDoc) {
+            const item = xmlDoc.querySelector('item');
+            if (!item) {
+                 ui.formattedDetails.innerHTML = '<p class="text-red-500 italic">Keine Spieldetails im XML gefunden.</p>';
+                return;
+            }
+
+            const getVal = (selector, attribute = 'value') => item.querySelector(selector)?.[attribute] || '';
+            const getTxt = (selector) => item.querySelector(selector)?.textContent || '';
+
+            // Helper to get primary name
+            const getPrimaryName = () => {
+                const names = item.querySelectorAll('name');
+                for(let name of names) {
+                    if(name.getAttribute('type') === 'primary') return name.getAttribute('value');
+                }
+                return names.length > 0 ? names[0].getAttribute('value') : 'N/A'; // Fallback
+            }
+            
+            // Helper to decode HTML entities
+             const decodeHTML = (html) => {
+                const txt = document.createElement("textarea");
+                txt.innerHTML = html;
+                return txt.value;
+            }
+
+             // Find categories
+             const categories = Array.from(item.querySelectorAll('link[type="boardgamecategory"]')).map(link => link.getAttribute('value')).join(', ') || 'N/A';
+
+            // Try to find barcode (often UPC, sometimes EAN - not reliable)
+            const barcode = getVal('barcode'); // BGG might add this, but often empty or UPC
+
+            const details = {
+                ean: barcode, // Placeholder - BGG might not provide EAN!
+                name: getPrimaryName(),
+                category: categories,
+                minAge: getVal('minage'),
+                minPlayers: getVal('minplayers'),
+                maxPlayers: getVal('maxplayers'),
+                duration: getVal('playingtime') || getVal('minplaytime') + '-' + getVal('maxplaytime'), // Combine if playingtime missing
+                description: decodeHTML(getTxt('description')),
+                imageUrl: getTxt('image') || getTxt('thumbnail'), // Prefer image over thumbnail
+                year: getVal('yearpublished'),
+            };
+
+            // Format for display
+             let detailsHtml = `
+                <p><strong>Name:</strong> <span class="detail-value">${details.name} ${details.year ? '('+details.year+')' : ''}</span></p>
+                <p><strong>Kategorie:</strong> <span class="detail-value">${details.category}</span></p>
+                <p><strong>Alter:</strong> <span class="detail-value">${details.minAge}+</span></p>
+                <p><strong>Spieler:</strong> <span class="detail-value">${details.minPlayers} - ${details.maxPlayers}</span></p>
+                <p><strong>Dauer:</strong> <span class="detail-value">${details.duration} Min.</span></p>
+                <p><strong>Bild-URL:</strong> <span class="detail-value text-xs">${details.imageUrl ? `<a href="${details.imageUrl}" target="_blank" class="text-blue-600 hover:underline">Link</a>` : 'N/A'}</span></p>
+                ${details.ean ? `<p><strong>Barcode (UPC/EAN?):</strong> <span class="detail-value">${details.ean}</span></p>` : ''}
+                <p><strong>Beschreibung:</strong></p>
+                <div class="prose prose-sm max-w-none text-gray-600">${details.description || 'N/A'}</div>
+            `;
+            ui.formattedDetails.innerHTML = detailsHtml;
+
+            // Generate JSON
+            const outputJson = {
+                ean: details.ean, // Might be UPC or empty!
+                name: details.name,
+                category: categories.split(', ')[0] || null, // Take first category
+                minAge: parseInt(details.minAge) || null,
+                minPlayers: parseInt(details.minPlayers) || null,
+                maxPlayers: parseInt(details.maxPlayers) || null,
+                Duration: parseInt(details.duration) || null, // Assuming single value if range used fallback above
+                description: details.description || null,
+                imageUrl: details.imageUrl || null,
+                lagerort: null, // Default
+                ausleihstatus: "verfügbar" // Default
+            };
+            
+             // Refine Duration: If min/max exist, use max or average? Using playingtime if available.
+             if (!outputJson.Duration) {
+                 const minT = parseInt(getVal('minplaytime'));
+                 const maxT = parseInt(getVal('maxplaytime'));
+                 if (maxT) outputJson.Duration = maxT;
+                 else if (minT) outputJson.Duration = minT;
+             }
+
+
+            ui.generatedJson.textContent = JSON.stringify([outputJson], null, 2); // Wrap in array as requested
+
+        }
+
+        // --- Reset Helper ---
+        function resetDetailOutputs() {
+            ui.formattedDetails.innerHTML = '<p class="text-gray-500 italic">Hier werden die Details angezeigt...</p>';
+            ui.generatedJson.textContent = JSON.stringify([{ /* default structure */ }], null, 2);
+             ui.responseOutputDetails.textContent = 'Hier wird die XML-Antwort der Detailabfrage angezeigt...';
+        }
+
     </script>
 </body>
 </html>
