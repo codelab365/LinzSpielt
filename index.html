@@ -299,21 +299,39 @@
                  adminPanel.classList.toggle('hidden', !isAdmin);
                  gameTable.classList.toggle('admin-view', isAdmin);
                  if (isAdmin) userEmailDisplay.textContent = user.email;
-                 if (unsubscribe === null) setupGameListener(); else filterAndRender();
+                 if (unsubscribe === null) setupGameListener(); else filterAndRender(); // Re-render needed for potential column changes
              });
-             loginBtn.addEventListener('click', () => { /* ... (Login-Logik) ... */ });
-             logoutBtn.addEventListener('click', () => { /* ... (Logout-Logik) ... */ });
+             loginBtn.addEventListener('click', () => {
+                 const email = document.getElementById('login-email').value;
+                 const password = document.getElementById('login-password').value;
+                 loginError.textContent = '';
+                 signInWithEmailAndPassword(auth, email, password)
+                     .then(userCredential => { console.log("Logged in:", userCredential.user.email); toggleMenu(true); })
+                     .catch(error => { console.error("Login Error:", error.code); loginError.textContent = "Login failed."; });
+             });
+             logoutBtn.addEventListener('click', () => {
+                 signOut(auth).then(() => { console.log("Logged out."); toggleMenu(true); })
+                           .catch(error => console.error("Logout Error:", error));
+             });
 
              // --- Mobile Filter ---
              const showFilterModal = () => filterModalOverlay.classList.remove('hidden');
              const hideFilterModal = () => filterModalOverlay.classList.add('hidden');
              openFilterModalBtn.addEventListener('click', showFilterModal);
              applyFiltersBtn.addEventListener('click', () => { syncFilters(true); filterAndRender(); hideFilterModal(); });
-             resetFiltersBtn.addEventListener('click', () => { /* ... (Reset-Logik) ... */ });
+             resetFiltersBtn.addEventListener('click', () => {
+                 const allSelects = [locationFilter, playersFilter, durationFilter, ageFilter, statusFilter, locationFilterMobile, playersFilterMobile, durationFilterMobile, ageFilterMobile, statusFilterMobile];
+                 allSelects.forEach(sel => sel.selectedIndex = 0);
+                 selectedCategories = [];
+                 renderStats(); // Update category button styles
+                 syncFilters(false); // Sync reset to mobile
+                 filterAndRender();
+                 hideFilterModal();
+             });
 
              // --- ADMIN FUNKTIONEN ---
-             importJsonBtn.addEventListener('click', async () => { /* ... (JSON Import Logik mit EAN Check) ... */ });
-             importLocationBtn.addEventListener('click', async () => { /* ... (Location Import Logik mit Check) ... */ });
+             importJsonBtn.addEventListener('click', async () => { /* ... (Import Game logic) ... */ });
+             importLocationBtn.addEventListener('click', async () => { /* ... (Import Location logic) ... */ });
 
              deleteLocationSelect.addEventListener('change', () => {
                  deleteLocationBtn.disabled = !deleteLocationSelect.value;
@@ -384,30 +402,54 @@
              cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
              confirmDeleteBtn.addEventListener('click', async () => {
-                 if (!idToDelete || !currentUser) { /* ... */ return; }
+                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; } // Simplified guard
+
                  if (deleteType === 'game') {
                      try {
                          await deleteDoc(doc(db, "games", idToDelete));
-                     } catch (error) { /* ... */ }
-                     finally { hideDeleteModal(); }
+                         console.log("Spiel gelöscht:", idToDelete);
+                         // UI updated by listener
+                     } catch (error) {
+                          console.error("Fehler beim Löschen des Spiels:", error);
+                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden."); // Use info modal for error
+                     } finally {
+                         hideDeleteModal();
+                     }
                  } else if (deleteType === 'location') {
                      const locationName = idToDelete;
                      deleteLocationFeedback.textContent = `Entferne Standort "${locationName}"...`;
                      deleteLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
                      try {
-                         const q = query(collection(db, "games"), where("lagerort", "==", locationName));
-                         const querySnapshot = await getDocs(q);
-                         if (querySnapshot.empty) { /* ... (Feedback keine Spiele) ... */ hideDeleteModal(); return; }
-                         const batch = writeBatch(db);
-                         querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null }));
-                         await batch.commit();
-                         deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
-                         deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
-                     } catch (error) { /* ... (Fehlerfeedback) ... */ }
-                     finally {
-                         hideDeleteModal();
-                         deleteLocationSelect.value = ""; deleteLocationBtn.disabled = true;
-                         setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 5000);
+                          const q = query(collection(db, "games"), where("lagerort", "==", locationName));
+                          const querySnapshot = await getDocs(q); // Need getDocs for batch updates
+
+                          if (querySnapshot.empty) {
+                              deleteLocationFeedback.textContent = `Keine Spiele am Standort "${locationName}" gefunden.`;
+                              deleteLocationFeedback.className = 'text-gray-400 text-sm mt-2';
+                              hideDeleteModal();
+                              setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 3000);
+                              return;
+                          }
+
+                          const batch = writeBatch(db);
+                          querySnapshot.forEach((gameDoc) => {
+                              batch.update(gameDoc.ref, { lagerort: null }); // Set location to null
+                          });
+                          await batch.commit();
+                          console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
+                          deleteLocationFeedback.textContent = `Standort "${locationName}" erfolgreich entfernt (${querySnapshot.size} Spiele aktualisiert).`;
+                          deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
+                          // Filter dropdowns will update via onSnapshot listener triggering populateFilters
+
+                     } catch (error) {
+                          console.error(`Fehler beim Entfernen des Standorts "${locationName}":`, error);
+                          deleteLocationFeedback.textContent = `Fehler beim Entfernen des Standorts.`;
+                          deleteLocationFeedback.className = 'text-red-400 text-sm mt-2';
+                     } finally {
+                          hideDeleteModal();
+                          deleteLocationSelect.value = ""; // Reset dropdown selection
+                          deleteLocationBtn.disabled = true; // Disable button again
+                          setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 5000);
                      }
                  }
              });
@@ -426,7 +468,7 @@
              const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
              desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
              searchInput.addEventListener('input', filterAndRender);
-             searchInputMobile.addEventListener('input', () => { /* ... */ });
+             searchInputMobile.addEventListener('input', () => { /* ... unverändert ... */ });
              tableBody.addEventListener('click', (event) => { /* ... unverändert (mit inline delete button check) ... */ });
 
              // --- INITIALIZATION ---
@@ -438,7 +480,7 @@
               logoutBtn.onclick = () => { /* Logout logic */ };
               importJsonBtn.onclick = async () => { /* Import Game logic */ };
               importLocationBtn.onclick = async () => { /* Import Location logic */ };
-              window.renderStats = renderStats; // Make global if needed
+              window.renderStats = renderStats;
               window.populateFilters = populateFilters;
               window.renderTable = renderTable;
               window.filterAndRender = filterAndRender;
