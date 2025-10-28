@@ -163,11 +163,14 @@
                     <button id="import-json-btn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Spiele importieren</button>
                     <p id="import-feedback" class="text-sm mt-2"></p>
                 </div>
-                <div>
-                    <label for="location-json-data" class="text-sm text-gray-400">Standorte aktualisieren (JSON):</label>
-                    <textarea id="location-json-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder='[{"ean": "123...", "lagerort": "Regal A"}]'></textarea>
-                    <button id="import-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Standorte aktualisieren</button>
-                    <p id="location-import-feedback" class="text-sm mt-2"></p>
+                <!-- NEU: Standortzuweisung per EAN-Liste -->
+                <div class="border-t border-gray-700 pt-4">
+                    <label for="assign-location-name" class="text-sm text-gray-400">Standort zuweisen:</label>
+                    <input type="text" id="assign-location-name" placeholder="Standortname (z.B. Regal A)" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label for="assign-location-eans" class="text-sm text-gray-400 mt-2 block">EANs (eine pro Zeile):</label>
+                    <textarea id="assign-location-eans" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="EAN1\nEAN2\nEAN3..."></textarea>
+                    <button id="assign-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">EANs zuweisen</button>
+                    <p id="assign-location-feedback" class="text-sm mt-2"></p>
                 </div>
                  <!-- Standort löschen -->
                  <div class="border-t border-gray-700 pt-4">
@@ -175,7 +178,6 @@
                      <div class="flex gap-2 mt-1">
                          <select id="delete-location-select" class="flex-grow p-2 bg-gray-800 border border-gray-700 rounded-md text-white appearance-none">
                              <option value="">-- Standort wählen --</option>
-                             <!-- Optionen werden dynamisch gefüllt -->
                          </select>
                          <button id="delete-location-btn" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold rounded-md transition-colors disabled:opacity-50" disabled>Löschen</button>
                     </div>
@@ -271,13 +273,16 @@
              const adminPanel = document.getElementById('admin-panel');
              const importJsonBtn = document.getElementById('import-json-btn');
              const importFeedback = document.getElementById('import-feedback');
-             const importLocationBtn = document.getElementById('import-location-btn');
-             const locationImportFeedback = document.getElementById('location-import-feedback');
+             // NEU: Elemente für EAN-Listen-Import
+             const assignLocationNameInput = document.getElementById('assign-location-name');
+             const assignLocationEansTextarea = document.getElementById('assign-location-eans');
+             const assignLocationBtn = document.getElementById('assign-location-btn');
+             const assignLocationFeedback = document.getElementById('assign-location-feedback');
              const infoModalTitle = document.getElementById('info-modal-title');
              const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
              const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
 
-            // --- FUNKTIONEN (Auth, Modals, Admin, DB Listener, Render, Filter) ---
+            // --- FUNKTIONEN ---
 
              const toggleMenu = (forceClose = false) => {
                  const isHidden = mobileMenu.classList.contains('translate-x-full');
@@ -301,14 +306,7 @@
                  adminPanel.classList.toggle('hidden', !isAdmin);
                  gameTable.classList.toggle('admin-view', isAdmin);
                  if (isAdmin) userEmailDisplay.textContent = user.email;
-                 
-                 // Listener starten oder UI neu rendern
-                 if (unsubscribe === null) {
-                    setupGameListener(); // Start listening if not already doing so
-                 } else {
-                    // Listener exists, re-render might be needed if auth state changed visibility rules
-                    filterAndRender(); 
-                 }
+                 if (unsubscribe === null) setupGameListener(); else filterAndRender();
              });
              loginBtn.addEventListener('click', () => {
                  const email = document.getElementById('login-email').value;
@@ -417,63 +415,70 @@
                  setTimeout(() => { importFeedback.textContent = '' }, 5000);
              });
 
-             importLocationBtn.addEventListener('click', async () => {
-                 const jsonData = document.getElementById('location-json-data').value;
-                 locationImportFeedback.textContent = '';
-                 if (!jsonData.trim()) {
-                     locationImportFeedback.textContent = 'Bitte JSON-Daten einfügen.';
-                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+            // NEU: Standortzuweisung per EAN-Liste Listener
+             assignLocationBtn.addEventListener('click', async () => {
+                 const locationName = assignLocationNameInput.value.trim();
+                 const eanListData = assignLocationEansTextarea.value.trim();
+                 assignLocationFeedback.textContent = '';
+
+                 if (!locationName) {
+                     assignLocationFeedback.textContent = 'Bitte einen Standortnamen eingeben.';
+                     assignLocationFeedback.className = 'text-red-400 text-sm mt-2';
                      return;
                  }
+                 if (!eanListData) {
+                     assignLocationFeedback.textContent = 'Bitte EAN-Nummern eingeben (eine pro Zeile).';
+                     assignLocationFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+
+                 const eansToUpdate = eanListData.split('\n')
+                     .map(ean => ean.trim())
+                     .filter(ean => ean && ean !== "0"); // Filter empty lines and "0"
+
+                 if (eansToUpdate.length === 0) {
+                     assignLocationFeedback.textContent = 'Keine gültigen EANs in der Liste gefunden.';
+                     assignLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
+                     return;
+                 }
+
+                 assignLocationFeedback.textContent = `Aktualisiere Standort für ${eansToUpdate.length} EANs...`;
+                 assignLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
+
                  try {
-                     const locations = JSON.parse(jsonData);
-                     if (!Array.isArray(locations)) throw new Error("JSON muss ein Array sein.");
                      const batch = writeBatch(db);
                      let count = 0;
                      let notFoundCount = 0;
-                     let skippedCount = 0;
-                     const gameIds = allGames.length > 0 ? new Set(allGames.map(g => g.id)) : null;
-                     
-                     if (!gameIds) {
-                          locationImportFeedback.textContent = 'Spieldaten werden noch geladen. Bitte kurz warten.';
-                          locationImportFeedback.className = 'text-yellow-400 text-sm mt-2';
-                           setTimeout(() => { locationImportFeedback.textContent = '' }, 3000);
-                          return;
-                     }
+                     // Use the globally available allGames array for checking existence
+                     const gameIds = new Set(allGames.map(g => g.id));
 
-                     for (const item of locations) {
-                         const currentEan = item.ean ? String(item.ean).trim() : "";
-                         const lagerOrtInput = item.lagerort;
-                         const lagerOrt = (lagerOrtInput !== undefined && lagerOrtInput !== null && String(lagerOrtInput).trim() !== "") ? String(lagerOrtInput).trim() : null;
-
-                         if (currentEan && currentEan !== "0") {
-                             if (gameIds.has(currentEan)) {
-                                 const gameRef = doc(db, "games", currentEan);
-                                 batch.update(gameRef, { lagerort: lagerOrt }); 
-                                 count++;
-                             } else {
-                                 console.warn("EAN für Standort-Update nicht gefunden:", currentEan);
-                                 notFoundCount++;
-                             }
+                     eansToUpdate.forEach(ean => {
+                         if (gameIds.has(ean)) {
+                             const gameRef = doc(db, "games", ean);
+                             batch.update(gameRef, { lagerort: locationName });
+                             count++;
                          } else {
-                              console.warn("Eintrag ohne gültige EAN übersprungen:", item);
-                              skippedCount++;
+                             console.warn("EAN für Standort-Update nicht gefunden:", ean);
+                             notFoundCount++;
                          }
-                     }
+                     });
+
                      await batch.commit();
-                     let feedbackText = `${count} Standorte erfolgreich aktualisiert!`;
-                     if (notFoundCount > 0) feedbackText += ` (${notFoundCount} EANs nicht in DB gefunden.)`;
-                     if (skippedCount > 0) feedbackText += ` (${skippedCount} Einträge übersprungen.)`;
-                     locationImportFeedback.textContent = feedbackText;
-                     locationImportFeedback.className = (notFoundCount > 0 || skippedCount > 0) ? 'text-yellow-400 text-sm mt-2' : 'text-green-400 text-sm mt-2';
-                     document.getElementById('location-json-data').value = '';
+                     let feedbackText = `${count} Standorte erfolgreich auf "${locationName}" gesetzt!`;
+                     if (notFoundCount > 0) feedbackText += ` (${notFoundCount} EANs nicht gefunden.)`;
+                     assignLocationFeedback.textContent = feedbackText;
+                     assignLocationFeedback.className = notFoundCount > 0 ? 'text-yellow-400 text-sm mt-2' : 'text-green-400 text-sm mt-2';
+                     assignLocationNameInput.value = ''; // Clear inputs on success
+                     assignLocationEansTextarea.value = '';
+
                  } catch(error) {
-                     console.error("Standort-Import Fehler:", error);
-                     locationImportFeedback.textContent = 'Fehler beim Import. Prüfen Sie das JSON-Format oder Datenbankzugriff.';
-                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                     console.error("Standort-Zuweisungs Fehler:", error);
+                     assignLocationFeedback.textContent = 'Fehler bei der Zuweisung. Prüfen Sie die Konsole.';
+                     assignLocationFeedback.className = 'text-red-400 text-sm mt-2';
                  }
-                  setTimeout(() => { locationImportFeedback.textContent = '' }, 5000);
+                  setTimeout(() => { assignLocationFeedback.textContent = ''; }, 5000);
              });
+
 
              deleteLocationSelect.addEventListener('change', () => {
                  deleteLocationBtn.disabled = !deleteLocationSelect.value;
@@ -507,9 +512,6 @@
                     console.error("Fehler beim Abhören der Datenbank:", error);
                     loadingStateDiv.innerHTML = `<p class="text-red-500">Fehler beim Laden der Spieldaten. Prüfen Sie Konsole & DB-Regeln.</p>`;
                     noResultsDiv.classList.add('hidden');
-                     // It's generally better *not* to nullify unsubscribe here,
-                     // as Firestore might attempt to reconnect automatically.
-                     // If errors persist, manual intervention/reload is likely needed.
                 });
             };
 
@@ -585,9 +587,7 @@
                           }
 
                           const batch = writeBatch(db);
-                          querySnapshot.forEach((gameDoc) => {
-                              batch.update(gameDoc.ref, { lagerort: null }); // Set location to null
-                          });
+                          querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null })); // Set location to null
                           await batch.commit();
                           console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
                           deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
@@ -623,7 +623,7 @@
                      const isActive = selectedCategories.includes(category);
                      const activeClass = isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600';
                      const safeCategory = category.replace(/"/g, '&quot;');
-                     statsHTML += `<button data-category="${safeCategory}" class="category-stat-btn px-3 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${activeClass}">${category}: ${categoryCounts[category]}</button>`;
+                     statsHTML += `<button data-category="${safeCategory}" class="category-stat-btn px-3 py-1 rounded-full text-sm whitespace-nowBefehl ${activeClass}">${category}: ${categoryCounts[category]}</button>`;
                  });
                  categoryStatsDiv.innerHTML = statsHTML;
              };
@@ -693,6 +693,7 @@
                              <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
                              ${eanLineHtml} 
                          </td>
+                         <!-- EAN-Spalte wurde entfernt -->
                          <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
@@ -704,7 +705,7 @@
                          </td>`;
                      tableBody.appendChild(row);
                  });
-             };
+              };
              const filterAndRender = () => {
                  if (allGames.length === 0 && unsubscribe !== null) { 
                      loadingStateDiv.classList.add('hidden'); noResultsDiv.classList.remove('hidden'); renderTable([]); return;
@@ -788,7 +789,7 @@
              // --- INITIALIZATION ---
              setupGameListener(); // Start listening to the database
 
-             // --- Make key functions globally accessible if needed ---
+             // --- Make key functions globally accessible ---
              window.renderStats = renderStats;
              window.populateFilters = populateFilters;
              window.renderTable = renderTable;
