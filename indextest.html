@@ -25,11 +25,10 @@
             cursor: not-allowed;
         }
         /* Admin columns/elements initially hidden */
-         .admin-action-col, .delete-button-inline, .ean-inline { display: none; } /* Combined admin elements */
+        .admin-action-col, .delete-button-inline, .ean-inline { display: none; }
         /* Show admin elements when table has admin-view class */
-        table.admin-view .admin-action-col { display: table-cell; } /* Action column still needs table-cell */
-        table.admin-view .delete-button-inline, table.admin-view .ean-inline { display: inline-block; } /* Inline elements */
-
+        table.admin-view .admin-action-col { display: table-cell; }
+        table.admin-view .delete-button-inline, table.admin-view .ean-inline { display: inline-block; }
 
         .public-col { display: table-cell; }
         table.admin-view .public-col { display: none; }
@@ -55,7 +54,6 @@
              font-family: monospace;
              font-size: 0.8rem;
              color: #9ca3af; /* gray-400 */
-             /* display: inline-block; Will be controlled by admin-view */
         }
 
          /* Style für das Bild im Modal */
@@ -140,10 +138,63 @@
 
     <!-- Modals -->
     <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"></div>
-    <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform duration-300 ease-in-out translate-x-full"><!-- ... content ... --></div>
-    <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><!-- ... content ... --></div>
-    <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><!-- ... content ... --></div>
-    <div id="filter-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><!-- ... content ... --></div>
+    <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform duration-300 ease-in-out translate-x-full">
+        <div id="auth-section">
+            <div id="login-view">
+                <h3 class="text-xl text-white font-bold mb-4">Admin Login</h3>
+                <input type="email" id="login-email" placeholder="E-Mail" class="w-full p-2 mb-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="login-password" placeholder="Passwort" class="w-full p-2 mb-4 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Anmelden</button>
+                <p id="login-error" class="text-red-400 text-sm mt-2"></p>
+            </div>
+            <div id="user-info" class="hidden">
+                 <h3 class="text-xl text-white font-bold mb-2">Angemeldet</h3>
+                 <p id="user-email" class="text-gray-400 mb-4 truncate"></p>
+                 <button id="logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Abmelden</button>
+            </div>
+        </div>
+        <div id="admin-panel" class="hidden">
+            <hr class="my-6 border-gray-700">
+            <h3 class="text-xl text-white font-bold mb-4">Admin-Bereich</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="json-import-data" class="text-sm text-gray-400">Neues Spiel importieren (JSON):</label>
+                    <textarea id="json-import-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <button id="import-json-btn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Spiele importieren</button>
+                    <p id="import-feedback" class="text-sm mt-2"></p>
+                </div>
+                <div>
+                    <label for="location-json-data" class="text-sm text-gray-400">Standorte aktualisieren (JSON):</label>
+                    <textarea id="location-json-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder='[{"ean": "123...", "lagerort": "Regal A"}]'></textarea>
+                    <button id="import-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Standorte aktualisieren</button>
+                    <p id="location-import-feedback" class="text-sm mt-2"></p>
+                </div>
+                 <!-- Standort löschen -->
+                 <div class="border-t border-gray-700 pt-4">
+                     <label for="delete-location-select" class="text-sm text-gray-400">Standort aus Datenbank entfernen:</label>
+                     <div class="flex gap-2 mt-1">
+                         <select id="delete-location-select" class="flex-grow p-2 bg-gray-800 border border-gray-700 rounded-md text-white appearance-none">
+                             <option value="">-- Standort wählen --</option>
+                             <!-- Optionen werden dynamisch gefüllt -->
+                         </select>
+                         <button id="delete-location-btn" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold rounded-md transition-colors disabled:opacity-50" disabled>Löschen</button>
+                    </div>
+                    <p id="delete-location-feedback" class="text-sm mt-2"></p>
+                 </div>
+            </div>
+        </div>
+        <hr class="my-6 border-gray-700">
+        <nav>
+            <ul class="space-y-2">
+                <li><a href="https://spieleversum.at/impressum/" target="_blank" class="flex items-center text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2 py-2">Impressum<svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a></li>
+                <li><a href="https://spieleversum.at/datenschutz/" target="_blank" class="flex items-center text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2 py-2">Datenschutz<svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"> <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"><div class="p-5 border-b border-gray-700 flex justify-between items-center"><h2 id="info-modal-title" class="text-2xl font-bold text-white"></h2><button id="info-modal-close-btn-x" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button></div><div id="info-modal-content" class="p-6 text-gray-300 space-y-4 overflow-y-auto"></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 text-right"><button id="info-modal-close-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Schließen</button></div></div></div>
+    <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Löschen bestätigen</h2></div><div class="p-6 text-gray-300"><p>Sind Sie sicher, dass Sie <span id="delete-type-text">das Spiel</span> "<span id="delete-name-span" class="font-bold"></span>" <span id="delete-scope-text">endgültig</span> löschen möchten?</p></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-end gap-4"><button id="cancel-delete-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Abbrechen</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Löschen</button></div></div></div>
+    <div id="filter-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Filter anpassen</h2></div><div class="p-6 space-y-4"><div><label for="location-filter-mobile" class="text-sm font-medium text-gray-400">Standort</label><select id="location-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="players-filter-mobile" class="text-sm font-medium text-gray-400">Spielerzahl</label><select id="players-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="duration-filter-mobile" class="text-sm font-medium text-gray-400">Spieldauer</label><select id="duration-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="age-filter-mobile" class="text-sm font-medium text-gray-400">Alter ab</label><select id="age-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="status-filter-mobile" class="text-sm font-medium text-gray-400">Status</label><select id="status-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-between gap-4"><button id="reset-filters-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Zurücksetzen</button><button id="apply-filters-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Anwenden</button></div></div></div>
 
 
     <script type="module">
@@ -153,7 +204,15 @@
         import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
-        const firebaseConfig = { /* ... */ };
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+            authDomain: "linzspielt.firebaseapp.com",
+            projectId: "linzspielt",
+            storageBucket: "linzspielt.firebasestorage.app",
+            messagingSenderId: "41406614659",
+            appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+            measurementId: "G-5X66HE5YLY"
+        };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -161,83 +220,479 @@
         // Globale Variablen
         let allGames = [];
         let currentUser = null;
-        let idToDelete = null; 
-        let deleteType = 'game'; 
+        let idToDelete = null; // Can be game ID or location name
+        let deleteType = 'game'; // 'game' or 'location'
         let selectedCategories = [];
         let unsubscribe = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            // UI Elemente holen (gekürzt)
+            // UI Elemente holen (Beispiele)
             const tableBody = document.getElementById('game-table-body');
             const gameTable = document.getElementById('game-table');
             const infoModalContent = document.getElementById('info-modal-content');
-            // ... (restliche UI Elemente) ...
+            const loadingStateDiv = document.getElementById('loading-state');
+            const noResultsDiv = document.getElementById('no-results');
+            const locationFilter = document.getElementById('location-filter');
+            const locationFilterMobile = document.getElementById('location-filter-mobile');
+            const deleteLocationSelect = document.getElementById('delete-location-select');
+            const deleteLocationBtn = document.getElementById('delete-location-btn');
+            const deleteLocationFeedback = document.getElementById('delete-location-feedback');
+            const infoModalOverlay = document.getElementById('info-modal-overlay');
+            const deleteConfirmModalOverlay = document.getElementById('delete-confirm-modal-overlay');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const deleteTypeText = document.getElementById('delete-type-text');
+            const deleteNameSpan = document.getElementById('delete-name-span');
+            const deleteScopeText = document.getElementById('delete-scope-text');
+             // Weitere UI Elemente hier definieren...
+             const searchInput = document.getElementById('search-input');
+             const playersFilter = document.getElementById('players-filter');
+             const durationFilter = document.getElementById('duration-filter');
+             const ageFilter = document.getElementById('age-filter');
+             const statusFilter = document.getElementById('status-filter');
+             const searchInputMobile = document.getElementById('search-input-mobile');
+             const openFilterModalBtn = document.getElementById('open-filter-modal-btn');
+             const filterModalOverlay = document.getElementById('filter-modal-overlay');
+             const playersFilterMobile = document.getElementById('players-filter-mobile');
+             const durationFilterMobile = document.getElementById('duration-filter-mobile');
+             const ageFilterMobile = document.getElementById('age-filter-mobile');
+             const statusFilterMobile = document.getElementById('status-filter-mobile');
+             const applyFiltersBtn = document.getElementById('apply-filters-btn');
+             const resetFiltersBtn = document.getElementById('reset-filters-btn');
+             const hamburgerBtn = document.getElementById('hamburger-btn');
+             const mobileMenu = document.getElementById('mobile-menu');
+             const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+             const loginView = document.getElementById('login-view');
+             const userInfo = document.getElementById('user-info');
+             const loginBtn = document.getElementById('login-btn');
+             const logoutBtn = document.getElementById('logout-btn');
+             const loginError = document.getElementById('login-error');
+             const userEmailDisplay = document.getElementById('user-email');
+             const adminPanel = document.getElementById('admin-panel');
+             const importJsonBtn = document.getElementById('import-json-btn');
+             const importFeedback = document.getElementById('import-feedback');
+             const importLocationBtn = document.getElementById('import-location-btn');
+             const locationImportFeedback = document.getElementById('location-import-feedback');
+             const infoModalTitle = document.getElementById('info-modal-title');
+             const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
+             const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
 
             // --- FUNKTIONEN (Auth, Modals, Admin, DB Listener, Render, Filter) ---
 
-             const toggleMenu = (forceClose = false) => { /* ... */ };
-             // ... (restliche Helper-Funktionen und Event Listener für Modals/Menu) ...
-             const showInfoModal = (game) => { /* ... (mit Bild/Platzhalter) ... */ };
-             const hideInfoModal = () => { /* ... */};
-             const showDeleteModal = (id, type = 'game') => { /* ... */ };
-             const hideDeleteModal = () => { /* ... */};
-             // ... Event Listeners für Modal Buttons ...
+             const toggleMenu = (forceClose = false) => {
+                 const isHidden = mobileMenu.classList.contains('translate-x-full');
+                 if (forceClose || !isHidden) {
+                     mobileMenu.classList.add('translate-x-full');
+                     mobileMenuOverlay.classList.add('hidden');
+                 } else {
+                     mobileMenu.classList.remove('translate-x-full');
+                     mobileMenuOverlay.classList.remove('hidden');
+                 }
+             };
+             hamburgerBtn.addEventListener('click', () => toggleMenu());
+             mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
 
              // --- AUTHENTIFIZIERUNG ---
-             onAuthStateChanged(auth, user => { /* ... (wie zuletzt) ... */ });
-             // ... (Login/Logout Listener) ...
-            
+             onAuthStateChanged(auth, user => {
+                 const isAdmin = user && !user.isAnonymous;
+                 currentUser = isAdmin ? user : null;
+                 loginView.classList.toggle('hidden', isAdmin);
+                 userInfo.classList.toggle('hidden', !isAdmin);
+                 adminPanel.classList.toggle('hidden', !isAdmin);
+                 gameTable.classList.toggle('admin-view', isAdmin);
+                 if (isAdmin) userEmailDisplay.textContent = user.email;
+                 
+                 // Listener starten oder UI neu rendern
+                 if (unsubscribe === null) {
+                    setupGameListener(); // Start listening if not already doing so
+                 } else {
+                    // Listener exists, re-render might be needed if auth state changed visibility rules
+                    filterAndRender(); 
+                 }
+             });
+             loginBtn.addEventListener('click', () => {
+                 const email = document.getElementById('login-email').value;
+                 const password = document.getElementById('login-password').value;
+                 loginError.textContent = '';
+                 signInWithEmailAndPassword(auth, email, password)
+                     .then(userCredential => { console.log("Logged in:", userCredential.user.email); toggleMenu(true); })
+                     .catch(error => { console.error("Login Error:", error.code, error.message); loginError.textContent = "Login failed."; });
+             });
+             logoutBtn.addEventListener('click', () => {
+                 signOut(auth).then(() => { console.log("Logged out."); toggleMenu(true); })
+                           .catch(error => console.error("Logout Error:", error));
+             });
+
              // --- Mobile Filter ---
-             const showFilterModal = () => { /* ... */ };
-             const hideFilterModal = () => { /* ... */ };
-             // ... (Event Listeners für Mobile Filter Buttons) ...
+             const showFilterModal = () => filterModalOverlay.classList.remove('hidden');
+             const hideFilterModal = () => filterModalOverlay.classList.add('hidden');
+             openFilterModalBtn.addEventListener('click', showFilterModal);
+             applyFiltersBtn.addEventListener('click', () => { syncFilters(true); filterAndRender(); hideFilterModal(); });
+             resetFiltersBtn.addEventListener('click', () => {
+                 const allSelects = [locationFilter, playersFilter, durationFilter, ageFilter, statusFilter, locationFilterMobile, playersFilterMobile, durationFilterMobile, ageFilterMobile, statusFilterMobile];
+                 allSelects.forEach(sel => sel.selectedIndex = 0);
+                 selectedCategories = [];
+                 renderStats(); // Update category button styles
+                 syncFilters(false); // Sync reset to mobile
+                 filterAndRender();
+                 hideFilterModal();
+             });
 
             // --- ADMIN FUNKTIONEN ---
-             // ... (Import Game/Location Listener) ...
-             // ... (Delete Location Listener) ...
+             importJsonBtn.addEventListener('click', async () => {
+                 const jsonData = document.getElementById('json-import-data').value;
+                 importFeedback.textContent = '';
+                 if (!jsonData.trim()) {
+                     importFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+                 let games;
+                 try {
+                     games = JSON.parse(jsonData);
+                     if (!Array.isArray(games)) throw new Error("JSON muss ein Array sein.");
+                 } catch (error) {
+                     importFeedback.textContent = 'Fehler beim Parsen des JSON. Prüfen Sie das Format.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+
+                 const batch = writeBatch(db);
+                 let count = 0;
+                 let skippedCount = 0;
+
+                 games.forEach(game => {
+                     if (!game || typeof game !== 'object') {
+                         console.warn("Ungültiges Spielobjekt übersprungen:", game);
+                         skippedCount++;
+                         return;
+                     }
+                     let gameEan = game.ean ? String(game.ean).trim() : "";
+                     if (!gameEan || gameEan === "0") {
+                         console.warn("Spiel ohne gültige EAN übersprungen:", game.name || 'Unbekannt');
+                         skippedCount++;
+                         return;
+                     }
+                     
+                     const gameRef = doc(db, "games", gameEan);
+                     const preparedGame = {
+                         ean: gameEan,
+                         bggId: game.bggId === null || game.bggId === undefined ? null : Number(game.bggId) || null,
+                         name: String(game.name || 'Unbenannt').trim(),
+                         category: String(game.category || '').trim() || null,
+                         minAge: game.minAge === null || game.minAge === undefined ? null : Number(game.minAge) || null,
+                         minPlayers: game.minPlayers === null || game.minPlayers === undefined ? null : Number(game.minPlayers) || null,
+                         maxPlayers: game.maxPlayers === null || game.maxPlayers === undefined ? null : Number(game.maxPlayers) || null,
+                         Duration: game.Duration === null || game.Duration === undefined ? null : Number(game.Duration) || null,
+                         description: String(game.description || '').trim() || null,
+                         imageUrl: String(game.imageUrl || '').trim() || null,
+                         lagerort: String(game.lagerort || '').trim() || null,
+                         ausleihstatus: String(game.ausleihstatus || 'verfügbar').trim().toLowerCase() === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'
+                     };
+                     if (preparedGame.lagerort === '') preparedGame.lagerort = null;
+                     if (preparedGame.imageUrl === '') preparedGame.imageUrl = null; // Ensure empty imageUrl becomes null
+
+                     batch.set(gameRef, preparedGame);
+                     count++;
+                 });
+
+                 try {
+                     await batch.commit();
+                     let feedbackText = `${count} Spiele erfolgreich importiert/überschrieben!`;
+                     if (skippedCount > 0) {
+                         feedbackText += ` (${skippedCount} Spiele ohne gültige EAN oder als ungültiges Objekt übersprungen.)`;
+                         importFeedback.className = 'text-yellow-400 text-sm mt-2';
+                     } else {
+                         importFeedback.className = 'text-green-400 text-sm mt-2';
+                     }
+                     importFeedback.textContent = feedbackText;
+                     document.getElementById('json-import-data').value = '';
+
+                 } catch (error) {
+                     console.error("Firestore Batch Commit Fehler:", error);
+                     importFeedback.textContent = 'Fehler beim Schreiben in die Datenbank. Details siehe Konsole.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                 }
+
+                 setTimeout(() => { importFeedback.textContent = '' }, 5000);
+             });
+
+             importLocationBtn.addEventListener('click', async () => {
+                 const jsonData = document.getElementById('location-json-data').value;
+                 locationImportFeedback.textContent = '';
+                 if (!jsonData.trim()) {
+                     locationImportFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+                 try {
+                     const locations = JSON.parse(jsonData);
+                     if (!Array.isArray(locations)) throw new Error("JSON muss ein Array sein.");
+                     const batch = writeBatch(db);
+                     let count = 0;
+                     let notFoundCount = 0;
+                     let skippedCount = 0;
+                     const gameIds = allGames.length > 0 ? new Set(allGames.map(g => g.id)) : null;
+                     
+                     if (!gameIds) {
+                          locationImportFeedback.textContent = 'Spieldaten werden noch geladen. Bitte kurz warten.';
+                          locationImportFeedback.className = 'text-yellow-400 text-sm mt-2';
+                           setTimeout(() => { locationImportFeedback.textContent = '' }, 3000);
+                          return;
+                     }
+
+                     for (const item of locations) {
+                         const currentEan = item.ean ? String(item.ean).trim() : "";
+                         const lagerOrtInput = item.lagerort;
+                         const lagerOrt = (lagerOrtInput !== undefined && lagerOrtInput !== null && String(lagerOrtInput).trim() !== "") ? String(lagerOrtInput).trim() : null;
+
+                         if (currentEan && currentEan !== "0") {
+                             if (gameIds.has(currentEan)) {
+                                 const gameRef = doc(db, "games", currentEan);
+                                 batch.update(gameRef, { lagerort: lagerOrt }); 
+                                 count++;
+                             } else {
+                                 console.warn("EAN für Standort-Update nicht gefunden:", currentEan);
+                                 notFoundCount++;
+                             }
+                         } else {
+                              console.warn("Eintrag ohne gültige EAN übersprungen:", item);
+                              skippedCount++;
+                         }
+                     }
+                     await batch.commit();
+                     let feedbackText = `${count} Standorte erfolgreich aktualisiert!`;
+                     if (notFoundCount > 0) feedbackText += ` (${notFoundCount} EANs nicht in DB gefunden.)`;
+                     if (skippedCount > 0) feedbackText += ` (${skippedCount} Einträge übersprungen.)`;
+                     locationImportFeedback.textContent = feedbackText;
+                     locationImportFeedback.className = (notFoundCount > 0 || skippedCount > 0) ? 'text-yellow-400 text-sm mt-2' : 'text-green-400 text-sm mt-2';
+                     document.getElementById('location-json-data').value = '';
+                 } catch(error) {
+                     console.error("Standort-Import Fehler:", error);
+                     locationImportFeedback.textContent = 'Fehler beim Import. Prüfen Sie das JSON-Format oder Datenbankzugriff.';
+                     locationImportFeedback.className = 'text-red-400 text-sm mt-2';
+                 }
+                  setTimeout(() => { locationImportFeedback.textContent = '' }, 5000);
+             });
+
+             deleteLocationSelect.addEventListener('change', () => {
+                 deleteLocationBtn.disabled = !deleteLocationSelect.value;
+             });
+             deleteLocationBtn.addEventListener('click', () => {
+                 const locationToDelete = deleteLocationSelect.value;
+                 if (!locationToDelete) return;
+                 showDeleteModal(locationToDelete, 'location');
+             });
 
             // --- DATENBANK-LISTENER ---
-            const setupGameListener = () => { /* ... (wie zuletzt, stabil) ... */ };
+            const setupGameListener = () => {
+                if (unsubscribe) {
+                    console.log("Removing previous listener.");
+                    unsubscribe(); // Remove previous listener if exists
+                }
+                loadingStateDiv.classList.remove('hidden');
+                noResultsDiv.classList.add('hidden');
+                console.log("Setting up Firestore listener...");
+                const gamesCollection = collection(db, "games");
+                unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
+                    console.log(`Received ${snapshot.docs.length} games from Firestore.`);
+                    allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    allGames.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                    loadingStateDiv.classList.add('hidden');
+                    noResultsDiv.classList.toggle('hidden', !snapshot.empty);
+                    populateFilters();
+                    renderStats();
+                    filterAndRender();
+                }, (error) => {
+                    console.error("Fehler beim Abhören der Datenbank:", error);
+                    loadingStateDiv.innerHTML = `<p class="text-red-500">Fehler beim Laden der Spieldaten. Prüfen Sie Konsole & DB-Regeln.</p>`;
+                    noResultsDiv.classList.add('hidden');
+                     // It's generally better *not* to nullify unsubscribe here,
+                     // as Firestore might attempt to reconnect automatically.
+                     // If errors persist, manual intervention/reload is likely needed.
+                });
+            };
+
+
+             // --- MODAL LOGIC (Info & Delete) ---
+             const showInfoModal = (game) => {
+                 if (!game) return;
+                 infoModalTitle.textContent = game.name || 'Unbenannt';
+                 let imageHtml = '';
+                 // Check if imageUrl exists, is a string, and looks like a URL
+                 if (game.imageUrl && typeof game.imageUrl === 'string' && (game.imageUrl.startsWith('http://') || game.imageUrl.startsWith('https://'))) {
+                     imageHtml = `<img src="${game.imageUrl}" alt="Cover von ${game.name || ''}" loading="lazy" class="mb-4">`; 
+                 } else {
+                     imageHtml = `<div class="image-placeholder mb-4">Kein Bild verfügbar</div>`;
+                 }
+                 
+                 // Combine image/placeholder with description
+                 infoModalContent.innerHTML = imageHtml + (game.description || '<p>Keine Beschreibung verfügbar.</p>');
+                 
+                 infoModalOverlay.classList.remove('hidden');
+             };
+             const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
+             infoModalCloseBtn.addEventListener('click', hideInfoModal);
+             infoModalCloseBtnX.addEventListener('click', hideInfoModal);
+             infoModalOverlay.addEventListener('click', (e) => { if (e.target === infoModalOverlay) hideInfoModal(); });
+
+             const showDeleteModal = (id, type = 'game') => {
+                 idToDelete = id;
+                 deleteType = type;
+                 if (type === 'game') {
+                     const game = allGames.find(g => g.id === id);
+                     if (!game) return;
+                     deleteNameSpan.textContent = game.name || 'Unbenannt';
+                     deleteTypeText.textContent = 'das Spiel';
+                     deleteScopeText.textContent = 'endgültig';
+                 } else if (type === 'location') {
+                     deleteNameSpan.textContent = id;
+                     deleteTypeText.textContent = 'den Standort';
+                     deleteScopeText.textContent = 'inkl. Zuweisung bei allen Spielen';
+                 }
+                 deleteConfirmModalOverlay.classList.remove('hidden');
+             };
+             const hideDeleteModal = () => { deleteConfirmModalOverlay.classList.add('hidden'); idToDelete = null; };
+             cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+
+             confirmDeleteBtn.addEventListener('click', async () => {
+                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; } 
+
+                 if (deleteType === 'game') {
+                     try {
+                         await deleteDoc(doc(db, "games", idToDelete));
+                         console.log("Spiel gelöscht:", idToDelete);
+                         // UI updated by listener
+                     } catch (error) {
+                          console.error("Fehler beim Löschen des Spiels:", error);
+                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden."); 
+                     } finally {
+                         hideDeleteModal();
+                     }
+                 } else if (deleteType === 'location') {
+                     const locationName = idToDelete;
+                     deleteLocationFeedback.textContent = `Entferne Standort "${locationName}"...`;
+                     deleteLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
+                     try {
+                          // Query Firestore for all games with the target location
+                          const q = query(collection(db, "games"), where("lagerort", "==", locationName));
+                          const querySnapshot = await getDocs(q); // Use getDocs for a one-time fetch needed for batch
+
+                          if (querySnapshot.empty) {
+                              deleteLocationFeedback.textContent = `Keine Spiele am Standort "${locationName}" gefunden.`;
+                              deleteLocationFeedback.className = 'text-gray-400 text-sm mt-2';
+                              hideDeleteModal(); setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 3000); return;
+                          }
+
+                          const batch = writeBatch(db);
+                          querySnapshot.forEach((gameDoc) => {
+                              batch.update(gameDoc.ref, { lagerort: null }); // Set location to null
+                          });
+                          await batch.commit();
+                          console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
+                          deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
+                          deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
+                           // populateFilters will be called by the onSnapshot listener automatically when data changes
+
+                     } catch (error) {
+                          console.error(`Fehler beim Entfernen des Standorts "${locationName}":`, error);
+                          deleteLocationFeedback.textContent = `Fehler beim Entfernen des Standorts.`;
+                          deleteLocationFeedback.className = 'text-red-400 text-sm mt-2';
+                     } finally {
+                          hideDeleteModal();
+                          deleteLocationSelect.value = ""; deleteLocationBtn.disabled = true;
+                          setTimeout(() => { deleteLocationFeedback.textContent = ''; }, 5000);
+                     }
+                 }
+             });
 
 
              // --- RENDER & FILTER ---
-             const renderStats = () => { /* ... unverändert ... */ };
-             document.getElementById('category-stats').addEventListener('click', (e) => { /* ... unverändert ... */ });
-             const populateFilters = () => { /* ... unverändert ... */ };
+             const renderStats = () => {
+                 const totalGamesDiv = document.getElementById('total-games');
+                 const categoryStatsDiv = document.getElementById('category-stats');
+                 if (!totalGamesDiv || !categoryStatsDiv) return;
+                 totalGamesDiv.innerHTML = `Gesamtanzahl: <span class="font-bold text-blue-400">${allGames.length}</span> Spiele`;
+                 const categoryCounts = allGames.reduce((acc, game) => {
+                     const category = game.category || 'Unkategorisiert';
+                     acc[category] = (acc[category] || 0) + 1;
+                     return acc;
+                 }, {});
+                 let statsHTML = '';
+                 Object.keys(categoryCounts).sort().forEach(category => {
+                     const isActive = selectedCategories.includes(category);
+                     const activeClass = isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600';
+                     const safeCategory = category.replace(/"/g, '&quot;');
+                     statsHTML += `<button data-category="${safeCategory}" class="category-stat-btn px-3 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${activeClass}">${category}: ${categoryCounts[category]}</button>`;
+                 });
+                 categoryStatsDiv.innerHTML = statsHTML;
+             };
+             document.getElementById('category-stats').addEventListener('click', (e) => {
+                 if(e.target.classList.contains('category-stat-btn')) {
+                     const category = e.target.dataset.category;
+                     const index = selectedCategories.indexOf(category);
+                     if (index > -1) selectedCategories.splice(index, 1);
+                     else selectedCategories.push(category);
+                     renderStats();
+                     filterAndRender();
+                 }
+             });
+             const populateFilters = () => {
+                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))].sort();
+                 const currentLocation = locationFilter.value;
+                 const currentLocationMobile = locationFilterMobile.value;
+                 const currentDeleteLocation = deleteLocationSelect.value; 
 
+                 // Clear existing options except the first one
+                 locationFilter.length = 1; 
+                 locationFilterMobile.length = 1;
+                 deleteLocationSelect.length = 1; 
+
+                 locations.forEach(location => {
+                     const option = new Option(location, location);
+                     locationFilter.add(option.cloneNode(true));
+                     locationFilterMobile.add(option.cloneNode(true));
+                     deleteLocationSelect.add(option.cloneNode(true)); 
+                 });
+                 // Restore previous selection
+                 if ([...locationFilter.options].some(o => o.value === currentLocation)) locationFilter.value = currentLocation; else locationFilter.value = "all";
+                 if ([...locationFilterMobile.options].some(o => o.value === currentLocationMobile)) locationFilterMobile.value = currentLocationMobile;
+                 else if ([...locationFilterMobile.options].some(o => o.value === currentLocation)) locationFilterMobile.value = currentLocation; else locationFilterMobile.value = "all";
+                 if ([...deleteLocationSelect.options].some(o => o.value === currentDeleteLocation)) deleteLocationSelect.value = currentDeleteLocation; else deleteLocationSelect.value = "";
+
+                 deleteLocationBtn.disabled = !deleteLocationSelect.value; 
+
+                 syncFilters(false); // Sync static filters initially
+             };
              const renderTable = (filteredGames) => {
                  tableBody.innerHTML = '';
-                 // ... (restlicher Code zum Anzeigen von noResults/loading) ...
+                 noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
+                 loadingStateDiv.classList.add('hidden'); 
                  filteredGames.forEach(game => {
                      const row = document.createElement('tr');
                      const isLent = game.ausleihstatus === 'ausgeliehen';
                      row.className = `transition-colors duration-200 ${isLent ? 'opacity-50' : 'hover:bg-gray-700/50'}`;
-                     row.dataset.gameId = game.id; // EAN als ID
+                     row.dataset.gameId = game.id;
                      const statusText = isLent ? 'Ausgeliehen' : 'Verfügbar';
                      const statusClasses = isLent ? 'text-red-400' : 'text-green-400';
                      const buttonText = isLent ? 'Zurückgeben' : 'Ausleihen';
                      const buttonClasses = isLent ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-blue-600 hover:bg-blue-500';
 
-                     // Inline Delete Button HTML (conditionally shown via CSS/JS)
                      const deleteButtonHtml = `
                          <button class="delete-button-inline text-gray-400 hover:text-red-500 transition-colors" title="Spiel löschen">
                              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                         </button>
-                     `;
-                     // EAN line HTML (conditionally shown via CSS/JS)
+                         </button>`;
                      const eanLineHtml = `
                         <div class="ean-line">
                             <span class="ean-inline">${game.id}</span>
-                            ${deleteButtonHtml} <!-- Delete button next to EAN -->
+                            ${deleteButtonHtml} 
                         </div>`;
-
 
                      row.innerHTML = `
                          <td class="p-4 font-medium text-white game-title-cell">
                              <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
-                             ${eanLineHtml} <!-- EAN and Delete Button below name -->
+                             ${eanLineHtml} 
                          </td>
-                         <!-- EAN Spalte entfernt -->
                          <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
@@ -246,38 +701,85 @@
                          <td class="p-4 text-center font-semibold ${statusClasses}">${statusText}</td>
                          <td class="p-4 text-center admin-action-col">
                              <button class="status-button w-full sm:w-auto text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm ${buttonClasses}" title="Status ändern">${buttonText}</button>
-                         </td>
-                         <!-- Separate Delete Column entfernt -->
-                         `;
+                         </td>`;
                      tableBody.appendChild(row);
                  });
              };
-             const filterAndRender = () => { /* ... unverändert ... */ };
-             const toggleLentStatus = async (gameId) => { /* ... unverändert ... */ };
-             const syncFilters = (fromMobileToDesktop) => { /* ... unverändert ... */ };
+             const filterAndRender = () => {
+                 if (allGames.length === 0 && unsubscribe !== null) { 
+                     loadingStateDiv.classList.add('hidden'); noResultsDiv.classList.remove('hidden'); renderTable([]); return;
+                 }
+                 if (allGames.length === 0 && unsubscribe === null) { 
+                      loadingStateDiv.classList.remove('hidden'); noResultsDiv.classList.add('hidden'); tableBody.innerHTML = ''; return; 
+                 }
+
+                const searchTerm = (window.innerWidth < 768 ? searchInputMobile.value : searchInput.value).toLowerCase();
+                const selectedLocation = locationFilter.value;
+                const selectedPlayers = parseInt(playersFilter.value, 10);
+                const selectedDuration = parseInt(durationFilter.value, 10);
+                const selectedAge = parseInt(ageFilter.value, 10);
+                const selectedStatus = statusFilter.value;
+                const filteredGames = allGames.filter(game => {
+                    const nameMatch = (game.name || '').toLowerCase().includes(searchTerm); 
+                    const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(game.category);
+                    const locationMatch = selectedLocation === 'all' || game.lagerort === selectedLocation;
+                    const statusMatch = selectedStatus === 'all' || game.ausleihstatus === selectedStatus;
+                    const ageMatch = selectedAge === 0 || (game.minAge != null && game.minAge >= selectedAge); 
+                    const durationMatch = selectedDuration === 0 || (game.Duration != null && game.Duration <= selectedDuration); 
+                    let playersMatch = true;
+                    if (selectedPlayers > 0) {
+                        if (game.minPlayers != null && game.maxPlayers != null) { 
+                             if (selectedPlayers < 7) playersMatch = game.minPlayers <= selectedPlayers && game.maxPlayers >= selectedPlayers;
+                             else playersMatch = game.maxPlayers >= 7;
+                        } else { playersMatch = false; }
+                    }
+                    return nameMatch && categoryMatch && locationMatch && playersMatch && durationMatch && ageMatch && statusMatch;
+                });
+                renderTable(filteredGames);
+             };
+             const toggleLentStatus = async (gameId) => {
+                 if (!currentUser) { showInfoModal("Fehler", "<p>Bitte melden Sie sich an.</p>"); return; }
+                 const game = allGames.find(g => g.id === gameId);
+                 if (game) {
+                     const newStatus = game.ausleihstatus === 'ausgeliehen' ? 'verfügbar' : 'ausgeliehen';
+                     const gameRef = doc(db, "games", gameId);
+                     try { await updateDoc(gameRef, { ausleihstatus: newStatus }); } 
+                     catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
+                 }
+             };
+             const syncFilters = (fromMobileToDesktop) => {
+                 const filterPairs = [
+                    { desktop: locationFilter, mobile: locationFilterMobile }, { desktop: playersFilter, mobile: playersFilterMobile },
+                    { desktop: durationFilter, mobile: durationFilterMobile }, { desktop: ageFilter, mobile: ageFilterMobile },
+                    { desktop: statusFilter, mobile: statusFilterMobile }
+                 ];
+                 filterPairs.forEach(pair => {
+                    const source = fromMobileToDesktop ? pair.mobile : pair.desktop;
+                    const target = fromMobileToDesktop ? pair.desktop : pair.mobile;
+                    if (target.id !== 'location-filter-mobile' && target.id !== 'location-filter') {
+                       if(target.options.length <= 1 && source.options.length > 1) target.innerHTML = source.innerHTML;
+                    }
+                    if (source.value) target.value = source.value; else if (target.options.length > 0) target.selectedIndex = 0;
+                 });
+             };
              
              // --- EVENT LISTENERS ---
-             // ... (desktopFilters, searchInput, searchInputMobile listener) ...
+             const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
+             desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
+             searchInput.addEventListener('input', filterAndRender);
+             searchInputMobile.addEventListener('input', () => { searchInput.value = searchInputMobile.value; filterAndRender(); });
              tableBody.addEventListener('click', (event) => {
                  const target = event.target;
                  const gameRow = target.closest('tr');
                  if (!gameRow) return;
                  const gameId = gameRow.dataset.gameId;
-
-                 // Check for inline delete button click
                  const deleteButtonInline = target.closest('.delete-button-inline');
                  const statusButton = target.closest('.status-button');
-                 const titleLink = target.closest('.game-title-link'); // Check for click on the title SPAN specifically
+                 const titleLink = target.closest('.game-title-link'); 
 
-                 if (deleteButtonInline && currentUser) {
-                     showDeleteModal(gameId, 'game'); // Make sure type is 'game'
-                     return; // Stop further processing
-                 }
-                 if (statusButton && currentUser) {
-                     toggleLentStatus(gameId);
-                 }
-                 // Only open modal if the title link itself was clicked (not the EAN or delete button)
-                 else if (titleLink) {
+                 if (deleteButtonInline && currentUser) { showDeleteModal(gameId, 'game'); return; } 
+                 if (statusButton && currentUser) { toggleLentStatus(gameId); } 
+                 else if (titleLink) { // Nur auf Titellink reagieren
                      const game = allGames.find(g => g.id === gameId);
                      if (game) showInfoModal(game);
                  }
@@ -286,18 +788,15 @@
              // --- INITIALIZATION ---
              setupGameListener(); // Start listening to the database
 
-             // --- Re-inline Key Functions for Clarity ---
-             // Make sure all necessary functions referenced above are defined here or globally
-             // (Example: loginBtn.onclick, logoutBtn.onclick, importJsonBtn.onclick, etc.)
-              window.renderStats = renderStats;
-              window.populateFilters = populateFilters;
-              window.renderTable = renderTable;
-              window.filterAndRender = filterAndRender;
-              window.toggleLentStatus = toggleLentStatus;
-              window.syncFilters = syncFilters;
-              window.showInfoModal = showInfoModal;
-              window.showDeleteModal = showDeleteModal;
-              // Add other necessary function definitions if they were accidentally removed
+             // --- Make key functions globally accessible if needed ---
+             window.renderStats = renderStats;
+             window.populateFilters = populateFilters;
+             window.renderTable = renderTable;
+             window.filterAndRender = filterAndRender;
+             window.toggleLentStatus = toggleLentStatus;
+             window.syncFilters = syncFilters;
+             window.showInfoModal = showInfoModal;
+             window.showDeleteModal = showDeleteModal;
 
         });
     </script>
