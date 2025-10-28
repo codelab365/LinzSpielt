@@ -25,35 +25,37 @@
             cursor: not-allowed;
         }
         /* Admin columns/elements initially hidden */
-        .admin-col, .admin-action-col, .delete-button-inline { display: none; }
+        .admin-action-col, .delete-button-inline, .ean-inline { display: none; }
         /* Show admin elements when table has admin-view class */
-        table.admin-view .admin-col, table.admin-view .admin-action-col, table.admin-view .delete-button-inline { display: inline-block; /* Or table-cell for columns */ }
-        table.admin-view .admin-action-col { display: table-cell; } /* Keep action column behaviour */
-
+        table.admin-view .admin-action-col { display: table-cell; }
+        table.admin-view .delete-button-inline, table.admin-view .ean-inline { display: inline-block; }
 
         .public-col { display: table-cell; }
         table.admin-view .public-col { display: none; }
 
         /* Style for the inline delete button */
         .delete-button-inline {
-            margin-left: 0.75rem; /* Abstand zum Spielnamen */
+            margin-left: 0.5rem; /* Etwas Abstand zur EAN */
             vertical-align: middle; /* Vertikal zentrieren */
-            flex-shrink: 0; /* Verhindert, dass der Button schrumpft */
-        }
-        .game-title-cell-content {
-            display: flex;
-            align-items: center; /* Vertikal zentrieren */
-            /* justify-content: space-between; removed */
         }
         .game-title-link {
-            flex-grow: 1; /* Nimmt verfügbaren Platz ein */
-            margin-right: 0.5rem; /* Kleiner Abstand zum Button */
             cursor: pointer;
-            overflow: hidden; /* Verhindert Überlaufen des Namens */
-            text-overflow: ellipsis; /* Fügt ... hinzu, wenn Name zu lang */
-            white-space: nowrap; /* Hält Namen in einer Zeile */
-            min-width: 0; /* Erlaubt dem Link zu schrumpfen */
+            display: block; /* Ensure it takes full width initially */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
+        .ean-line {
+            display: flex; /* Use flex to align EAN and button */
+            align-items: center;
+            margin-top: 0.25rem; /* Kleiner Abstand zum Namen */
+        }
+        .ean-inline {
+             font-family: monospace;
+             font-size: 0.8rem;
+             color: #9ca3af; /* gray-400 */
+        }
+
          /* Style für das Bild im Modal */
         #info-modal-content img {
             max-width: 200px; height: auto; float: left;
@@ -116,7 +118,7 @@
                 <thead class="bg-gray-700/50">
                     <tr>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
-                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider admin-col">EAN</th>
+                        <!-- EAN Header entfernt -->
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">Kategorie</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden sm:table-cell">Standort</th>
                         <th class="p-4 text-center text-sm font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">Spieler</th>
@@ -505,8 +507,9 @@
                     console.error("Fehler beim Abhören der Datenbank:", error);
                     loadingStateDiv.innerHTML = `<p class="text-red-500">Fehler beim Laden der Spieldaten. Prüfen Sie Konsole & DB-Regeln.</p>`;
                     noResultsDiv.classList.add('hidden');
-                     // Optionally set unsubscribe to null here to allow retrying setupGameListener?
-                     // unsubscribe = null; 
+                     // It's generally better *not* to nullify unsubscribe here,
+                     // as Firestore might attempt to reconnect automatically.
+                     // If errors persist, manual intervention/reload is likely needed.
                 });
             };
 
@@ -553,16 +556,16 @@
              cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
              confirmDeleteBtn.addEventListener('click', async () => {
-                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; }
+                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; } 
 
                  if (deleteType === 'game') {
                      try {
                          await deleteDoc(doc(db, "games", idToDelete));
                          console.log("Spiel gelöscht:", idToDelete);
-                         // UI wird durch Listener aktualisiert
+                         // UI updated by listener
                      } catch (error) {
                           console.error("Fehler beim Löschen des Spiels:", error);
-                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden.");
+                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden."); 
                      } finally {
                          hideDeleteModal();
                      }
@@ -571,8 +574,9 @@
                      deleteLocationFeedback.textContent = `Entferne Standort "${locationName}"...`;
                      deleteLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
                      try {
+                          // Query Firestore for all games with the target location
                           const q = query(collection(db, "games"), where("lagerort", "==", locationName));
-                          const querySnapshot = await getDocs(q); // getDocs benötigt für Batch
+                          const querySnapshot = await getDocs(q); // Use getDocs for a one-time fetch needed for batch
 
                           if (querySnapshot.empty) {
                               deleteLocationFeedback.textContent = `Keine Spiele am Standort "${locationName}" gefunden.`;
@@ -581,12 +585,14 @@
                           }
 
                           const batch = writeBatch(db);
-                          querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null })); // Standort auf null setzen
+                          querySnapshot.forEach((gameDoc) => {
+                              batch.update(gameDoc.ref, { lagerort: null }); // Set location to null
+                          });
                           await batch.commit();
                           console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
                           deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
                           deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
-                           // populateFilters wird durch onSnapshot ausgelöst, wenn Daten sich ändern
+                           // populateFilters will be called by the onSnapshot listener automatically when data changes
 
                      } catch (error) {
                           console.error(`Fehler beim Entfernen des Standorts "${locationName}":`, error);
@@ -635,33 +641,33 @@
                  const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))].sort();
                  const currentLocation = locationFilter.value;
                  const currentLocationMobile = locationFilterMobile.value;
-                 const currentDeleteLocation = deleteLocationSelect.value; // Preserve selection if possible
+                 const currentDeleteLocation = deleteLocationSelect.value; 
 
                  // Clear existing options except the first one
-                 locationFilter.length = 1;
+                 locationFilter.length = 1; 
                  locationFilterMobile.length = 1;
-                 deleteLocationSelect.length = 1; // Keep "-- Standort wählen --"
+                 deleteLocationSelect.length = 1; 
 
                  locations.forEach(location => {
                      const option = new Option(location, location);
                      locationFilter.add(option.cloneNode(true));
                      locationFilterMobile.add(option.cloneNode(true));
-                     deleteLocationSelect.add(option.cloneNode(true)); // Populate delete dropdown
+                     deleteLocationSelect.add(option.cloneNode(true)); 
                  });
-                 // Restore previous selection if still valid
+                 // Restore previous selection
                  if ([...locationFilter.options].some(o => o.value === currentLocation)) locationFilter.value = currentLocation; else locationFilter.value = "all";
                  if ([...locationFilterMobile.options].some(o => o.value === currentLocationMobile)) locationFilterMobile.value = currentLocationMobile;
                  else if ([...locationFilterMobile.options].some(o => o.value === currentLocation)) locationFilterMobile.value = currentLocation; else locationFilterMobile.value = "all";
                  if ([...deleteLocationSelect.options].some(o => o.value === currentDeleteLocation)) deleteLocationSelect.value = currentDeleteLocation; else deleteLocationSelect.value = "";
 
-                 deleteLocationBtn.disabled = !deleteLocationSelect.value; // Enable/disable delete button based on selection
+                 deleteLocationBtn.disabled = !deleteLocationSelect.value; 
 
                  syncFilters(false); // Sync static filters initially
              };
              const renderTable = (filteredGames) => {
                  tableBody.innerHTML = '';
                  noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
-                 loadingStateDiv.classList.add('hidden');
+                 loadingStateDiv.classList.add('hidden'); 
                  filteredGames.forEach(game => {
                      const row = document.createElement('tr');
                      const isLent = game.ausleihstatus === 'ausgeliehen';
@@ -676,15 +682,17 @@
                          <button class="delete-button-inline text-gray-400 hover:text-red-500 transition-colors" title="Spiel löschen">
                              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                          </button>`;
+                     const eanLineHtml = `
+                        <div class="ean-line">
+                            <span class="ean-inline">${game.id}</span>
+                            ${deleteButtonHtml} 
+                        </div>`;
 
                      row.innerHTML = `
                          <td class="p-4 font-medium text-white game-title-cell">
-                             <div class="game-title-cell-content">
-                                 <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
-                                 ${deleteButtonHtml}
-                             </div>
+                             <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
+                             ${eanLineHtml} 
                          </td>
-                         <td class="p-4 font-mono text-sm text-gray-400 admin-col">${game.id}</td>
                          <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
@@ -698,12 +706,13 @@
                  });
              };
              const filterAndRender = () => {
-                 if (allGames.length === 0 && unsubscribe !== null) {
+                 if (allGames.length === 0 && unsubscribe !== null) { 
                      loadingStateDiv.classList.add('hidden'); noResultsDiv.classList.remove('hidden'); renderTable([]); return;
                  }
-                 if (allGames.length === 0 && unsubscribe === null) {
-                      loadingStateDiv.classList.remove('hidden'); noResultsDiv.classList.add('hidden'); tableBody.innerHTML = ''; return;
+                 if (allGames.length === 0 && unsubscribe === null) { 
+                      loadingStateDiv.classList.remove('hidden'); noResultsDiv.classList.add('hidden'); tableBody.innerHTML = ''; return; 
                  }
+
                 const searchTerm = (window.innerWidth < 768 ? searchInputMobile.value : searchInput.value).toLowerCase();
                 const selectedLocation = locationFilter.value;
                 const selectedPlayers = parseInt(playersFilter.value, 10);
@@ -711,15 +720,15 @@
                 const selectedAge = parseInt(ageFilter.value, 10);
                 const selectedStatus = statusFilter.value;
                 const filteredGames = allGames.filter(game => {
-                    const nameMatch = (game.name || '').toLowerCase().includes(searchTerm);
+                    const nameMatch = (game.name || '').toLowerCase().includes(searchTerm); 
                     const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(game.category);
                     const locationMatch = selectedLocation === 'all' || game.lagerort === selectedLocation;
                     const statusMatch = selectedStatus === 'all' || game.ausleihstatus === selectedStatus;
-                    const ageMatch = selectedAge === 0 || (game.minAge != null && game.minAge >= selectedAge);
-                    const durationMatch = selectedDuration === 0 || (game.Duration != null && game.Duration <= selectedDuration);
+                    const ageMatch = selectedAge === 0 || (game.minAge != null && game.minAge >= selectedAge); 
+                    const durationMatch = selectedDuration === 0 || (game.Duration != null && game.Duration <= selectedDuration); 
                     let playersMatch = true;
                     if (selectedPlayers > 0) {
-                        if (game.minPlayers != null && game.maxPlayers != null) {
+                        if (game.minPlayers != null && game.maxPlayers != null) { 
                              if (selectedPlayers < 7) playersMatch = game.minPlayers <= selectedPlayers && game.maxPlayers >= selectedPlayers;
                              else playersMatch = game.maxPlayers >= 7;
                         } else { playersMatch = false; }
@@ -734,7 +743,7 @@
                  if (game) {
                      const newStatus = game.ausleihstatus === 'ausgeliehen' ? 'verfügbar' : 'ausgeliehen';
                      const gameRef = doc(db, "games", gameId);
-                     try { await updateDoc(gameRef, { ausleihstatus: newStatus }); }
+                     try { await updateDoc(gameRef, { ausleihstatus: newStatus }); } 
                      catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
                  }
              };
@@ -766,11 +775,11 @@
                  const gameId = gameRow.dataset.gameId;
                  const deleteButtonInline = target.closest('.delete-button-inline');
                  const statusButton = target.closest('.status-button');
-                 const titleLink = target.closest('.game-title-link');
+                 const titleLink = target.closest('.game-title-link'); 
 
-                 if (deleteButtonInline && currentUser) { showDeleteModal(gameId, 'game'); return; } // Pass 'game' type
-                 if (statusButton && currentUser) { toggleLentStatus(gameId); }
-                 else if (titleLink) { // Check for title link explicitly
+                 if (deleteButtonInline && currentUser) { showDeleteModal(gameId, 'game'); return; } 
+                 if (statusButton && currentUser) { toggleLentStatus(gameId); } 
+                 else if (titleLink) { // Nur auf Titellink reagieren
                      const game = allGames.find(g => g.id === gameId);
                      if (game) showInfoModal(game);
                  }
@@ -778,6 +787,16 @@
 
              // --- INITIALIZATION ---
              setupGameListener(); // Start listening to the database
+
+             // --- Make key functions globally accessible if needed ---
+             window.renderStats = renderStats;
+             window.populateFilters = populateFilters;
+             window.renderTable = renderTable;
+             window.filterAndRender = filterAndRender;
+             window.toggleLentStatus = toggleLentStatus;
+             window.syncFilters = syncFilters;
+             window.showInfoModal = showInfoModal;
+             window.showDeleteModal = showDeleteModal;
 
         });
     </script>
