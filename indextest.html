@@ -172,7 +172,7 @@
                     <button id="assign-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">EANs zuweisen</button>
                     <p id="assign-location-feedback" class="text-sm mt-2"></p>
                 </div>
-                 <!-- Standort löschen (wie zuvor) -->
+                 <!-- Standort löschen -->
                  <div class="border-t border-gray-700 pt-4">
                      <label for="delete-location-select" class="text-sm text-gray-400">Standort aus Datenbank entfernen:</label>
                      <div class="flex gap-2 mt-1">
@@ -228,7 +228,7 @@
         let unsubscribe = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            // UI Elemente holen (gekürzt)
+            // UI Elemente holen (Beispiele)
             const tableBody = document.getElementById('game-table-body');
             const gameTable = document.getElementById('game-table');
             const infoModalContent = document.getElementById('info-modal-content');
@@ -246,48 +246,58 @@
             const deleteTypeText = document.getElementById('delete-type-text');
             const deleteNameSpan = document.getElementById('delete-name-span');
             const deleteScopeText = document.getElementById('delete-scope-text');
-            const searchInput = document.getElementById('search-input');
-            const playersFilter = document.getElementById('players-filter');
-            const durationFilter = document.getElementById('duration-filter');
-            const ageFilter = document.getElementById('age-filter');
-            const statusFilter = document.getElementById('status-filter');
-            const searchInputMobile = document.getElementById('search-input-mobile');
-            const openFilterModalBtn = document.getElementById('open-filter-modal-btn');
-            const filterModalOverlay = document.getElementById('filter-modal-overlay');
-            const playersFilterMobile = document.getElementById('players-filter-mobile');
-            const durationFilterMobile = document.getElementById('duration-filter-mobile');
-            const ageFilterMobile = document.getElementById('age-filter-mobile');
-            const statusFilterMobile = document.getElementById('status-filter-mobile');
-            const applyFiltersBtn = document.getElementById('apply-filters-btn');
-            const resetFiltersBtn = document.getElementById('reset-filters-btn');
-            const hamburgerBtn = document.getElementById('hamburger-btn');
-            const mobileMenu = document.getElementById('mobile-menu');
-            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-            const loginView = document.getElementById('login-view');
-            const userInfo = document.getElementById('user-info');
-            const loginBtn = document.getElementById('login-btn');
-            const logoutBtn = document.getElementById('logout-btn');
-            const loginError = document.getElementById('login-error');
-            const userEmailDisplay = document.getElementById('user-email');
-            const adminPanel = document.getElementById('admin-panel');
-            const importJsonBtn = document.getElementById('import-json-btn');
-            const importFeedback = document.getElementById('import-feedback');
-            // NEU: Elemente für EAN-Listen-Import
-            const assignLocationNameInput = document.getElementById('assign-location-name');
-            const assignLocationEansTextarea = document.getElementById('assign-location-eans');
-            const assignLocationBtn = document.getElementById('assign-location-btn');
-            const assignLocationFeedback = document.getElementById('assign-location-feedback');
-            const infoModalTitle = document.getElementById('info-modal-title');
-            const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
-            const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
+             // Weitere UI Elemente hier definieren...
+             const searchInput = document.getElementById('search-input');
+             const playersFilter = document.getElementById('players-filter');
+             const durationFilter = document.getElementById('duration-filter');
+             const ageFilter = document.getElementById('age-filter');
+             const statusFilter = document.getElementById('status-filter');
+             const searchInputMobile = document.getElementById('search-input-mobile');
+             const openFilterModalBtn = document.getElementById('open-filter-modal-btn');
+             const filterModalOverlay = document.getElementById('filter-modal-overlay');
+             const playersFilterMobile = document.getElementById('players-filter-mobile');
+             const durationFilterMobile = document.getElementById('duration-filter-mobile');
+             const ageFilterMobile = document.getElementById('age-filter-mobile');
+             const statusFilterMobile = document.getElementById('status-filter-mobile');
+             const applyFiltersBtn = document.getElementById('apply-filters-btn');
+             const resetFiltersBtn = document.getElementById('reset-filters-btn');
+             const hamburgerBtn = document.getElementById('hamburger-btn');
+             const mobileMenu = document.getElementById('mobile-menu');
+             const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+             const loginView = document.getElementById('login-view');
+             const userInfo = document.getElementById('user-info');
+             const loginBtn = document.getElementById('login-btn');
+             const logoutBtn = document.getElementById('logout-btn');
+             const loginError = document.getElementById('login-error');
+             const userEmailDisplay = document.getElementById('user-email');
+             const adminPanel = document.getElementById('admin-panel');
+             const importJsonBtn = document.getElementById('import-json-btn');
+             const importFeedback = document.getElementById('import-feedback');
+             // NEU: Elemente für EAN-Listen-Import
+             const assignLocationNameInput = document.getElementById('assign-location-name');
+             const assignLocationEansTextarea = document.getElementById('assign-location-eans');
+             const assignLocationBtn = document.getElementById('assign-location-btn');
+             const assignLocationFeedback = document.getElementById('assign-location-feedback');
+             const infoModalTitle = document.getElementById('info-modal-title');
+             const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
+             const infoModalCloseBtnX = document.getElementById('info-modal-close-btn-x');
 
             // --- FUNKTIONEN ---
 
-            const toggleMenu = (forceClose = false) => { /* ... */ };
-            hamburgerBtn.addEventListener('click', () => toggleMenu());
-            mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
+             const toggleMenu = (forceClose = false) => {
+                 const isHidden = mobileMenu.classList.contains('translate-x-full');
+                 if (forceClose || !isHidden) {
+                     mobileMenu.classList.add('translate-x-full');
+                     mobileMenuOverlay.classList.add('hidden');
+                 } else {
+                     mobileMenu.classList.remove('translate-x-full');
+                     mobileMenuOverlay.classList.remove('hidden');
+                 }
+             };
+             hamburgerBtn.addEventListener('click', () => toggleMenu());
+             mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
 
-            // --- AUTHENTIFIZIERUNG ---
+             // --- AUTHENTIFIZIERUNG ---
              onAuthStateChanged(auth, user => {
                  const isAdmin = user && !user.isAnonymous;
                  currentUser = isAdmin ? user : null;
@@ -298,18 +308,112 @@
                  if (isAdmin) userEmailDisplay.textContent = user.email;
                  if (unsubscribe === null) setupGameListener(); else filterAndRender();
              });
-             loginBtn.addEventListener('click', () => { /* ... */ });
-             logoutBtn.addEventListener('click', () => { /* ... */ });
+             loginBtn.addEventListener('click', () => {
+                 const email = document.getElementById('login-email').value;
+                 const password = document.getElementById('login-password').value;
+                 loginError.textContent = '';
+                 signInWithEmailAndPassword(auth, email, password)
+                     .then(userCredential => { console.log("Logged in:", userCredential.user.email); toggleMenu(true); })
+                     .catch(error => { console.error("Login Error:", error.code, error.message); loginError.textContent = "Login failed."; });
+             });
+             logoutBtn.addEventListener('click', () => {
+                 signOut(auth).then(() => { console.log("Logged out."); toggleMenu(true); })
+                           .catch(error => console.error("Logout Error:", error));
+             });
 
              // --- Mobile Filter ---
              const showFilterModal = () => filterModalOverlay.classList.remove('hidden');
              const hideFilterModal = () => filterModalOverlay.classList.add('hidden');
              openFilterModalBtn.addEventListener('click', showFilterModal);
              applyFiltersBtn.addEventListener('click', () => { syncFilters(true); filterAndRender(); hideFilterModal(); });
-             resetFiltersBtn.addEventListener('click', () => { /* ... */ });
+             resetFiltersBtn.addEventListener('click', () => {
+                 const allSelects = [locationFilter, playersFilter, durationFilter, ageFilter, statusFilter, locationFilterMobile, playersFilterMobile, durationFilterMobile, ageFilterMobile, statusFilterMobile];
+                 allSelects.forEach(sel => sel.selectedIndex = 0);
+                 selectedCategories = [];
+                 renderStats(); // Update category button styles
+                 syncFilters(false); // Sync reset to mobile
+                 filterAndRender();
+                 hideFilterModal();
+             });
 
             // --- ADMIN FUNKTIONEN ---
-             importJsonBtn.addEventListener('click', async () => { /* ... (Game Import Logik) ... */ });
+             importJsonBtn.addEventListener('click', async () => {
+                 const jsonData = document.getElementById('json-import-data').value;
+                 importFeedback.textContent = '';
+                 if (!jsonData.trim()) {
+                     importFeedback.textContent = 'Bitte JSON-Daten einfügen.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+                 let games;
+                 try {
+                     games = JSON.parse(jsonData);
+                     if (!Array.isArray(games)) throw new Error("JSON muss ein Array sein.");
+                 } catch (error) {
+                     importFeedback.textContent = 'Fehler beim Parsen des JSON. Prüfen Sie das Format.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                     return;
+                 }
+
+                 const batch = writeBatch(db);
+                 let count = 0;
+                 let skippedCount = 0;
+
+                 games.forEach(game => {
+                     if (!game || typeof game !== 'object') {
+                         console.warn("Ungültiges Spielobjekt übersprungen:", game);
+                         skippedCount++;
+                         return;
+                     }
+                     let gameEan = game.ean ? String(game.ean).trim() : "";
+                     if (!gameEan || gameEan === "0") {
+                         console.warn("Spiel ohne gültige EAN übersprungen:", game.name || 'Unbekannt');
+                         skippedCount++;
+                         return;
+                     }
+                     
+                     const gameRef = doc(db, "games", gameEan);
+                     const preparedGame = {
+                         ean: gameEan,
+                         bggId: game.bggId === null || game.bggId === undefined ? null : Number(game.bggId) || null,
+                         name: String(game.name || 'Unbenannt').trim(),
+                         category: String(game.category || '').trim() || null,
+                         minAge: game.minAge === null || game.minAge === undefined ? null : Number(game.minAge) || null,
+                         minPlayers: game.minPlayers === null || game.minPlayers === undefined ? null : Number(game.minPlayers) || null,
+                         maxPlayers: game.maxPlayers === null || game.maxPlayers === undefined ? null : Number(game.maxPlayers) || null,
+                         Duration: game.Duration === null || game.Duration === undefined ? null : Number(game.Duration) || null,
+                         description: String(game.description || '').trim() || null,
+                         imageUrl: String(game.imageUrl || '').trim() || null,
+                         lagerort: String(game.lagerort || '').trim() || null,
+                         ausleihstatus: String(game.ausleihstatus || 'verfügbar').trim().toLowerCase() === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'
+                     };
+                     if (preparedGame.lagerort === '') preparedGame.lagerort = null;
+                     if (preparedGame.imageUrl === '') preparedGame.imageUrl = null; // Ensure empty imageUrl becomes null
+
+                     batch.set(gameRef, preparedGame);
+                     count++;
+                 });
+
+                 try {
+                     await batch.commit();
+                     let feedbackText = `${count} Spiele erfolgreich importiert/überschrieben!`;
+                     if (skippedCount > 0) {
+                         feedbackText += ` (${skippedCount} Spiele ohne gültige EAN oder als ungültiges Objekt übersprungen.)`;
+                         importFeedback.className = 'text-yellow-400 text-sm mt-2';
+                     } else {
+                         importFeedback.className = 'text-green-400 text-sm mt-2';
+                     }
+                     importFeedback.textContent = feedbackText;
+                     document.getElementById('json-import-data').value = '';
+
+                 } catch (error) {
+                     console.error("Firestore Batch Commit Fehler:", error);
+                     importFeedback.textContent = 'Fehler beim Schreiben in die Datenbank. Details siehe Konsole.';
+                     importFeedback.className = 'text-red-400 text-sm mt-2';
+                 }
+
+                 setTimeout(() => { importFeedback.textContent = '' }, 5000);
+             });
 
             // NEU: Standortzuweisung per EAN-Liste Listener
              assignLocationBtn.addEventListener('click', async () => {
@@ -376,7 +480,9 @@
              });
 
 
-             deleteLocationSelect.addEventListener('change', () => { deleteLocationBtn.disabled = !deleteLocationSelect.value; });
+             deleteLocationSelect.addEventListener('change', () => {
+                 deleteLocationBtn.disabled = !deleteLocationSelect.value;
+             });
              deleteLocationBtn.addEventListener('click', () => {
                  const locationToDelete = deleteLocationSelect.value;
                  if (!locationToDelete) return;
@@ -385,23 +491,29 @@
 
             // --- DATENBANK-LISTENER ---
             const setupGameListener = () => {
-                 if (unsubscribe) unsubscribe();
-                 loadingStateDiv.classList.remove('hidden'); noResultsDiv.classList.add('hidden');
-                 console.log("Setting up Firestore listener...");
-                 const gamesCollection = collection(db, "games");
-                 unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
-                     console.log(`Received ${snapshot.docs.length} games.`);
-                     allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                     allGames.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-                     loadingStateDiv.classList.add('hidden');
-                     noResultsDiv.classList.toggle('hidden', !snapshot.empty);
-                     populateFilters(); renderStats(); filterAndRender();
-                 }, (error) => {
-                     console.error("DB Listener Error:", error);
-                     loadingStateDiv.innerHTML = `<p class="text-red-500">DB Fehler. Prüfen Sie Konsole & Regeln.</p>`;
-                     noResultsDiv.classList.add('hidden');
-                 });
-             };
+                if (unsubscribe) {
+                    console.log("Removing previous listener.");
+                    unsubscribe(); // Remove previous listener if exists
+                }
+                loadingStateDiv.classList.remove('hidden');
+                noResultsDiv.classList.add('hidden');
+                console.log("Setting up Firestore listener...");
+                const gamesCollection = collection(db, "games");
+                unsubscribe = onSnapshot(gamesCollection, (snapshot) => {
+                    console.log(`Received ${snapshot.docs.length} games from Firestore.`);
+                    allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    allGames.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                    loadingStateDiv.classList.add('hidden');
+                    noResultsDiv.classList.toggle('hidden', !snapshot.empty);
+                    populateFilters();
+                    renderStats();
+                    filterAndRender();
+                }, (error) => {
+                    console.error("Fehler beim Abhören der Datenbank:", error);
+                    loadingStateDiv.innerHTML = `<p class="text-red-500">Fehler beim Laden der Spieldaten. Prüfen Sie Konsole & DB-Regeln.</p>`;
+                    noResultsDiv.classList.add('hidden');
+                });
+            };
 
 
              // --- MODAL LOGIC (Info & Delete) ---
@@ -409,12 +521,16 @@
                  if (!game) return;
                  infoModalTitle.textContent = game.name || 'Unbenannt';
                  let imageHtml = '';
+                 // Check if imageUrl exists, is a string, and looks like a URL
                  if (game.imageUrl && typeof game.imageUrl === 'string' && (game.imageUrl.startsWith('http://') || game.imageUrl.startsWith('https://'))) {
-                     imageHtml = `<img src="${game.imageUrl}" alt="Cover von ${game.name || ''}" loading="lazy" class="mb-4">`;
+                     imageHtml = `<img src="${game.imageUrl}" alt="Cover von ${game.name || ''}" loading="lazy" class="mb-4">`; 
                  } else {
                      imageHtml = `<div class="image-placeholder mb-4">Kein Bild verfügbar</div>`;
                  }
+                 
+                 // Combine image/placeholder with description
                  infoModalContent.innerHTML = imageHtml + (game.description || '<p>Keine Beschreibung verfügbar.</p>');
+                 
                  infoModalOverlay.classList.remove('hidden');
              };
              const hideInfoModal = () => infoModalOverlay.classList.add('hidden');
@@ -442,15 +558,16 @@
              cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
              confirmDeleteBtn.addEventListener('click', async () => {
-                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; }
+                 if (!idToDelete || !currentUser) { hideDeleteModal(); return; } 
 
                  if (deleteType === 'game') {
                      try {
                          await deleteDoc(doc(db, "games", idToDelete));
                          console.log("Spiel gelöscht:", idToDelete);
+                         // UI updated by listener
                      } catch (error) {
                           console.error("Fehler beim Löschen des Spiels:", error);
-                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden.");
+                         showInfoModal("Fehler", "Das Spiel konnte nicht gelöscht werden."); 
                      } finally {
                          hideDeleteModal();
                      }
@@ -459,8 +576,9 @@
                      deleteLocationFeedback.textContent = `Entferne Standort "${locationName}"...`;
                      deleteLocationFeedback.className = 'text-yellow-400 text-sm mt-2';
                      try {
+                          // Query Firestore for all games with the target location
                           const q = query(collection(db, "games"), where("lagerort", "==", locationName));
-                          const querySnapshot = await getDocs(q);
+                          const querySnapshot = await getDocs(q); // Use getDocs for a one-time fetch needed for batch
 
                           if (querySnapshot.empty) {
                               deleteLocationFeedback.textContent = `Keine Spiele am Standort "${locationName}" gefunden.`;
@@ -469,12 +587,12 @@
                           }
 
                           const batch = writeBatch(db);
-                          querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null }));
+                          querySnapshot.forEach((gameDoc) => batch.update(gameDoc.ref, { lagerort: null })); // Set location to null
                           await batch.commit();
                           console.log(`Standort "${locationName}" bei ${querySnapshot.size} Spielen entfernt.`);
                           deleteLocationFeedback.textContent = `Standort "${locationName}" entfernt (${querySnapshot.size} Spiele).`;
                           deleteLocationFeedback.className = 'text-green-400 text-sm mt-2';
-                           // populateFilters wird durch onSnapshot ausgelöst
+                           // populateFilters will be called by the onSnapshot listener automatically when data changes
 
                      } catch (error) {
                           console.error(`Fehler beim Entfernen des Standorts "${locationName}":`, error);
@@ -490,13 +608,66 @@
 
 
              // --- RENDER & FILTER ---
-             const renderStats = () => { /* ... unverändert ... */ };
-             document.getElementById('category-stats').addEventListener('click', (e) => { /* ... unverändert ... */ });
-             const populateFilters = () => { /* ... unverändert (inkl. deleteLocationSelect) ... */ };
+             const renderStats = () => {
+                 const totalGamesDiv = document.getElementById('total-games');
+                 const categoryStatsDiv = document.getElementById('category-stats');
+                 if (!totalGamesDiv || !categoryStatsDiv) return;
+                 totalGamesDiv.innerHTML = `Gesamtanzahl: <span class="font-bold text-blue-400">${allGames.length}</span> Spiele`;
+                 const categoryCounts = allGames.reduce((acc, game) => {
+                     const category = game.category || 'Unkategorisiert';
+                     acc[category] = (acc[category] || 0) + 1;
+                     return acc;
+                 }, {});
+                 let statsHTML = '';
+                 Object.keys(categoryCounts).sort().forEach(category => {
+                     const isActive = selectedCategories.includes(category);
+                     const activeClass = isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600';
+                     const safeCategory = category.replace(/"/g, '&quot;');
+                     statsHTML += `<button data-category="${safeCategory}" class="category-stat-btn px-3 py-1 rounded-full text-sm whitespace-nowBefehl ${activeClass}">${category}: ${categoryCounts[category]}</button>`;
+                 });
+                 categoryStatsDiv.innerHTML = statsHTML;
+             };
+             document.getElementById('category-stats').addEventListener('click', (e) => {
+                 if(e.target.classList.contains('category-stat-btn')) {
+                     const category = e.target.dataset.category;
+                     const index = selectedCategories.indexOf(category);
+                     if (index > -1) selectedCategories.splice(index, 1);
+                     else selectedCategories.push(category);
+                     renderStats();
+                     filterAndRender();
+                 }
+             });
+             const populateFilters = () => {
+                 const locations = [...new Set(allGames.map(game => game.lagerort).filter(Boolean))].sort();
+                 const currentLocation = locationFilter.value;
+                 const currentLocationMobile = locationFilterMobile.value;
+                 const currentDeleteLocation = deleteLocationSelect.value; 
+
+                 // Clear existing options except the first one
+                 locationFilter.length = 1; 
+                 locationFilterMobile.length = 1;
+                 deleteLocationSelect.length = 1; 
+
+                 locations.forEach(location => {
+                     const option = new Option(location, location);
+                     locationFilter.add(option.cloneNode(true));
+                     locationFilterMobile.add(option.cloneNode(true));
+                     deleteLocationSelect.add(option.cloneNode(true)); 
+                 });
+                 // Restore previous selection
+                 if ([...locationFilter.options].some(o => o.value === currentLocation)) locationFilter.value = currentLocation; else locationFilter.value = "all";
+                 if ([...locationFilterMobile.options].some(o => o.value === currentLocationMobile)) locationFilterMobile.value = currentLocationMobile;
+                 else if ([...locationFilterMobile.options].some(o => o.value === currentLocation)) locationFilterMobile.value = currentLocation; else locationFilterMobile.value = "all";
+                 if ([...deleteLocationSelect.options].some(o => o.value === currentDeleteLocation)) deleteLocationSelect.value = currentDeleteLocation; else deleteLocationSelect.value = "";
+
+                 deleteLocationBtn.disabled = !deleteLocationSelect.value; 
+
+                 syncFilters(false); // Sync static filters initially
+             };
              const renderTable = (filteredGames) => {
                  tableBody.innerHTML = '';
                  noResultsDiv.classList.toggle('hidden', filteredGames.length > 0 || allGames.length === 0);
-                 loadingStateDiv.classList.add('hidden');
+                 loadingStateDiv.classList.add('hidden'); 
                  filteredGames.forEach(game => {
                      const row = document.createElement('tr');
                      const isLent = game.ausleihstatus === 'ausgeliehen';
@@ -514,14 +685,15 @@
                      const eanLineHtml = `
                         <div class="ean-line">
                             <span class="ean-inline">${game.id}</span>
-                            ${deleteButtonHtml}
+                            ${deleteButtonHtml} 
                         </div>`;
 
                      row.innerHTML = `
                          <td class="p-4 font-medium text-white game-title-cell">
                              <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
-                             ${eanLineHtml}
+                             ${eanLineHtml} 
                          </td>
+                         <!-- EAN-Spalte wurde entfernt -->
                          <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
                          <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
@@ -534,25 +706,98 @@
                      tableBody.appendChild(row);
                  });
               };
-             const filterAndRender = () => { /* ... unverändert ... */ };
-             const toggleLentStatus = async (gameId) => { /* ... unverändert ... */ };
-             const syncFilters = (fromMobileToDesktop) => { /* ... unverändert ... */ };
+             const filterAndRender = () => {
+                 if (allGames.length === 0 && unsubscribe !== null) { 
+                     loadingStateDiv.classList.add('hidden'); noResultsDiv.classList.remove('hidden'); renderTable([]); return;
+                 }
+                 if (allGames.length === 0 && unsubscribe === null) { 
+                      loadingStateDiv.classList.remove('hidden'); noResultsDiv.classList.add('hidden'); tableBody.innerHTML = ''; return; 
+                 }
+
+                const searchTerm = (window.innerWidth < 768 ? searchInputMobile.value : searchInput.value).toLowerCase();
+                const selectedLocation = locationFilter.value;
+                const selectedPlayers = parseInt(playersFilter.value, 10);
+                const selectedDuration = parseInt(durationFilter.value, 10);
+                const selectedAge = parseInt(ageFilter.value, 10);
+                const selectedStatus = statusFilter.value;
+                const filteredGames = allGames.filter(game => {
+                    const nameMatch = (game.name || '').toLowerCase().includes(searchTerm); 
+                    const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(game.category);
+                    const locationMatch = selectedLocation === 'all' || game.lagerort === selectedLocation;
+                    const statusMatch = selectedStatus === 'all' || game.ausleihstatus === selectedStatus;
+                    const ageMatch = selectedAge === 0 || (game.minAge != null && game.minAge >= selectedAge); 
+                    const durationMatch = selectedDuration === 0 || (game.Duration != null && game.Duration <= selectedDuration); 
+                    let playersMatch = true;
+                    if (selectedPlayers > 0) {
+                        if (game.minPlayers != null && game.maxPlayers != null) { 
+                             if (selectedPlayers < 7) playersMatch = game.minPlayers <= selectedPlayers && game.maxPlayers >= selectedPlayers;
+                             else playersMatch = game.maxPlayers >= 7;
+                        } else { playersMatch = false; }
+                    }
+                    return nameMatch && categoryMatch && locationMatch && playersMatch && durationMatch && ageMatch && statusMatch;
+                });
+                renderTable(filteredGames);
+             };
+             const toggleLentStatus = async (gameId) => {
+                 if (!currentUser) { showInfoModal("Fehler", "<p>Bitte melden Sie sich an.</p>"); return; }
+                 const game = allGames.find(g => g.id === gameId);
+                 if (game) {
+                     const newStatus = game.ausleihstatus === 'ausgeliehen' ? 'verfügbar' : 'ausgeliehen';
+                     const gameRef = doc(db, "games", gameId);
+                     try { await updateDoc(gameRef, { ausleihstatus: newStatus }); } 
+                     catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
+                 }
+             };
+             const syncFilters = (fromMobileToDesktop) => {
+                 const filterPairs = [
+                    { desktop: locationFilter, mobile: locationFilterMobile }, { desktop: playersFilter, mobile: playersFilterMobile },
+                    { desktop: durationFilter, mobile: durationFilterMobile }, { desktop: ageFilter, mobile: ageFilterMobile },
+                    { desktop: statusFilter, mobile: statusFilterMobile }
+                 ];
+                 filterPairs.forEach(pair => {
+                    const source = fromMobileToDesktop ? pair.mobile : pair.desktop;
+                    const target = fromMobileToDesktop ? pair.desktop : pair.mobile;
+                    if (target.id !== 'location-filter-mobile' && target.id !== 'location-filter') {
+                       if(target.options.length <= 1 && source.options.length > 1) target.innerHTML = source.innerHTML;
+                    }
+                    if (source.value) target.value = source.value; else if (target.options.length > 0) target.selectedIndex = 0;
+                 });
+             };
              
              // --- EVENT LISTENERS ---
              const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
              desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
              searchInput.addEventListener('input', filterAndRender);
-             searchInputMobile.addEventListener('input', () => { /* ... unverändert ... */ });
-             tableBody.addEventListener('click', (event) => { /* ... unverändert (mit inline delete button check) ... */ });
+             searchInputMobile.addEventListener('input', () => { searchInput.value = searchInputMobile.value; filterAndRender(); });
+             tableBody.addEventListener('click', (event) => {
+                 const target = event.target;
+                 const gameRow = target.closest('tr');
+                 if (!gameRow) return;
+                 const gameId = gameRow.dataset.gameId;
+                 const deleteButtonInline = target.closest('.delete-button-inline');
+                 const statusButton = target.closest('.status-button');
+                 const titleLink = target.closest('.game-title-link'); 
+
+                 if (deleteButtonInline && currentUser) { showDeleteModal(gameId, 'game'); return; } 
+                 if (statusButton && currentUser) { toggleLentStatus(gameId); } 
+                 else if (titleLink) { // Nur auf Titellink reagieren
+                     const game = allGames.find(g => g.id === gameId);
+                     if (game) showInfoModal(game);
+                 }
+             });
 
              // --- INITIALIZATION ---
              setupGameListener(); // Start listening to the database
 
              // --- Make key functions globally accessible ---
-             window.renderStats = renderStats; window.populateFilters = populateFilters; window.renderTable = renderTable;
-             window.filterAndRender = filterAndRender; window.toggleLentStatus = toggleLentStatus; window.syncFilters = syncFilters;
-             window.showInfoModal = showInfoModal; window.showDeleteModal = showDeleteModal;
-             // Ensure all UI element vars are defined above
+             window.renderStats = renderStats;
+             window.populateFilters = populateFilters;
+             window.renderTable = renderTable;
+             window.filterAndRender = filterAndRender;
+             window.toggleLentStatus = toggleLentStatus;
+             window.syncFilters = syncFilters;
+             window.showInfoModal = showInfoModal;
+             window.showDeleteModal = showDeleteModal;
 
         });
     </script>
