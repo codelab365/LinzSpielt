@@ -48,14 +48,16 @@
             <button id="fetch-details-btn" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Details abrufen</button>
         </div>
 
-        <!-- API Token Section -->
+        <!-- API Token Section Removed -->
+        <!--
         <div class="mb-6 border-b pb-6 border-gray-200">
              <label for="api-token" class="block text-sm font-medium text-gray-700 mb-1">Optional: BGG API Token (Bearer):</label>
-             <input type="text" id="api-token" placeholder="cb319383-f7f5-4e5b-bc40-78090627231e" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <input type="text" id="api-token" placeholder="Dein BGG Application Token" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
              <p class="text-xs text-gray-500 mt-1">
                 Kann erforderlich sein. <a href="https://boardgamegeek.com/applications" target="_blank" class="text-blue-600 hover:underline">Hier registrieren/Token erstellen</a>.
             </p>
         </div>
+        -->
 
         <!-- Details Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -97,12 +99,15 @@
     </div>
 
     <script>
+        // Define the BGG API Token directly in the code
+        const BGG_API_TOKEN = 'cb319383-f7f5-4e5b-bc40-78090627231e';
+
         const ui = {
             searchQuery: document.getElementById('search-query'),
             searchBtn: document.getElementById('search-game-btn'),
             typeBoardgame: document.getElementById('type-boardgame'),
             exactMatch: document.getElementById('exact-match'),
-            apiToken: document.getElementById('api-token'),
+            // apiToken: document.getElementById('api-token'), // Removed input field reference
             searchResults: document.getElementById('search-results'),
             fetchDetailsBtn: document.getElementById('fetch-details-btn'),
             formattedDetails: document.getElementById('formatted-details'),
@@ -112,50 +117,72 @@
             selectedGameId: null
         };
 
-        // --- API Call Helper ---
-        async function callBggApi(endpoint, params = {}, useToken = true) {
-            const apiToken = ui.apiToken.value.trim();
+        // --- API Call Helper (uses the constant BGG_API_TOKEN) ---
+        async function callBggApi(endpoint, params = {}) {
+            // const apiToken = ui.apiToken.value.trim(); // Removed reading from input
             const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
             Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
             const headers = new Headers();
-            if (useToken && apiToken) {
-                headers.append('Authorization', `Bearer ${apiToken}`);
+            // Always add the Authorization header with the hardcoded token
+            if (BGG_API_TOKEN) {
+                headers.append('Authorization', `Bearer ${BGG_API_TOKEN}`);
+            } else {
+                 console.warn("BGG API Token is missing!"); // Optional warning if token constant is empty
+                 ui.errorOutput.textContent = 'Fehlender BGG API Token im Code.';
+                 // throw new Error('Missing BGG API Token'); // Or throw an error
             }
 
             ui.errorOutput.textContent = ''; // Clear previous errors
 
             try {
-                const response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                // Add retry logic for 202 status
+                let response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                let retries = 0;
+                const maxRetries = 5;
+                const retryDelay = 2000; // 2 seconds
 
-                // Handle BGG's 202 Accepted for queued requests
-                if (response.status === 202) {
-                     ui.errorOutput.textContent = 'BGG API hat die Anfrage in die Warteschlange gestellt. Bitte versuchen Sie es in Kürze erneut.';
-                     throw new Error('Request queued');
+                while (response.status === 202 && retries < maxRetries) {
+                    retries++;
+                    ui.errorOutput.textContent = `BGG API hat die Anfrage in die Warteschlange gestellt. Versuch ${retries}/${maxRetries}...`;
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    response = await fetch(url.toString(), { method: 'GET', headers: headers });
                 }
+
+                 if (response.status === 202) {
+                     ui.errorOutput.textContent = 'BGG API Anfrage nach mehreren Versuchen noch in der Warteschlange. Bitte später erneut versuchen.';
+                     throw new Error('Request queued after retries');
+                 }
+
 
                 if (!response.ok) {
                     let errorText = `HTTP Fehler: ${response.status} ${response.statusText}`;
                     try { const body = await response.text(); errorText += ` Response: ${body.substring(0, 100)}`; } catch(e){}
+                     // Specific check for Unauthorized (wrong token?)
+                     if (response.status === 401) {
+                         errorText += ' (Ungültiger Token?)';
+                     }
                     throw new Error(errorText);
                 }
                 const xmlText = await response.text();
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-                 // Check for parser errors
                 const parserError = xmlDoc.querySelector("parsererror");
                 if (parserError) {
                     throw new Error("Fehler beim Parsen der XML-Antwort.");
                 }
-
                 return { xmlText, xmlDoc };
 
             } catch (error) {
                  console.error('API Error:', error);
-                 if (error.message !== 'Request queued') { // Don't show generic error for queued
-                     ui.errorOutput.textContent = `API Fehler: ${error.message}. CORS-Problem möglich.`;
+                 let msg = `API Fehler: ${error.message}.`;
+                  if (error.message.includes('queued')) {
+                     msg = 'BGG API Anfrage nach mehreren Versuchen noch in der Warteschlange. Bitte später erneut versuchen.';
+                 } else if (!error.message.includes('(Ungültiger Token?)')) { // Avoid adding CORS if it's likely a token issue
+                     msg += ' CORS-Problem möglich.';
                  }
-                 throw error; // Re-throw to stop further processing
+                 ui.errorOutput.textContent = msg;
+                 throw error;
             }
         }
 
@@ -252,6 +279,7 @@
             }
             
              const decodeHTML = (html) => {
+                if (!html) return '';
                 const txt = document.createElement("textarea");
                 txt.innerHTML = html;
                 return txt.value;
@@ -280,9 +308,9 @@
                 <p><strong>BGG ID:</strong> <span class="detail-value">${details.bggId || 'N/A'}</span></p>
                 <p><strong>Name:</strong> <span class="detail-value">${details.name} ${details.year ? '('+details.year+')' : ''}</span></p>
                 <p><strong>Kategorie:</strong> <span class="detail-value">${details.category}</span></p>
-                <p><strong>Alter:</strong> <span class="detail-value">${details.minAge}+</span></p>
-                <p><strong>Spieler:</strong> <span class="detail-value">${details.minPlayers} - ${details.maxPlayers}</span></p>
-                <p><strong>Dauer:</strong> <span class="detail-value">${details.duration} Min.</span></p>
+                <p><strong>Alter:</strong> <span class="detail-value">${details.minAge ? details.minAge + '+' : 'N/A'}</span></p>
+                <p><strong>Spieler:</strong> <span class="detail-value">${details.minPlayers && details.maxPlayers ? `${details.minPlayers} - ${details.maxPlayers}` : 'N/A'}</span></p>
+                <p><strong>Dauer:</strong> <span class="detail-value">${details.duration ? details.duration + ' Min.' : 'N/A'}</span></p>
                 <p><strong>Bild-URL:</strong> <span class="detail-value text-xs">${details.imageUrl ? `<a href="${details.imageUrl}" target="_blank" class="text-blue-600 hover:underline">Link</a>` : 'N/A'}</span></p>
                 ${details.ean ? `<p><strong>Barcode (UPC/EAN?):</strong> <span class="detail-value">${details.ean}</span></p>` : ''}
                 <p><strong>Beschreibung:</strong></p>
@@ -333,4 +361,3 @@
     </script>
 </body>
 </html>
-
