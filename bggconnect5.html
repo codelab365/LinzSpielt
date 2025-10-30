@@ -101,10 +101,16 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">B. Passendes BGG-Ergebnis auswählen:</label>
              <div class="flex justify-between items-center mb-2">
                  <div id="processing-status" class="text-sm text-gray-600">Status: Bereit.</div>
-                 <div class="flex items-center">
-                    <input id="exact-match" type="checkbox" checked class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label for="exact-match" class="ml-2 block text-sm text-gray-700">Exakte Übereinstimmung</label>
-                </div>
+                 <div class="flex items-center space-x-4"> <!-- Added space-x-4 -->
+                    <div class="flex items-center">
+                        <input id="exact-match" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"> <!-- Removed 'checked' -->
+                        <label for="exact-match" class="ml-2 block text-sm text-gray-700">Exakte Übereinstimmung</label>
+                    </div>
+                    <div class="flex items-center"> <!-- NEUE CHECKBOX -->
+                        <input id="overwrite-name-btn" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="overwrite-name-btn" class="ml-2 block text-sm text-gray-700">Spielname von BGG übernehmen</label>
+                    </div>
+                 </div>
              </div>
              
              <div id="current-game-name" class="mb-2 font-semibold text-lg text-gray-800">-</div>
@@ -156,6 +162,7 @@
             confirmSelectionBtn: document.getElementById('confirm-selection-btn'),
             skipGameBtn: document.getElementById('skip-game-btn'),
             exactMatch: document.getElementById('exact-match'),
+            overwriteNameBtn: document.getElementById('overwrite-name-btn'), // Neue Checkbox
             toggleDetailsBtn: document.getElementById('toggle-details-btn'),
             manualDetailsForm: document.getElementById('manual-details-form'),
             manualCategory: document.getElementById('manual-category'),
@@ -305,6 +312,8 @@
                 ui.manualMinPlayers.value = ''; ui.manualMaxPlayers.value = '';
                 ui.manualDuration.value = ''; ui.manualDescription.value = '';
                 ui.manualImageUrl.value = '';
+                ui.toggleDetailsBtn.checked = false; // Reset checkbox
+                ui.manualDetailsForm.style.display = 'none'; // Hide form
             }
             ui.inputEan.focus();
             ui.startProcessingBtn.disabled = false;
@@ -464,7 +473,13 @@
 
                 // WICHTIG: Überschreibt alle Daten außer EAN und Lagerort
                 currentGame.bggId = parseInt(item.getAttribute('id')) || null;
-                currentGame.name = getPrimaryName() || currentGame.name;
+                
+                // *** NEUE LOGIK FÜR SPIELNAMEN ***
+                if (ui.overwriteNameBtn.checked) {
+                    currentGame.name = getPrimaryName() || currentGame.name; // Überschreibe mit BGG-Name
+                }
+                // Ansonsten bleibt der manuell eingegebene Name (currentGame.name) erhalten
+                
                 const categories = Array.from(item.querySelectorAll('link[type="boardgamecategory"]')).map(link => link.getAttribute('value'));
                 currentGame.category = categories[0] || null;
                 currentGame.minAge = parseInt(getVal('minage')) || null;
@@ -495,6 +510,7 @@
             
             if (isManual) {
                  console.log(`Manuelles Spiel "${currentGame.name}" wird in die Endliste übernommen.`);
+                 // Daten sind schon manuell gesetzt, nichts tun.
             } else {
                 console.log(`Spiel "${currentGame.name}" übersprungen. BGG-Daten werden nicht angereichert.`);
                 // Setze BGG-Felder auf null (EAN/Name/Lagerort bleiben erhalten)
@@ -518,7 +534,15 @@
             ui.processingStatus.textContent = 'Verarbeitung abgeschlossen!';
             ui.currentGameName.textContent = '-';
             ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Alle Spiele verarbeitet.</p>';
-            ui.finalJson.textContent = JSON.stringify(ui.gamesArray, null, 2);
+            
+            // Bereinige das isManual-Feld vor dem finalen Export
+            const finalGamesArray = ui.gamesArray.map(game => {
+                const finalGame = { ...game };
+                delete finalGame.isManual; // Entferne das temporäre isManual-Feld
+                return finalGame;
+            });
+
+            ui.finalJson.textContent = JSON.stringify(finalGamesArray, null, 2);
             ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren oder Speichern.';
             ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
             ui.copyJsonBtn.disabled = false;
@@ -530,24 +554,7 @@
         }
 
         // --- Copy JSON Button ---
-         ui.copyJsonBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
-         // --- Save JSON Button ---
-         ui.saveJsonBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
-
-        // --- Reset Helpers ---
-        function resetDetailOutputs() { /* ... (unverändert) ... */ }
-         function resetButtonsAndInputs() {
-            ui.startProcessingBtn.disabled = ui.gamesArray.length === 0;
-            ui.addToListBtn.disabled = false;
-            ui.inputEan.disabled = false;
-            ui.inputName.disabled = false;
-            ui.inputLocation.disabled = false;
-            ui.confirmSelectionBtn.disabled = true;
-            ui.skipGameBtn.disabled = true;
-         }
-         
-         // Inlined copy/save functions
-          ui.copyJsonBtn.onclick = () => {
+         ui.copyJsonBtn.addEventListener('click', () => {
              const jsonText = ui.finalJson.textContent;
              navigator.clipboard.writeText(jsonText).then(() => {
                 ui.finalJsonFeedback.textContent = 'JSON in die Zwischenablage kopiert!';
@@ -560,8 +567,10 @@
                  ui.finalJsonFeedback.textContent = 'Fehler beim Kopieren.';
                  ui.finalJsonFeedback.className = 'text-red-500 text-sm mt-2';
              });
-         };
-         ui.saveJsonBtn.onclick = () => {
+         });
+
+         // --- Save JSON Button ---
+         ui.saveJsonBtn.addEventListener('click', () => {
             const jsonText = ui.finalJson.textContent;
             const blob = new Blob([jsonText], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
@@ -575,8 +584,28 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             ui.finalJsonFeedback.textContent = 'JSON als .txt-Datei gespeichert.';
-         };
-         window.resetDetailOutputs = resetDetailOutputs; // Make global
+         });
+
+
+        // --- Reset Helpers ---
+        function resetDetailOutputs() {
+             ui.finalJson.textContent = "{\n    // Hier erscheint das finale JSON-Array nach Abschluss\n}";
+             ui.responseOutputDetails.textContent = 'Hier wird die letzte XML-Antwort der Detailabfrage angezeigt...';
+             ui.finalJsonFeedback.textContent = '';
+             ui.copyJsonBtn.disabled = true;
+             ui.saveJsonBtn.disabled = true;
+             ui.errorOutput.textContent = '';
+        }
+         function resetButtonsAndInputs() {
+            ui.startProcessingBtn.disabled = ui.gamesArray.length === 0;
+            ui.addToListBtn.disabled = false;
+            ui.inputEan.disabled = false;
+            ui.inputName.disabled = false;
+            ui.inputLocation.disabled = false;
+            ui.gameListPreview.querySelectorAll('.remove-game-btn').forEach(btn => btn.disabled = false);
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = true;
+         }
 
     </script>
 </body>
