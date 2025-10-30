@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGG EAN Aufbereitungs-Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        .result-item { cursor: pointer; transition: background-color 0.2s; padding: 0.25rem 0.5rem; }
+        .result-item:hover { background-color: #f0f4f8; } /* gray-100 */
+        .result-item.selected { background-color: #dbeafe; } /* blue-100 */
+        #final-json { background-color: #e5e7eb; color: #1f2937 } /* gray-200, gray-800 */
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #game-list-preview li { background-color: #f9fafb; padding: 6px 10px; border-radius: 4px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        #game-list-preview li span { font-size: 0.9rem; }
+        #game-list-preview li .ean { font-family: monospace; font-size: 0.8rem; color: #6b7280; }
+        #game-list-preview li button { font-size: 0.8rem; padding: 2px 6px; background-color: #fee2e2; color: #b91c1c; border-radius: 4px; }
+        #game-list-preview li button:hover { background-color: #fecaca; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-8">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-700">BGG EAN Aufbereitungs-Tool</h1>
+
+        <!-- Step 1: Input Fields -->
+        <div class="mb-6 border-b pb-6 border-gray-200 space-y-3">
+            <div>
+                <label for="input-location" class="block text-sm font-medium text-gray-700">Lagerort (Optional, bleibt gespeichert)</label>
+                <input type="text" id="input-location" placeholder="z.B. Regal A" class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-1">
+                    <label for="input-ean" class="block text-sm font-medium text-gray-700">EAN (Pflicht)</label>
+                    <input type="text" id="input-ean" placeholder="EAN scannen..." class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="sm:col-span-2">
+                     <label for="input-name" class="block text-sm font-medium text-gray-700">Spielname (Pflicht für BGG-Suche)</label>
+                    <input type="text" id="input-name" placeholder="Name für BGG-Suche..." class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+             <button id="add-to-list-btn" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Zur Liste hinzufügen</button>
+             <p id="add-error" class="text-red-500 text-sm mt-1"></p>
+        </div>
+
+        <!-- Step 2: Game List & Processing -->
+        <div class="mb-6 border-b pb-6 border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">A. Hinzugefügte Spiele:</label>
+            <ul id="game-list-preview" class="space-y-2 mb-3 h-40 overflow-y-auto bg-gray-50 p-3 rounded-md border">
+                 <li id="game-list-placeholder" class="text-sm text-gray-500 italic justify-center">Noch keine Spiele hinzugefügt...</li>
+            </ul>
+             <button id="start-processing-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors" disabled>BGG-Verarbeitung starten</button>
+            
+             <hr class="my-4">
+
+            <label class="block text-sm font-medium text-gray-700 mb-1">B. Passendes BGG-Ergebnis auswählen:</label>
+             <div id="processing-status" class="mb-2 text-sm text-gray-600">Status: Bereit.</div>
+             <div id="current-game-name" class="mb-2 font-semibold text-lg text-gray-800">-</div>
+             <div id="search-results" class="bg-gray-50 p-3 rounded-md border border-gray-200 h-48 overflow-y-auto">
+                <p class="text-sm text-gray-500 italic">Hier erscheinen die BGG-Suchergebnisse...</p>
+            </div>
+            <button id="confirm-selection-btn" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors" disabled>Auswahl bestätigen & Nächstes Spiel</button>
+            <button id="skip-game-btn" class="mt-3 ml-2 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors" disabled>Dieses Spiel überspringen (keine BGG-Daten)</button>
+        </div>
+
+        <!-- Step 3: Final JSON Output -->
+        <div>
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">3. Finales JSON für Import:</h2>
+             <div class="bg-gray-800 p-4 rounded-md border border-gray-700 h-64 overflow-y-auto">
+                <pre id="final-json" class="text-sm text-gray-300">{
+    // Hier erscheint das finale JSON-Array nach Abschluss
+}</pre>
+            </div>
+             <p id="final-json-feedback" class="text-sm mt-2"></p>
+             <button id="copy-json-btn" class="mt-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors" disabled>JSON kopieren</button>
+        </div>
+        <hr class="my-6">
+         <div>
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Letzte BGG Detail-Antwort (XML):</h2>
+            <div id="response-output-details" class="bg-gray-50 p-4 rounded-md border border-gray-200 h-40 overflow-y-auto">
+                <pre class="text-sm text-gray-600">Hier wird die letzte XML-Antwort der Detailabfrage angezeigt...</pre>
+            </div>
+            <p id="error-output" class="text-red-500 text-sm mt-2"></p>
+        </div>
+    </div>
+
+    <script>
+        // Define the BGG API Token directly in the code
+        const BGG_API_TOKEN = 'cb319383-f7f5-4e5b-bc40-78090627231e';
+
+        const ui = {
+            inputLocation: document.getElementById('input-location'),
+            inputEan: document.getElementById('input-ean'),
+            inputName: document.getElementById('input-name'),
+            addToListBtn: document.getElementById('add-to-list-btn'),
+            addError: document.getElementById('add-error'),
+            gameListPreview: document.getElementById('game-list-preview'),
+            gameListPlaceholder: document.getElementById('game-list-placeholder'),
+            startProcessingBtn: document.getElementById('start-processing-btn'),
+            processingStatus: document.getElementById('processing-status'),
+            currentGameName: document.getElementById('current-game-name'),
+            searchResults: document.getElementById('search-results'),
+            confirmSelectionBtn: document.getElementById('confirm-selection-btn'),
+            skipGameBtn: document.getElementById('skip-game-btn'),
+            finalJson: document.getElementById('final-json'),
+            finalJsonFeedback: document.getElementById('final-json-feedback'),
+            copyJsonBtn: document.getElementById('copy-json-btn'),
+            responseOutputDetails: document.getElementById('response-output-details').querySelector('pre'),
+            errorOutput: document.getElementById('error-output'),
+            selectedBggId: null,
+            gamesArray: [], // To store the array of game objects
+            currentGameIndex: 0
+        };
+
+        // --- API Call Helper (mit Token und Retry) ---
+        async function callBggApi(endpoint, params = {}) {
+            const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            const headers = new Headers();
+            if (BGG_API_TOKEN) {
+                headers.append('Authorization', `Bearer ${BGG_API_TOKEN}`);
+            } else {
+                 console.warn("BGG API Token is missing!");
+            }
+            ui.errorOutput.textContent = '';
+            try {
+                let response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                let retries = 0;
+                const maxRetries = 5;
+                const retryDelay = 2000;
+                while (response.status === 202 && retries < maxRetries) {
+                    retries++;
+                    ui.errorOutput.textContent = `BGG API in Warteschlange. Versuch ${retries}/${maxRetries}...`;
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    response = await fetch(url.toString(), { method: 'GET', headers: headers });
+                }
+                if (response.status === 202) {
+                    throw new Error('Request queued after retries');
+                }
+                if (!response.ok) {
+                    let errorText = `HTTP Fehler: ${response.status} ${response.statusText}`;
+                    if (response.status === 401) errorText += ' (Ungültiger Token?)';
+                    throw new Error(errorText);
+                }
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+                const parserError = xmlDoc.querySelector("parsererror");
+                if (parserError) throw new Error("Fehler beim Parsen der XML-Antwort.");
+                return { xmlText, xmlDoc };
+            } catch (error) {
+                 console.error('API Error:', error);
+                 let msg = `API Fehler: ${error.message}.`;
+                 if (error.message.includes('queued')) {
+                     msg = 'BGG API Anfrage nach mehreren Versuchen noch in der Warteschlange.';
+                 } else if (!error.message.includes('Token')) {
+                     msg += ' CORS-Problem möglich.';
+                 }
+                 ui.errorOutput.textContent = msg;
+                 throw error;
+            }
+        }
+
+        // --- Step 1: Add to List ---
+        ui.addToListBtn.addEventListener('click', () => {
+            ui.addError.textContent = '';
+            const ean = ui.inputEan.value.trim();
+            const name = ui.inputName.value.trim();
+            const location = ui.inputLocation.value.trim() || null; // Store as null if empty
+
+            if (!ean) {
+                ui.addError.textContent = 'EAN ist ein Pflichtfeld.';
+                return;
+            }
+            if (!name) {
+                ui.addError.textContent = 'Spielname ist für die BGG-Suche erforderlich.';
+                // Allow adding anyway, but user must know BGG search will fail
+            }
+            
+            // Check for duplicate EAN
+            if (ui.gamesArray.some(game => game.ean === ean)) {
+                ui.addError.textContent = 'Diese EAN wurde bereits zur Liste hinzugefügt.';
+                return;
+            }
+
+            // Hide placeholder
+            if (ui.gameListPlaceholder) {
+                ui.gameListPlaceholder.style.display = 'none';
+            }
+
+            // Create game object
+            const game = {
+                ean: ean,
+                bggId: null,
+                name: name || "Spielname fehlt", // Default name if empty
+                category: null,
+                minAge: null,
+                minPlayers: null,
+                maxPlayers: null,
+                Duration: null,
+                description: null,
+                imageUrl: null,
+                lagerort: location,
+                ausleihstatus: "verfügbar"
+            };
+            ui.gamesArray.push(game);
+
+            // Add to preview list
+            const li = document.createElement('li');
+            li.dataset.ean = ean;
+            li.innerHTML = `
+                <div class="flex-grow min-w-0">
+                    <span class="font-medium truncate block">${game.name}</span>
+                    <span class="ean">${game.ean} ${game.lagerort ? `(${game.lagerort})` : ''}</span>
+                </div>
+                <button class="remove-game-btn" data-ean="${ean}">X</button>
+            `;
+            ui.gameListPreview.appendChild(li);
+
+            // Clear inputs for next entry
+            ui.inputEan.value = '';
+            ui.inputName.value = '';
+            ui.inputEan.focus();
+            ui.startProcessingBtn.disabled = false;
+        });
+
+        // Remove from list
+        ui.gameListPreview.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-game-btn')) {
+                const eanToRemove = e.target.dataset.ean;
+                ui.gamesArray = ui.gamesArray.filter(game => game.ean !== eanToRemove);
+                e.target.parentElement.remove();
+                
+                if (ui.gamesArray.length === 0) {
+                     ui.startProcessingBtn.disabled = true;
+                     if (ui.gameListPlaceholder) ui.gameListPlaceholder.style.display = 'flex';
+                }
+            }
+        });
+
+
+        // --- Step 2: Start Processing ---
+        ui.startProcessingBtn.addEventListener('click', () => {
+            if (ui.gamesArray.length === 0) return;
+            
+            ui.currentGameIndex = 0;
+            ui.startProcessingBtn.disabled = true;
+            ui.addToListBtn.disabled = true;
+            ui.inputEan.disabled = true;
+            ui.inputName.disabled = true;
+            ui.inputLocation.disabled = true;
+
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = false;
+            
+            processNextGame();
+        });
+
+        // --- Process Next Game (Search on BGG) ---
+        async function processNextGame() {
+            if (ui.currentGameIndex >= ui.gamesArray.length) {
+                displayFinalJson();
+                return;
+            }
+
+            const currentGame = ui.gamesArray[ui.currentGameIndex];
+            const gameName = currentGame.name;
+
+            ui.processingStatus.textContent = `Verarbeite Spiel ${ui.currentGameIndex + 1} von ${ui.gamesArray.length}:`;
+            ui.currentGameName.textContent = gameName;
+            ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Suche auf BGG...</p>';
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = false;
+            ui.selectedBggId = null;
+            resetDetailOutputs();
+
+            if (!gameName || gameName === "Spielname fehlt") {
+                ui.searchResults.innerHTML = '<p class="text-sm text-red-500 italic">Kein Spielname angegeben. Überspringen...</p>';
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                handleSkipGame();
+                return;
+            }
+             
+             // Try exact search first
+             const params = { query: gameName, type: 'boardgame', exact: '1' };
+             try {
+                let { xmlDoc } = await callBggApi('search', params);
+                let items = xmlDoc.querySelectorAll('item');
+
+                // If exact fails, try broad search
+                if (items.length === 0) {
+                    ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Exakte Suche erfolglos, versuche breitere Suche...</p>';
+                    delete params.exact;
+                    const nonExactResult = await callBggApi('search', params);
+                    xmlDoc = nonExactResult.xmlDoc;
+                    items = xmlDoc.querySelectorAll('item');
+                }
+
+                if (items.length === 0) {
+                    ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Keine Spiele auf BGG gefunden. Bitte überspringen.</p>';
+                    return; // Keep skip enabled
+                }
+
+                // Display results
+                let resultsHtml = '<ul class="space-y-1">';
+                items.forEach(item => {
+                    const id = item.getAttribute('id');
+                    const nameNode = item.querySelector('name');
+                    const yearNode = item.querySelector('yearpublished');
+                    const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannter Name';
+                    const year = yearNode ? `(${yearNode.getAttribute('value')})` : '';
+                    resultsHtml += `<li class="result-item p-1 rounded border border-transparent" data-id="${id}">
+                                        <span class="text-sm font-medium">${name}</span>
+                                        <span class="text-xs text-gray-500 ml-1">${year}</span>
+                                    </li>`;
+                 });
+                 resultsHtml += '</ul>';
+                ui.searchResults.innerHTML = resultsHtml;
+
+             } catch (error) {
+                 ui.searchResults.innerHTML = `<p class="text-sm text-red-500 italic">Fehler bei der BGG-Suche für "${gameName}".</p>`;
+             }
+        }
+
+        // --- Result Selection ---
+        ui.searchResults.addEventListener('click', (e) => {
+             const targetItem = e.target.closest('.result-item');
+            if (!targetItem) return;
+            ui.searchResults.querySelectorAll('.result-item.selected').forEach(el => el.classList.remove('selected'));
+            targetItem.classList.add('selected');
+            ui.selectedBggId = targetItem.dataset.id;
+            ui.confirmSelectionBtn.disabled = false;
+        });
+
+        // --- Confirm Selection & Fetch Details ---
+        ui.confirmSelectionBtn.addEventListener('click', async () => {
+            if (!ui.selectedBggId || ui.currentGameIndex >= ui.gamesArray.length) return;
+
+            const currentGame = ui.gamesArray[ui.currentGameIndex];
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = true;
+            ui.searchResults.innerHTML = `<p class="text-sm text-gray-500 italic">Lade BGG Details für ID ${ui.selectedBggId}...</p>`;
+            resetDetailOutputs();
+
+            try {
+                // Fetch details using the selected BGG ID
+                const { xmlText, xmlDoc } = await callBggApi('thing', { id: ui.selectedBggId, stats: 1 });
+                ui.responseOutputDetails.textContent = xmlText;
+
+                const item = xmlDoc.querySelector('item');
+                if (!item) throw new Error("Keine Spieldetails in BGG-Antwort gefunden.");
+
+                // Extract BGG data
+                const getVal = (selector, attribute = 'value') => item.querySelector(selector)?.[attribute] || '';
+                const getTxt = (selector) => item.querySelector(selector)?.textContent || null;
+                const getPrimaryName = () => {
+                    const names = item.querySelectorAll('name');
+                    for (let name of names) if (name.getAttribute('type') === 'primary') return name.getAttribute('value');
+                    return names.length > 0 ? names[0].getAttribute('value') : null;
+                };
+                const decodeHTML = (html) => {
+                    if (!html) return null;
+                    const txt = document.createElement("textarea");
+                    txt.innerHTML = html;
+                    return txt.value;
+                };
+
+                // Update the game object IN THE ARRAY
+                // WICHTIG: Überschreibt alle Daten außer EAN und Lagerort
+                currentGame.bggId = parseInt(item.getAttribute('id')) || null;
+                currentGame.name = getPrimaryName() || currentGame.name; // Behalte alten Namen, wenn BGG keinen hat
+                const categories = Array.from(item.querySelectorAll('link[type="boardgamecategory"]')).map(link => link.getAttribute('value'));
+                currentGame.category = categories[0] || null; // Nimm die erste Kategorie
+                currentGame.minAge = parseInt(getVal('minage')) || null;
+                currentGame.minPlayers = parseInt(getVal('minplayers')) || null;
+                currentGame.maxPlayers = parseInt(getVal('maxplayers')) || null;
+                currentGame.Duration = parseInt(getVal('playingtime')) || parseInt(getVal('maxplaytime')) || parseInt(getVal('minplaytime')) || null;
+                currentGame.description = decodeHTML(getTxt('description'));
+                currentGame.imageUrl = getTxt('image') || getTxt('thumbnail');
+                // EAN and Lagerort bleiben von der Eingabe erhalten!
+
+                // Move to the next game
+                ui.currentGameIndex++;
+                processNextGame();
+
+            } catch (error) {
+                ui.searchResults.innerHTML = `<p class="text-sm text-red-500 italic">Fehler beim Holen der Details. Erneut versuchen oder überspringen.</p>`;
+                ui.confirmSelectionBtn.disabled = !ui.selectedBggId;
+                ui.skipGameBtn.disabled = false;
+                ui.responseOutputDetails.textContent = 'Fehler beim Laden der Details.';
+            }
+        });
+
+         // --- Skip Game Button ---
+         ui.skipGameBtn.addEventListener('click', handleSkipGame);
+
+         function handleSkipGame() {
+            if (ui.currentGameIndex >= ui.gamesArray.length) return;
+            const currentGame = ui.gamesArray[ui.currentGameIndex];
+            console.log(`Spiel "${currentGame.name}" übersprungen. BGG-Daten werden nicht angereichert.`);
+            
+            // Wichtig: Setze BGG-Daten auf null/default, da sie nicht geholt wurden
+            currentGame.bggId = null;
+            currentGame.imageUrl = null;
+            currentGame.description = null; // Oder behalte die vom Gem? Aktuell: null
+            // EAN, Name, Lagerort, Status bleiben wie eingegeben/default
+            
+            ui.currentGameIndex++;
+            processNextGame();
+         }
+
+
+        // --- Display Final JSON ---
+        function displayFinalJson() {
+            ui.processingStatus.textContent = 'Verarbeitung abgeschlossen!';
+            ui.currentGameName.textContent = '-';
+            ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Alle Spiele verarbeitet.</p>';
+            ui.finalJson.textContent = JSON.stringify(ui.gamesArray, null, 2);
+            ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren.';
+            ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
+            ui.copyJsonBtn.disabled = false;
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = true;
+             // Re-enable input for next batch
+             resetButtonsAndInputs();
+        }
+
+        // --- Copy JSON Button ---
+         ui.copyJsonBtn.addEventListener('click', () => {
+             const jsonText = ui.finalJson.textContent;
+             navigator.clipboard.writeText(jsonText).then(() => {
+                ui.finalJsonFeedback.textContent = 'JSON in die Zwischenablage kopiert!';
+                setTimeout(() => {
+                    if (ui.finalJsonFeedback.classList.contains('text-green-600')) {
+                        ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren.';
+                    }
+                 }, 2000);
+             }).catch(err => {
+                 ui.finalJsonFeedback.textContent = 'Fehler beim Kopieren.';
+                 ui.finalJsonFeedback.className = 'text-red-500 text-sm mt-2';
+             });
+         });
+
+        // --- Reset Helpers ---
+        function resetFinalOutputs() {
+             ui.finalJson.textContent = "{\n    // Hier erscheint das finale JSON-Array nach Abschluss\n}";
+             ui.responseOutputDetails.textContent = 'Hier wird die letzte XML-Antwort der Detailabfrage angezeigt...';
+             ui.finalJsonFeedback.textContent = '';
+             ui.copyJsonBtn.disabled = true;
+             ui.errorOutput.textContent = '';
+        }
+         function resetButtonsAndInputs() {
+            ui.startProcessingBtn.disabled = ui.gamesArray.length === 0;
+            ui.addToListBtn.disabled = false;
+            ui.inputEan.disabled = false;
+            ui.inputName.disabled = false;
+            ui.inputLocation.disabled = false;
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = true;
+         }
+
+    </script>
+</body>
+</html>
