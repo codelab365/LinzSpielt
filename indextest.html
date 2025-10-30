@@ -70,6 +70,12 @@
              margin-right: 1.5rem; margin-bottom: 0.5rem; border-radius: 0.375rem;
         }
         #info-modal-content::after { content: ""; clear: both; display: table; }
+
+        /* NEU: Toast-Notification Style */
+        #toast-notification.show {
+           opacity: 1;
+           transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
@@ -87,7 +93,7 @@
 
         <!-- Statistik Sektion -->
         <div id="stats-section" class="mb-8 text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-            <div id="total-games" class="text-2xl text-white mb-4">Verbinde mit Datenbank...</div>
+            <!-- Entfernt: <div id="total-games" class="text-2xl text-white mb-4">Verbinde mit Datenbank...</div> -->
             <div id="category-stats" class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-gray-400"></div>
         </div>
 
@@ -139,6 +145,27 @@
     <!-- Modals -->
     <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"></div>
     <div id="mobile-menu" class="fixed top-0 right-0 h-full w-80 max-w-full bg-gray-900 shadow-lg p-6 z-30 transform transition-transform duration-300 ease-in-out translate-x-full">
+        
+        <!-- NEU: Statistik-Sektion im Menü -->
+        <div id="menu-stats" class="mb-6">
+            <h3 class="text-xl text-white font-bold mb-4">Bibliothek-Statistik</h3>
+            <div class="space-y-2 text-gray-300">
+                <div class="flex justify-between items-center">
+                    <span>Gesamtzahl:</span>
+                    <span id="stat-total" class="font-bold text-white text-lg">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Verfügbar:</span>
+                    <span id="stat-available" class="font-bold text-green-400 text-lg">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Ausgeliehen:</span>
+                    <span id="stat-borrowed" class="font-bold text-red-400 text-lg">0</span>
+                </div>
+            </div>
+            <hr class="my-6 border-gray-700">
+        </div>
+
         <div id="auth-section">
             <div id="login-view">
                 <h3 class="text-xl text-white font-bold mb-4">Admin Login</h3>
@@ -185,7 +212,7 @@
                  </div>
             </div>
         </div>
-        <hr class="my-6 border-gray-700">
+        <!-- <hr class="my-6 border-gray-700"> --> <!-- Linie nach oben verschoben, über auth-section -->
         <nav>
             <ul class="space-y-2">
                 <li><a href="https://spieleversum.at/impressum/" target="_blank" class="flex items-center text-gray-300 hover:text-white hover:bg-gray-800 rounded-md px-2 py-2">Impressum<svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a></li>
@@ -197,6 +224,11 @@
     <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"> <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"><div class="p-5 border-b border-gray-700 flex justify-between items-center"><h2 id="info-modal-title" class="text-2xl font-bold text-white"></h2><button id="info-modal-close-btn-x" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button></div><div id="info-modal-content" class="p-6 text-gray-300 space-y-4 overflow-y-auto"></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 text-right"><button id="info-modal-close-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Schließen</button></div></div></div>
     <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Löschen bestätigen</h2></div><div class="p-6 text-gray-300"><p>Sind Sie sicher, dass Sie <span id="delete-type-text">das Spiel</span> "<span id="delete-name-span" class="font-bold"></span>" <span id="delete-scope-text">endgültig</span> löschen möchten?</p></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-end gap-4"><button id="cancel-delete-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Abbrechen</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Löschen</button></div></div></div>
     <div id="filter-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Filter anpassen</h2></div><div class="p-6 space-y-4"><div><label for="location-filter-mobile" class="text-sm font-medium text-gray-400">Standort</label><select id="location-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="players-filter-mobile" class="text-sm font-medium text-gray-400">Spielerzahl</label><select id="players-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="duration-filter-mobile" class="text-sm font-medium text-gray-400">Spieldauer</label><select id="duration-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="age-filter-mobile" class="text-sm font-medium text-gray-400">Alter ab</label><select id="age-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="status-filter-mobile" class="text-sm font-medium text-gray-400">Status</label><select id="status-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-between gap-4"><button id="reset-filters-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Zurücksetzen</button><button id="apply-filters-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Anwenden</button></div></div></div>
+
+    <!-- NEU: Toast Notification -->
+    <div id="toast-notification" class="fixed bottom-4 right-4 z-[100] p-4 rounded-lg shadow-lg bg-blue-600 text-white transition-all duration-300 ease-in-out opacity-0 translate-y-4" style="display: none;" role="alert">
+        <span id="toast-message"></span>
+    </div>
 
 
     <script type="module">
@@ -609,10 +641,27 @@
 
              // --- RENDER & FILTER ---
              const renderStats = () => {
-                 const totalGamesDiv = document.getElementById('total-games');
+                 // NEU: Elemente für Menü-Statistik holen
+                 const statTotal = document.getElementById('stat-total');
+                 const statAvailable = document.getElementById('stat-available');
+                 const statBorrowed = document.getElementById('stat-borrowed');
+ 
+                 // NEU: Berechnungen
+                 const totalCount = allGames.length;
+                 const availableCount = allGames.filter(g => g.ausleihstatus === 'verfügbar').length;
+                 const borrowedCount = totalCount - availableCount;
+ 
+                 // NEU: Menü-Statistik aktualisieren
+                 if (statTotal) statTotal.textContent = totalCount;
+                 if (statAvailable) statAvailable.textContent = availableCount;
+                 if (statBorrowed) statBorrowed.textContent = borrowedCount;
+                 
+                 // const totalGamesDiv = document.getElementById('total-games'); // Entfernt
                  const categoryStatsDiv = document.getElementById('category-stats');
-                 if (!totalGamesDiv || !categoryStatsDiv) return;
-                 totalGamesDiv.innerHTML = `Gesamtanzahl: <span class="font-bold text-blue-400">${allGames.length}</span> Spiele`;
+                 // if (!totalGamesDiv || !categoryStatsDiv) return; // Alter Check
+                 if (!categoryStatsDiv) return; // Neuer Check
+                 // totalGamesDiv.innerHTML = `Gesamtanzahl: <span class="font-bold text-blue-400">${allGames.length}</span> Spiele`; // Entfernt
+                 
                  const categoryCounts = allGames.reduce((acc, game) => {
                      const category = game.category || 'Unkategorisiert';
                      acc[category] = (acc[category] || 0) + 1;
@@ -744,10 +793,46 @@
                  if (game) {
                      const newStatus = game.ausleihstatus === 'ausgeliehen' ? 'verfügbar' : 'ausgeliehen';
                      const gameRef = doc(db, "games", gameId);
-                     try { await updateDoc(gameRef, { ausleihstatus: newStatus }); } 
+                     try { 
+                         await updateDoc(gameRef, { ausleihstatus: newStatus }); 
+                         // NEU: Toast anzeigen, wenn Spiel zurückgegeben wurde
+                         if (newStatus === 'verfügbar') {
+                             const location = game.lagerort || 'Unbekannt'; // Fallback falls kein Lagerort
+                             showToast(`"${game.name}" bitte in Standort "${location}" zurücklegen.`);
+                         }
+                     } 
                      catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
                  }
              };
+
+             // NEU: Toast-Funktion
+             let toastTimeout = null;
+             const showToast = (message) => {
+                 const toast = document.getElementById('toast-notification');
+                 const toastMessage = document.getElementById('toast-message');
+                 if (!toast || !toastMessage) return;
+ 
+                 toastMessage.textContent = message;
+                 toast.style.display = 'block'; // Sichtbar machen für Transition
+                 
+                 // Kurze Verzögerung, damit CSS-Transition greift
+                 setTimeout(() => {
+                     toast.classList.add('show');
+                 }, 10); 
+ 
+                 if (toastTimeout) clearTimeout(toastTimeout);
+ 
+                 toastTimeout = setTimeout(() => {
+                     toast.classList.remove('show');
+                     // Verstecken nach Transition
+                     setTimeout(() => {
+                         if (!toast.classList.contains('show')) {
+                             toast.style.display = 'none';
+                         }
+                     }, 300); // 300ms = duration-300
+                 }, 5000); // 5 Sekunden
+             };
+
              const syncFilters = (fromMobileToDesktop) => {
                  const filterPairs = [
                     { desktop: locationFilter, mobile: locationFilterMobile }, { desktop: playersFilter, mobile: playersFilterMobile },
@@ -803,4 +888,3 @@
     </script>
 </body>
 </html>
-
