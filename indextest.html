@@ -225,9 +225,11 @@
     <div id="delete-confirm-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Löschen bestätigen</h2></div><div class="p-6 text-gray-300"><p>Sind Sie sicher, dass Sie <span id="delete-type-text">das Spiel</span> "<span id="delete-name-span" class="font-bold"></span>" <span id="delete-scope-text">endgültig</span> löschen möchten?</p></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-end gap-4"><button id="cancel-delete-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Abbrechen</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Löschen</button></div></div></div>
     <div id="filter-modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-md w-full"><div class="p-5 border-b border-gray-700"><h2 class="text-xl font-bold text-white">Filter anpassen</h2></div><div class="p-6 space-y-4"><div><label for="location-filter-mobile" class="text-sm font-medium text-gray-400">Standort</label><select id="location-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="players-filter-mobile" class="text-sm font-medium text-gray-400">Spielerzahl</label><select id="players-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="duration-filter-mobile" class="text-sm font-medium text-gray-400">Spieldauer</label><select id="duration-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="age-filter-mobile" class="text-sm font-medium text-gray-400">Alter ab</label><select id="age-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div><div><label for="status-filter-mobile" class="text-sm font-medium text-gray-400">Status</label><select id="status-filter-mobile" class="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white appearance-none"></select></div></div><div class="p-4 bg-gray-800/50 border-t border-gray-700 flex justify-between gap-4"><button id="reset-filters-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Zurücksetzen</button><button id="apply-filters-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Anwenden</button></div></div></div>
 
-    <!-- NEU: Toast Notification -->
-    <div id="toast-notification" class="fixed bottom-4 right-4 z-[100] p-4 rounded-lg shadow-lg bg-blue-600 text-white transition-all duration-300 ease-in-out opacity-0 translate-y-4" style="display: none;" role="alert">
-        <span id="toast-message"></span>
+    <!-- NEU: Toast Notification - Position, Farbe und Layout geändert -->
+    <div id="toast-notification" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] p-4 rounded-lg shadow-lg bg-yellow-400 text-gray-900 font-semibold transition-all duration-300 ease-in-out opacity-0 translate-y-[-120%] flex items-center gap-3" style="display: none;" role="alert">
+        <!-- Info Icon SVG -->
+        <svg class="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+        <span id="toast-message" class="text-left"></span>
     </div>
 
 
@@ -795,10 +797,11 @@
                      const gameRef = doc(db, "games", gameId);
                      try { 
                          await updateDoc(gameRef, { ausleihstatus: newStatus }); 
-                         // NEU: Toast anzeigen, wenn Spiel zurückgegeben wurde
+                         // NEU: Toast anzeigen, wenn Spiel zurückgegeben wurde - Text geändert
                          if (newStatus === 'verfügbar') {
                              const location = game.lagerort || 'Unbekannt'; // Fallback falls kein Lagerort
-                             showToast(`"${game.name}" bitte in Standort "${location}" zurücklegen.`);
+                             // Verwendet jetzt HTML für bessere Lesbarkeit
+                             showToast(`<strong>${game.name}</strong> zurückgelegt.<br>Bitte in Standort <strong>${location}</strong> lagern.`);
                          }
                      } 
                      catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
@@ -812,8 +815,8 @@
                  const toastMessage = document.getElementById('toast-message');
                  if (!toast || !toastMessage) return;
  
-                 toastMessage.textContent = message;
-                 toast.style.display = 'block'; // Sichtbar machen für Transition
+                 toastMessage.innerHTML = message; // Geändert von .textContent zu .innerHTML
+                 toast.style.display = 'flex'; // Geändert von 'block' zu 'flex'
                  
                  // Kurze Verzögerung, damit CSS-Transition greift
                  setTimeout(() => {
@@ -888,3 +891,4 @@
     </script>
 </body>
 </html>
+
