@@ -19,6 +19,8 @@
         #game-list-preview li .ean { font-family: monospace; font-size: 0.8rem; color: #6b7280; }
         #game-list-preview li button { font-size: 0.8rem; padding: 2px 6px; background-color: #fee2e2; color: #b91c1c; border-radius: 4px; }
         #game-list-preview li button:hover { background-color: #fecaca; }
+        /* Manuelle Felder standardmäßig verstecken */
+        #manual-details-form { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 p-8">
@@ -37,11 +39,52 @@
                     <input type="text" id="input-ean" placeholder="EAN scannen..." class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="sm:col-span-2">
-                     <label for="input-name" class="block text-sm font-medium text-gray-700">Spielname (Pflicht für BGG-Suche)</label>
-                    <input type="text" id="input-name" placeholder="Name für BGG-Suche..." class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                     <label for="input-name" class="block text-sm font-medium text-gray-700">Spielname (Pflicht)</label>
+                    <input type="text" id="input-name" placeholder="Name für BGG-Suche oder manuelle Eingabe..." class="w-full p-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
-             <button id="add-to-list-btn" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Zur Liste hinzufügen</button>
+            
+            <!-- Details Checkbox -->
+             <div class="flex items-center mt-2">
+                <input id="toggle-details-btn" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="toggle-details-btn" class="ml-2 block text-sm text-gray-700">Details manuell eingeben (überspringt BGG-Suche)</label>
+            </div>
+
+            <!-- Manual Details Form -->
+            <div id="manual-details-form" class="space-y-3 pt-3 border-t border-gray-200 mt-3">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                         <label for="manual-category" class="block text-sm font-medium text-gray-700">Kategorie</label>
+                         <input type="text" id="manual-category" placeholder="z.B. Familienspiel" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                     <div>
+                         <label for="manual-minAge" class="block text-sm font-medium text-gray-700">Alter ab</label>
+                         <input type="number" id="manual-minAge" placeholder="z.B. 8" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                     <div>
+                         <label for="manual-minPlayers" class="block text-sm font-medium text-gray-700">Min. Spieler</label>
+                         <input type="number" id="manual-minPlayers" placeholder="z.B. 2" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                     <div>
+                         <label for="manual-maxPlayers" class="block text-sm font-medium text-gray-700">Max. Spieler</label>
+                         <input type="number" id="manual-maxPlayers" placeholder="z.B. 4" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                </div>
+                 <div>
+                     <label for="manual-duration" class="block text-sm font-medium text-gray-700">Dauer (Min.)</label>
+                     <input type="number" id="manual-duration" placeholder="z.B. 60" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                     <label for="manual-imageUrl" class="block text-sm font-medium text-gray-700">Bild-URL (Optional)</label>
+                     <input type="text" id="manual-imageUrl" placeholder="https://..." class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                     <label for="manual-description" class="block text-sm font-medium text-gray-700">Beschreibung (Optional)</label>
+                     <textarea id="manual-description" rows="3" class="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm" placeholder="Spielbeschreibung hier eingeben..."></textarea>
+                </div>
+            </div>
+
+             <button id="add-to-list-btn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Zur Liste hinzufügen</button>
              <p id="add-error" class="text-red-500 text-sm mt-1"></p>
         </div>
 
@@ -56,13 +99,20 @@
              <hr class="my-4">
 
             <label class="block text-sm font-medium text-gray-700 mb-1">B. Passendes BGG-Ergebnis auswählen:</label>
-             <div id="processing-status" class="mb-2 text-sm text-gray-600">Status: Bereit.</div>
+             <div class="flex justify-between items-center mb-2">
+                 <div id="processing-status" class="text-sm text-gray-600">Status: Bereit.</div>
+                 <div class="flex items-center">
+                    <input id="exact-match" type="checkbox" checked class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="exact-match" class="ml-2 block text-sm text-gray-700">Exakte Übereinstimmung</label>
+                </div>
+             </div>
+             
              <div id="current-game-name" class="mb-2 font-semibold text-lg text-gray-800">-</div>
              <div id="search-results" class="bg-gray-50 p-3 rounded-md border border-gray-200 h-48 overflow-y-auto">
                 <p class="text-sm text-gray-500 italic">Hier erscheinen die BGG-Suchergebnisse...</p>
             </div>
             <button id="confirm-selection-btn" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors" disabled>Auswahl bestätigen & Nächstes Spiel</button>
-            <button id="skip-game-btn" class="mt-3 ml-2 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors" disabled>Dieses Spiel überspringen (keine BGG-Daten)</button>
+            <button id="skip-game-btn" class="mt-3 ml-2 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors" disabled>Dieses Spiel überspringen (Manuelle Daten behalten)</button>
         </div>
 
         <!-- Step 3: Final JSON Output -->
@@ -105,10 +155,20 @@
             searchResults: document.getElementById('search-results'),
             confirmSelectionBtn: document.getElementById('confirm-selection-btn'),
             skipGameBtn: document.getElementById('skip-game-btn'),
+            exactMatch: document.getElementById('exact-match'),
+            toggleDetailsBtn: document.getElementById('toggle-details-btn'),
+            manualDetailsForm: document.getElementById('manual-details-form'),
+            manualCategory: document.getElementById('manual-category'),
+            manualMinAge: document.getElementById('manual-minAge'),
+            manualMinPlayers: document.getElementById('manual-minPlayers'),
+            manualMaxPlayers: document.getElementById('manual-maxPlayers'),
+            manualDuration: document.getElementById('manual-duration'),
+            manualImageUrl: document.getElementById('manual-imageUrl'),
+            manualDescription: document.getElementById('manual-description'),
             finalJson: document.getElementById('final-json'),
             finalJsonFeedback: document.getElementById('final-json-feedback'),
             copyJsonBtn: document.getElementById('copy-json-btn'),
-            saveJsonBtn: document.getElementById('save-json-btn'), // New Save Button
+            saveJsonBtn: document.getElementById('save-json-btn'),
             responseOutputDetails: document.getElementById('response-output-details').querySelector('pre'),
             errorOutput: document.getElementById('error-output'),
             selectedBggId: null,
@@ -165,12 +225,22 @@
             }
         }
 
+        // --- Toggle Manual Details ---
+        ui.toggleDetailsBtn.addEventListener('change', () => {
+            if (ui.toggleDetailsBtn.checked) {
+                ui.manualDetailsForm.style.display = 'block';
+            } else {
+                ui.manualDetailsForm.style.display = 'none';
+            }
+        });
+
         // --- Step 1: Add to List Function ---
         function addGameToList() {
             ui.addError.textContent = '';
             const ean = ui.inputEan.value.trim();
             const name = ui.inputName.value.trim();
-            const location = ui.inputLocation.value.trim() || null; // Store as null if empty
+            const location = ui.inputLocation.value.trim() || null;
+            const isManualEntry = ui.toggleDetailsBtn.checked;
 
             if (!ean) {
                 ui.addError.textContent = 'EAN ist ein Pflichtfeld.';
@@ -178,27 +248,20 @@
                 return;
             }
             if (!name) {
-                ui.addError.textContent = 'Spielname ist für die BGG-Suche erforderlich.';
+                ui.addError.textContent = 'Spielname ist ein Pflichtfeld.';
                 ui.inputName.focus();
-                return; // Make name mandatory
+                return;
             }
-            
-            // Check for duplicate EAN
             if (ui.gamesArray.some(game => game.ean === ean)) {
                 ui.addError.textContent = 'Diese EAN wurde bereits zur Liste hinzugefügt.';
                 return;
             }
+            if (ui.gameListPlaceholder) ui.gameListPlaceholder.style.display = 'none';
 
-            // Hide placeholder
-            if (ui.gameListPlaceholder) {
-                ui.gameListPlaceholder.style.display = 'none';
-            }
-
-            // Create game object
             const game = {
                 ean: ean,
                 bggId: null,
-                name: name, // Name is now mandatory
+                name: name,
                 category: null,
                 minAge: null,
                 minPlayers: null,
@@ -207,41 +270,55 @@
                 description: null,
                 imageUrl: null,
                 lagerort: location,
-                ausleihstatus: "verfügbar"
+                ausleihstatus: "verfügbar",
+                isManual: isManualEntry // Mark the entry type
             };
+
+            if (isManualEntry) {
+                game.category = ui.manualCategory.value.trim() || null;
+                game.minAge = parseInt(ui.manualMinAge.value) || null;
+                game.minPlayers = parseInt(ui.manualMinPlayers.value) || null;
+                game.maxPlayers = parseInt(ui.manualMaxPlayers.value) || null;
+                game.Duration = parseInt(ui.manualDuration.value) || null;
+                game.description = ui.manualDescription.value.trim() || null;
+                game.imageUrl = ui.manualImageUrl.value.trim() || null;
+            }
+
             ui.gamesArray.push(game);
 
-            // Add to preview list
             const li = document.createElement('li');
             li.dataset.ean = ean;
             li.innerHTML = `
                 <div class="flex-grow min-w-0">
-                    <span class="font-medium truncate block">${game.name}</span>
+                    <span class="font-medium truncate block">${game.name} ${game.isManual ? '(Manuell)' : ''}</span>
                     <span class="ean">${game.ean} ${game.lagerort ? `(${game.lagerort})` : ''}</span>
                 </div>
                 <button class="remove-game-btn" data-ean="${ean}">X</button>
             `;
             ui.gameListPreview.appendChild(li);
 
-            // Clear inputs for next entry
+            // Clear inputs
             ui.inputEan.value = '';
             ui.inputName.value = '';
-            ui.inputEan.focus(); // Set focus back to EAN for next scan
+            if (isManualEntry) {
+                ui.manualCategory.value = ''; ui.manualMinAge.value = '';
+                ui.manualMinPlayers.value = ''; ui.manualMaxPlayers.value = '';
+                ui.manualDuration.value = ''; ui.manualDescription.value = '';
+                ui.manualImageUrl.value = '';
+            }
+            ui.inputEan.focus();
             ui.startProcessingBtn.disabled = false;
         }
 
         // Event Listeners for efficient entry
         ui.addToListBtn.addEventListener('click', addGameToList);
         ui.inputEan.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                ui.inputName.focus(); // Move to name field
-            }
+            if (e.key === 'Enter') { e.preventDefault(); ui.inputName.focus(); }
         });
         ui.inputName.addEventListener('keydown', (e) => {
-             if (e.key === 'Enter') {
+             if (e.key === 'Enter' && !ui.toggleDetailsBtn.checked) { // Only add if details are OFF
                 e.preventDefault();
-                addGameToList(); // Add to list
+                addGameToList();
             }
         });
 
@@ -251,7 +328,6 @@
                 const eanToRemove = e.target.dataset.ean;
                 ui.gamesArray = ui.gamesArray.filter(game => game.ean !== eanToRemove);
                 e.target.parentElement.remove();
-                
                 if (ui.gamesArray.length === 0) {
                      ui.startProcessingBtn.disabled = true;
                      if (ui.gameListPlaceholder) ui.gameListPlaceholder.style.display = 'flex';
@@ -259,11 +335,9 @@
             }
         });
 
-
         // --- Step 2: Start Processing ---
         ui.startProcessingBtn.addEventListener('click', () => {
             if (ui.gamesArray.length === 0) return;
-            
             ui.currentGameIndex = 0;
             // Disable entry section
             ui.startProcessingBtn.disabled = true;
@@ -272,11 +346,9 @@
             ui.inputName.disabled = true;
             ui.inputLocation.disabled = true;
             ui.gameListPreview.querySelectorAll('.remove-game-btn').forEach(btn => btn.disabled = true);
-
             // Enable processing section
             ui.confirmSelectionBtn.disabled = true;
             ui.skipGameBtn.disabled = false;
-            
             processNextGame();
         });
 
@@ -288,8 +360,19 @@
             }
 
             const currentGame = ui.gamesArray[ui.currentGameIndex];
-            const gameName = currentGame.name;
+            
+            // NEU: Manuell eingegebene Spiele überspringen
+            if (currentGame.isManual) {
+                console.log(`Überspringe BGG-Suche für manuell eingegebenes Spiel: ${currentGame.name}`);
+                ui.processingStatus.textContent = `Verarbeite Spiel ${ui.currentGameIndex + 1} von ${ui.gamesArray.length}:`;
+                ui.currentGameName.textContent = currentGame.name + " (Manuell)";
+                ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Manuell eingegeben. Wird übersprungen.</p>';
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Kurz anzeigen
+                handleSkipGame(true); // Spezieller Skip für manuelle Einträge
+                return;
+            }
 
+            const gameName = currentGame.name;
             ui.processingStatus.textContent = `Verarbeite Spiel ${ui.currentGameIndex + 1} von ${ui.gamesArray.length}:`;
             ui.currentGameName.textContent = gameName;
             ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Suche auf BGG...</p>';
@@ -298,14 +381,14 @@
             ui.selectedBggId = null;
             resetDetailOutputs();
              
-             // Try exact search first
-             const params = { query: gameName, type: 'boardgame', exact: '1' };
+             const params = { query: gameName, type: 'boardgame' };
+             if (ui.exactMatch.checked) params.exact = '1';
+
              try {
                 let { xmlDoc } = await callBggApi('search', params);
                 let items = xmlDoc.querySelectorAll('item');
 
-                // If exact fails, try broad search
-                if (items.length === 0) {
+                if (items.length === 0 && ui.exactMatch.checked) { // Nur wenn exakt fehlschlägt
                     ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Exakte Suche erfolglos, versuche breitere Suche...</p>';
                     delete params.exact;
                     const nonExactResult = await callBggApi('search', params);
@@ -315,10 +398,9 @@
 
                 if (items.length === 0) {
                     ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Keine Spiele auf BGG gefunden. Bitte überspringen.</p>';
-                    return; // Keep skip enabled
+                    return;
                 }
 
-                // Display results
                 let resultsHtml = '<ul class="space-y-1">';
                 items.forEach(item => {
                     const id = item.getAttribute('id');
@@ -360,14 +442,12 @@
             resetDetailOutputs();
 
             try {
-                // Fetch details using the selected BGG ID
                 const { xmlText, xmlDoc } = await callBggApi('thing', { id: ui.selectedBggId, stats: 1 });
                 ui.responseOutputDetails.textContent = xmlText;
 
                 const item = xmlDoc.querySelector('item');
                 if (!item) throw new Error("Keine Spieldetails in BGG-Antwort gefunden.");
 
-                // Extract BGG data
                 const getVal = (selector, attribute = 'value') => item.querySelector(selector)?.[attribute] || '';
                 const getTxt = (selector) => item.querySelector(selector)?.textContent || null;
                 const getPrimaryName = () => {
@@ -382,12 +462,11 @@
                     return txt.value;
                 };
 
-                // Update the game object IN THE ARRAY
                 // WICHTIG: Überschreibt alle Daten außer EAN und Lagerort
                 currentGame.bggId = parseInt(item.getAttribute('id')) || null;
-                currentGame.name = getPrimaryName() || currentGame.name; // Behalte alten Namen, wenn BGG keinen hat
+                currentGame.name = getPrimaryName() || currentGame.name;
                 const categories = Array.from(item.querySelectorAll('link[type="boardgamecategory"]')).map(link => link.getAttribute('value'));
-                currentGame.category = categories[0] || null; // Nimm die erste Kategorie
+                currentGame.category = categories[0] || null;
                 currentGame.minAge = parseInt(getVal('minage')) || null;
                 currentGame.minPlayers = parseInt(getVal('minplayers')) || null;
                 currentGame.maxPlayers = parseInt(getVal('maxplayers')) || null;
@@ -396,7 +475,6 @@
                 currentGame.imageUrl = getTxt('image') || getTxt('thumbnail');
                 // EAN and Lagerort bleiben von der Eingabe erhalten!
 
-                // Move to the next game
                 ui.currentGameIndex++;
                 processNextGame();
 
@@ -409,17 +487,26 @@
         });
 
          // --- Skip Game Button ---
-         ui.skipGameBtn.addEventListener('click', handleSkipGame);
+         ui.skipGameBtn.addEventListener('click', () => handleSkipGame(false));
 
-         function handleSkipGame() {
+         function handleSkipGame(isManual = false) {
             if (ui.currentGameIndex >= ui.gamesArray.length) return;
             const currentGame = ui.gamesArray[ui.currentGameIndex];
-            console.log(`Spiel "${currentGame.name}" übersprungen. BGG-Daten werden nicht angereichert.`);
             
-            // Behalte die manuell eingegebenen Daten, setze BGG-Felder auf null
-            currentGame.bggId = null;
-            currentGame.imageUrl = null;
-            // Behalte die manuell eingegebenen Name, EAN, Lagerort, Status
+            if (isManual) {
+                 console.log(`Manuelles Spiel "${currentGame.name}" wird in die Endliste übernommen.`);
+            } else {
+                console.log(`Spiel "${currentGame.name}" übersprungen. BGG-Daten werden nicht angereichert.`);
+                // Setze BGG-Felder auf null (EAN/Name/Lagerort bleiben erhalten)
+                currentGame.bggId = null;
+                currentGame.category = null;
+                currentGame.minAge = null;
+                currentGame.minPlayers = null;
+                currentGame.maxPlayers = null;
+                currentGame.Duration = null;
+                currentGame.description = null;
+                currentGame.imageUrl = null;
+            }
             
             ui.currentGameIndex++;
             processNextGame();
@@ -435,7 +522,7 @@
             ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren oder Speichern.';
             ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
             ui.copyJsonBtn.disabled = false;
-            ui.saveJsonBtn.disabled = false; // Enable save button
+            ui.saveJsonBtn.disabled = false;
             ui.confirmSelectionBtn.disabled = true;
             ui.skipGameBtn.disabled = true;
              // Re-enable input for next batch
@@ -443,7 +530,24 @@
         }
 
         // --- Copy JSON Button ---
-         ui.copyJsonBtn.addEventListener('click', () => {
+         ui.copyJsonBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
+         // --- Save JSON Button ---
+         ui.saveJsonBtn.addEventListener('click', () => { /* ... (unverändert) ... */ });
+
+        // --- Reset Helpers ---
+        function resetDetailOutputs() { /* ... (unverändert) ... */ }
+         function resetButtonsAndInputs() {
+            ui.startProcessingBtn.disabled = ui.gamesArray.length === 0;
+            ui.addToListBtn.disabled = false;
+            ui.inputEan.disabled = false;
+            ui.inputName.disabled = false;
+            ui.inputLocation.disabled = false;
+            ui.confirmSelectionBtn.disabled = true;
+            ui.skipGameBtn.disabled = true;
+         }
+         
+         // Inlined copy/save functions
+          ui.copyJsonBtn.onclick = () => {
              const jsonText = ui.finalJson.textContent;
              navigator.clipboard.writeText(jsonText).then(() => {
                 ui.finalJsonFeedback.textContent = 'JSON in die Zwischenablage kopiert!';
@@ -456,45 +560,23 @@
                  ui.finalJsonFeedback.textContent = 'Fehler beim Kopieren.';
                  ui.finalJsonFeedback.className = 'text-red-500 text-sm mt-2';
              });
-         });
-
-         // --- Save JSON Button ---
-         ui.saveJsonBtn.addEventListener('click', () => {
+         };
+         ui.saveJsonBtn.onclick = () => {
             const jsonText = ui.finalJson.textContent;
             const blob = new Blob([jsonText], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            // Create a filename based on date
             const date = new Date();
             const dateString = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
-            a.download = `bgg_export_${dateString}.txt`; // Save as .txt
+            a.download = `bgg_export_${dateString}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             ui.finalJsonFeedback.textContent = 'JSON als .txt-Datei gespeichert.';
-         });
-
-
-        // --- Reset Helpers ---
-        function resetFinalOutputs() {
-             ui.finalJson.textContent = "{\n    // Hier erscheint das finale JSON-Array nach Abschluss\n}";
-             ui.responseOutputDetails.textContent = 'Hier wird die letzte XML-Antwort der Detailabfrage angezeigt...';
-             ui.finalJsonFeedback.textContent = '';
-             ui.copyJsonBtn.disabled = true;
-             ui.saveJsonBtn.disabled = true; // Disable save button
-             ui.errorOutput.textContent = '';
-        }
-         function resetButtonsAndInputs() {
-            ui.startProcessingBtn.disabled = ui.gamesArray.length === 0;
-            ui.addToListBtn.disabled = false;
-            ui.inputEan.disabled = false;
-            ui.inputName.disabled = false;
-            ui.inputLocation.disabled = false;
-            ui.confirmSelectionBtn.disabled = true;
-            ui.skipGameBtn.disabled = true;
-         }
+         };
+         window.resetDetailOutputs = resetDetailOutputs; // Make global
 
     </script>
 </body>
