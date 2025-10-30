@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BGG EAN Aufbereitungs-Tool</title>
+    <title>BGG Aufbereitungs-Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -75,6 +75,7 @@
             </div>
              <p id="final-json-feedback" class="text-sm mt-2"></p>
              <button id="copy-json-btn" class="mt-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors" disabled>JSON kopieren</button>
+             <button id="save-json-btn" class="mt-2 ml-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors" disabled>Als .txt speichern</button>
         </div>
         <hr class="my-6">
          <div>
@@ -107,6 +108,7 @@
             finalJson: document.getElementById('final-json'),
             finalJsonFeedback: document.getElementById('final-json-feedback'),
             copyJsonBtn: document.getElementById('copy-json-btn'),
+            saveJsonBtn: document.getElementById('save-json-btn'), // New Save Button
             responseOutputDetails: document.getElementById('response-output-details').querySelector('pre'),
             errorOutput: document.getElementById('error-output'),
             selectedBggId: null,
@@ -163,8 +165,8 @@
             }
         }
 
-        // --- Step 1: Add to List ---
-        ui.addToListBtn.addEventListener('click', () => {
+        // --- Step 1: Add to List Function ---
+        function addGameToList() {
             ui.addError.textContent = '';
             const ean = ui.inputEan.value.trim();
             const name = ui.inputName.value.trim();
@@ -172,11 +174,13 @@
 
             if (!ean) {
                 ui.addError.textContent = 'EAN ist ein Pflichtfeld.';
+                ui.inputEan.focus();
                 return;
             }
             if (!name) {
                 ui.addError.textContent = 'Spielname ist für die BGG-Suche erforderlich.';
-                // Allow adding anyway, but user must know BGG search will fail
+                ui.inputName.focus();
+                return; // Make name mandatory
             }
             
             // Check for duplicate EAN
@@ -194,7 +198,7 @@
             const game = {
                 ean: ean,
                 bggId: null,
-                name: name || "Spielname fehlt", // Default name if empty
+                name: name, // Name is now mandatory
                 category: null,
                 minAge: null,
                 minPlayers: null,
@@ -222,8 +226,23 @@
             // Clear inputs for next entry
             ui.inputEan.value = '';
             ui.inputName.value = '';
-            ui.inputEan.focus();
+            ui.inputEan.focus(); // Set focus back to EAN for next scan
             ui.startProcessingBtn.disabled = false;
+        }
+
+        // Event Listeners for efficient entry
+        ui.addToListBtn.addEventListener('click', addGameToList);
+        ui.inputEan.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                ui.inputName.focus(); // Move to name field
+            }
+        });
+        ui.inputName.addEventListener('keydown', (e) => {
+             if (e.key === 'Enter') {
+                e.preventDefault();
+                addGameToList(); // Add to list
+            }
         });
 
         // Remove from list
@@ -246,12 +265,15 @@
             if (ui.gamesArray.length === 0) return;
             
             ui.currentGameIndex = 0;
+            // Disable entry section
             ui.startProcessingBtn.disabled = true;
             ui.addToListBtn.disabled = true;
             ui.inputEan.disabled = true;
             ui.inputName.disabled = true;
             ui.inputLocation.disabled = true;
+            ui.gameListPreview.querySelectorAll('.remove-game-btn').forEach(btn => btn.disabled = true);
 
+            // Enable processing section
             ui.confirmSelectionBtn.disabled = true;
             ui.skipGameBtn.disabled = false;
             
@@ -275,13 +297,6 @@
             ui.skipGameBtn.disabled = false;
             ui.selectedBggId = null;
             resetDetailOutputs();
-
-            if (!gameName || gameName === "Spielname fehlt") {
-                ui.searchResults.innerHTML = '<p class="text-sm text-red-500 italic">Kein Spielname angegeben. Überspringen...</p>';
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                handleSkipGame();
-                return;
-            }
              
              // Try exact search first
              const params = { query: gameName, type: 'boardgame', exact: '1' };
@@ -401,11 +416,10 @@
             const currentGame = ui.gamesArray[ui.currentGameIndex];
             console.log(`Spiel "${currentGame.name}" übersprungen. BGG-Daten werden nicht angereichert.`);
             
-            // Wichtig: Setze BGG-Daten auf null/default, da sie nicht geholt wurden
+            // Behalte die manuell eingegebenen Daten, setze BGG-Felder auf null
             currentGame.bggId = null;
             currentGame.imageUrl = null;
-            currentGame.description = null; // Oder behalte die vom Gem? Aktuell: null
-            // EAN, Name, Lagerort, Status bleiben wie eingegeben/default
+            // Behalte die manuell eingegebenen Name, EAN, Lagerort, Status
             
             ui.currentGameIndex++;
             processNextGame();
@@ -418,9 +432,10 @@
             ui.currentGameName.textContent = '-';
             ui.searchResults.innerHTML = '<p class="text-sm text-gray-500 italic">Alle Spiele verarbeitet.</p>';
             ui.finalJson.textContent = JSON.stringify(ui.gamesArray, null, 2);
-            ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren.';
+            ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren oder Speichern.';
             ui.finalJsonFeedback.className = 'text-green-600 text-sm mt-2';
             ui.copyJsonBtn.disabled = false;
+            ui.saveJsonBtn.disabled = false; // Enable save button
             ui.confirmSelectionBtn.disabled = true;
             ui.skipGameBtn.disabled = true;
              // Re-enable input for next batch
@@ -434,7 +449,7 @@
                 ui.finalJsonFeedback.textContent = 'JSON in die Zwischenablage kopiert!';
                 setTimeout(() => {
                     if (ui.finalJsonFeedback.classList.contains('text-green-600')) {
-                        ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren.';
+                        ui.finalJsonFeedback.textContent = 'Finales JSON-Array generiert. Bereit zum Kopieren oder Speichern.';
                     }
                  }, 2000);
              }).catch(err => {
@@ -443,12 +458,32 @@
              });
          });
 
+         // --- Save JSON Button ---
+         ui.saveJsonBtn.addEventListener('click', () => {
+            const jsonText = ui.finalJson.textContent;
+            const blob = new Blob([jsonText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Create a filename based on date
+            const date = new Date();
+            const dateString = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
+            a.download = `bgg_export_${dateString}.txt`; // Save as .txt
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            ui.finalJsonFeedback.textContent = 'JSON als .txt-Datei gespeichert.';
+         });
+
+
         // --- Reset Helpers ---
         function resetFinalOutputs() {
              ui.finalJson.textContent = "{\n    // Hier erscheint das finale JSON-Array nach Abschluss\n}";
              ui.responseOutputDetails.textContent = 'Hier wird die letzte XML-Antwort der Detailabfrage angezeigt...';
              ui.finalJsonFeedback.textContent = '';
              ui.copyJsonBtn.disabled = true;
+             ui.saveJsonBtn.disabled = true; // Disable save button
              ui.errorOutput.textContent = '';
         }
          function resetButtonsAndInputs() {
@@ -464,3 +499,4 @@
     </script>
 </body>
 </html>
+
