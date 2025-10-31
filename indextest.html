@@ -253,7 +253,7 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE KONFIGURATION ---
@@ -358,25 +358,51 @@
              mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
 
              // --- AUTHENTIFIZIERUNG ---
-             onAuthStateChanged(auth, user => {
-                 const isAdmin = user && !user.isAnonymous;
-                 currentUser = isAdmin ? user : null;
-                 loginView.classList.toggle('hidden', isAdmin);
-                 userInfo.classList.toggle('hidden', !isAdmin);
-                 adminPanel.classList.toggle('hidden', !isAdmin);
-                 gameTable.classList.toggle('admin-view', isAdmin);
+            // NEU: Wrapper-Funktion für Auth
+            const initializeAuth = async () => {
+                onAuthStateChanged(auth, user => {
+                    const isAdmin = user && !user.isAnonymous;
+                    currentUser = isAdmin ? user : null;
+                    loginView.classList.toggle('hidden', isAdmin);
+                    userInfo.classList.toggle('hidden', !isAdmin);
+                    adminPanel.classList.toggle('hidden', !isAdmin);
+                    gameTable.classList.toggle('admin-view', isAdmin);
 
-                 // NEU: Massenbearbeitung ausschalten, wenn kein Admin
-                 if (!isAdmin) {
-                     gameTable.classList.remove('bulk-edit-view');
-                     bulkActionToolbar.classList.add('hidden');
-                     bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
-                     if (toggleBulkEdit) toggleBulkEdit.checked = false;
-                 }
+                    // NEU: Massenbearbeitung ausschalten, wenn kein Admin
+                    if (!isAdmin) {
+                        gameTable.classList.remove('bulk-edit-view');
+                        bulkActionToolbar.classList.add('hidden');
+                        bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
+                        if (toggleBulkEdit) toggleBulkEdit.checked = false;
+                    }
 
-                 if (isAdmin) userEmailDisplay.textContent = user.email;
-                 if (unsubscribe === null) setupGameListener(); else filterAndRender();
-             });
+                    if (isAdmin) userEmailDisplay.textContent = user.email;
+                    
+                    // WICHTIG: Listener nur einmal aufrufen, NACHDEM auth-Status bekannt ist
+                    if (unsubscribe === null) {
+                        console.log("Auth state confirmed, setting up game listener.");
+                        setupGameListener(); 
+                    } else {
+                        console.log("Auth state changed, re-filtering.");
+                        filterAndRender(); // Nur neu filtern, wenn Listener schon läuft
+                    }
+                });
+
+                // NEU: Anonymer oder Custom-Token-Login
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        console.log("Signing in with custom token...");
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        console.log("Signing in anonymously...");
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Initial sign-in error:", error);
+                    loadingStateDiv.innerHTML = `<p class="text-red-500">Authentifizierungs-Fehler. Seite neu laden.</p>`;
+                }
+            };
+             
              loginBtn.addEventListener('click', () => {
                  const email = document.getElementById('login-email').value;
                  const password = document.getElementById('login-password').value;
@@ -1015,7 +1041,8 @@
              });
 
              // --- INITIALIZATION ---
-             setupGameListener(); // Start listening to the database
+             // setupGameListener(); // ENTFERNT: Wird jetzt von initializeAuth() nach Auth-Prüfung aufgerufen
+             initializeAuth(); // NEU: Auth-Flow starten
 
              // --- Make key functions globally accessible ---
              window.renderStats = renderStats;
@@ -1031,6 +1058,7 @@
     </script>
 </body>
 </html>
+
 
 
 
