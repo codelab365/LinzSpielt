@@ -71,16 +71,18 @@
         }
         #info-modal-content::after { content: ""; clear: both; display: table; }
 
+        /* NEU: Spalten für Massenbearbeitung */
+        .bulk-edit-col { display: none; }
+        table.bulk-edit-view .bulk-edit-col { display: table-cell; }
+        /* Blendet die normale "Aktion"-Spalte (Status-Toggle) aus, wenn Bulk-Edit aktiv ist */
+        table.admin-view.bulk-edit-view .admin-action-col { display: none; }
+
+
         /* NEU: Toast-Notification Style */
         #toast-notification.show {
            opacity: 1;
            transform: translateY(0);
         }
-
-        /* NEU: Massenbearbeitung */
-        .bulk-action-col { display: none; }
-        table.bulk-edit-view .bulk-action-col { display: table-cell; }
-
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
@@ -102,12 +104,13 @@
             <div id="category-stats" class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-gray-400"></div>
         </div>
 
-        <!-- NEU: Toolbar für Massenbearbeitung - "md:flex" entfernt, wird nun per JS gesteuert -->
-        <div id="bulk-action-toolbar" class="hidden bg-gray-700 p-3 rounded-lg mb-4 items-center gap-4 sticky top-[108px] md:top-[88px] z-10 shadow-lg border border-gray-600">
+        <!-- NEU: Toolbar für Massenbearbeitung -->
+        <div id="bulk-action-toolbar" class="hidden bg-gray-700 p-3 rounded-lg mb-4 sticky top-[108px] md:top-[88px] z-10 shadow-lg border border-gray-600 items-center gap-4">
             <span class="text-white font-semibold">Aktion für <span id="bulk-selected-count">0</span> Spiele:</span>
-            <input type="text" id="bulk-assign-location" placeholder="Standort eingeben (z.B. Verein)" class="flex-grow p-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button id="bulk-assign-btn" class="p-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-md transition-colors">Zuweisen</button>
-            <p id="bulk-assign-feedback" class="text-sm"></p>
+            <input type="text" id="bulk-assign-location" placeholder="Neuen Standort eingeben..." class="flex-grow p-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="bulk-assign-btn" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-md transition-colors">Zuweisen</button>
+            <button id="bulk-reset-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-md transition-colors">Zurücksetzen</button>
+            <span id="bulk-feedback" class="text-sm text-green-400"></span>
         </div>
 
         <!-- Spieletabelle -->
@@ -115,8 +118,9 @@
             <table id="game-table" class="w-full min-w-max">
                 <thead class="bg-gray-700/50">
                     <tr>
-                        <th class="p-4 bulk-action-col">
-                            <input type="checkbox" id="select-all-checkbox" title="Alle sichtbaren auswählen" class="h-5 w-5 bg-gray-800 border-gray-600 rounded text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900">
+                        <!-- NEU: Bulk Edit Checkbox Header -->
+                        <th class="p-4 w-12 text-center bulk-edit-col">
+                            <input type="checkbox" id="bulk-select-all" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 focus:ring-2" title="Alle sichtbaren auswählen">
                         </th>
                         <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Spielname</th>
                         <!-- EAN Header entfernt -->
@@ -192,15 +196,7 @@
             </div>
             <!-- ENDE NEUE LINKS -->
 
-            <!-- NEU: Schalter für Massenbearbeitung -->
-            <div class="border-t border-gray-700 pt-4">
-                <label for="toggle-bulk-edit" class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" id="toggle-bulk-edit" class="h-5 w-5 bg-gray-800 border-gray-600 rounded text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900">
-                    <span class="text-gray-300">Massen-Standort Zuweisung</span>
-                </label>
-            </div>
-
-            <div class="space-y-4 mt-4">
+            <div class="space-y-4">
                 <div>
                     <label for="json-import-data" class="text-sm text-gray-400">Neues Spiel importieren (JSON):</label>
                     <textarea id="json-import-data" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
@@ -213,21 +209,21 @@
                     <input type="text" id="assign-location-name" placeholder="Standortname (z.B. Regal A)" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <label for="assign-location-eans" class="text-sm text-gray-400 mt-2 block">EANs (eine pro Zeile):</label>
                     <textarea id="assign-location-eans" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="EAN1\nEAN2\nEAN3..."></textarea>
-                    <button id="assign-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">EANs zuweisen</button>
-                    <p id="assign-location-feedback" class="text-sm mt-2"></p>
+                     <p id="delete-location-feedback" class="text-sm mt-2"></p>
+                  </div>
+
+                  <!-- NEU: Massenbearbeitung Umschalter -->
+                  <div class="border-t border-gray-700 pt-4">
+                    <label for="toggle-bulk-edit" class="flex items-center justify-between text-sm text-gray-400 cursor-pointer">
+                        <span class="font-medium">Massen-Standort Zuweisung</span>
+                        <!-- Tailwind Toggle Switch -->
+                        <span class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-bulk-edit" class="sr-only peer">
+                            <span class="w-11 h-6 bg-gray-700 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></span>
+                        </span>
+                    </label>
                 </div>
-                 <!-- Standort löschen -->
-                 <div class="border-t border-gray-700 pt-4">
-                     <label for="delete-location-select" class="text-sm text-gray-400">Standort aus Datenbank entfernen:</label>
-                     <div class="flex gap-2 mt-1">
-                         <select id="delete-location-select" class="flex-grow p-2 bg-gray-800 border border-gray-700 rounded-md text-white appearance-none">
-                             <option value="">-- Standort wählen --</option>
-                         </select>
-                         <button id="delete-location-btn" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold rounded-md transition-colors disabled:opacity-50" disabled>Löschen</button>
-                    </div>
-                    <p id="delete-location-feedback" class="text-sm mt-2"></p>
-                 </div>
-            </div>
+             </div>
         </div>
         <!-- <hr class="my-6 border-gray-700"> --> <!-- Linie nach oben verschoben, über auth-section -->
         <nav>
@@ -253,7 +249,7 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // HINZUGEFÜGT: signInAnonymously, signInWithCustomToken
+        // KORREKTUR: signInAnonymously und signInWithCustomToken hinzugefügt
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -340,8 +336,9 @@
              const bulkSelectedCount = document.getElementById('bulk-selected-count');
              const bulkAssignLocation = document.getElementById('bulk-assign-location');
              const bulkAssignBtn = document.getElementById('bulk-assign-btn');
-             const bulkAssignFeedback = document.getElementById('bulk-assign-feedback');
-             const selectAllCheckbox = document.getElementById('select-all-checkbox');
+             const bulkResetBtn = document.getElementById('bulk-reset-btn');
+             const bulkSelectAll = document.getElementById('bulk-select-all');
+             const bulkFeedback = document.getElementById('bulk-feedback');
 
             // --- FUNKTIONEN ---
 
@@ -357,10 +354,9 @@
              };
              hamburgerBtn.addEventListener('click', () => toggleMenu());
              mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
- 
+
              // --- AUTHENTIFIZIERUNG ---
-             // HINWEIS: Der onAuthStateChanged-Listener wird jetzt in initAuth() unten gesetzt,
-             // NACHDEM die Event-Listener für Login/Logout definiert wurden.
+             // KORREKTUR: onAuthStateChanged wird jetzt von initAuth() aufgerufen
              
              loginBtn.addEventListener('click', () => {
                  const email = document.getElementById('login-email').value;
@@ -469,8 +465,8 @@
                  setTimeout(() => { importFeedback.textContent = '' }, 5000);
              });
 
-             // NEU: Standortzuweisung per EAN-Liste Listener
-              assignLocationBtn.addEventListener('click', async () => {
+            // NEU: Standortzuweisung per EAN-Liste Listener
+             assignLocationBtn.addEventListener('click', async () => {
                  const locationName = assignLocationNameInput.value.trim();
                  const eanListData = assignLocationEansTextarea.value.trim();
                  assignLocationFeedback.textContent = '';
@@ -532,87 +528,7 @@
                  }
                   setTimeout(() => { assignLocationFeedback.textContent = ''; }, 5000);
              });
-
-             // NEU: Listener für Massenbearbeitung-Schalter
-             if (toggleBulkEdit) { 
-                 toggleBulkEdit.addEventListener('change', () => {
-                     const isEnabled = toggleBulkEdit.checked;
-                     gameTable.classList.toggle('bulk-edit-view', isEnabled);
-                     // bulkActionToolbar.classList.toggle('hidden', !isEnabled); // ALTE Zeile
-                     // NEUE Logik:
-                     if (isEnabled) {
-                         bulkActionToolbar.classList.remove('hidden');
-                         bulkActionToolbar.classList.add('md:flex');
-                     } else {
-                         bulkActionToolbar.classList.add('hidden');
-                         bulkActionToolbar.classList.remove('md:flex');
-                     }
-
-                     if (!isEnabled) {
-                         // Reset Checkboxen wenn Modus ausgeschaltet wird
-                         document.querySelectorAll('.bulk-select-checkbox:checked').forEach(cb => cb.checked = false);
-                         selectAllCheckbox.checked = false;
-                         updateSelectedCount();
-                     }
-                 });
-             }
-
-             // NEU: Listener für "Alle auswählen"
-             selectAllCheckbox.addEventListener('change', () => {
-                 const isChecked = selectAllCheckbox.checked;
-                 document.querySelectorAll('#game-table-body .bulk-select-checkbox').forEach(cb => {
-                     cb.checked = isChecked;
-                 });
-                 updateSelectedCount();
-             });
-
-             // NEU: Listener für Zuweisen-Button
-             bulkAssignBtn.addEventListener('click', async () => {
-                 const locationName = bulkAssignLocation.value.trim();
-                 const selectedIds = Array.from(document.querySelectorAll('.bulk-select-checkbox:checked'))
-                                         .map(cb => cb.dataset.gameId);
  
-                 if (!locationName) {
-                     bulkAssignFeedback.textContent = 'Bitte Standort eingeben.';
-                     bulkAssignFeedback.className = 'text-sm text-red-400';
-                     return;
-                 }
-                 if (selectedIds.length === 0) {
-                     bulkAssignFeedback.textContent = 'Keine Spiele ausgewählt.';
-                     bulkAssignFeedback.className = 'text-sm text-red-400';
-                     return;
-                 }
- 
-                 bulkAssignFeedback.textContent = `Aktualisiere ${selectedIds.length} Spiele...`;
-                 bulkAssignFeedback.className = 'text-sm text-yellow-400';
-                 bulkAssignBtn.disabled = true;
- 
-                 try {
-                     const batch = writeBatch(db);
-                     selectedIds.forEach(id => {
-                         const gameRef = doc(db, "games", id);
-                         batch.update(gameRef, { lagerort: locationName });
-                     });
-                     await batch.commit();
- 
-                     bulkAssignFeedback.textContent = `${selectedIds.length} Spiele zugewiesen!`;
-                     bulkAssignFeedback.className = 'text-sm text-green-400';
-                     bulkAssignLocation.value = '';
-                     // Checkboxen deselektieren
-                     document.querySelectorAll('.bulk-select-checkbox:checked').forEach(cb => cb.checked = false);
-                     selectAllCheckbox.checked = false;
-                     updateSelectedCount();
- 
-                 } catch (error) {
-                     console.error("Massen-Zuweisung Fehler:", error);
-                     bulkAssignFeedback.textContent = 'Fehler beim Zuweisen.';
-                     bulkAssignFeedback.className = 'text-sm text-red-400';
-                 } finally {
-                     bulkAssignBtn.disabled = false;
-                     setTimeout(() => { bulkAssignFeedback.textContent = ''; }, 4000);
-                 }
-             });
-
 
              deleteLocationSelect.addEventListener('change', () => {
                  deleteLocationBtn.disabled = !deleteLocationSelect.value;
@@ -622,6 +538,81 @@
                  if (!locationToDelete) return;
                  showDeleteModal(locationToDelete, 'location');
              });
+
+             // --- NEU: FUNKTIONEN FÜR MASSENBEARBEITUNG ---
+             let selectedGameIds = new Set();
+
+             const updateBulkSelection = () => {
+                selectedGameIds.clear();
+                const allVisibleCheckboxes = tableBody.querySelectorAll('.bulk-select-game');
+                let checkedCount = 0;
+                allVisibleCheckboxes.forEach(cb => {
+                    if (cb.checked) {
+                        selectedGameIds.add(cb.dataset.gameId);
+                        checkedCount++;
+                    }
+                });
+
+                bulkSelectedCount.textContent = selectedGameIds.size;
+                
+                if (allVisibleCheckboxes.length > 0 && checkedCount === allVisibleCheckboxes.length) {
+                    bulkSelectAll.checked = true;
+                    bulkSelectAll.indeterminate = false;
+                } else if (checkedCount > 0) {
+                    bulkSelectAll.checked = false;
+                    bulkSelectAll.indeterminate = true;
+                } else {
+                    bulkSelectAll.checked = false;
+                    bulkSelectAll.indeterminate = false;
+                }
+             };
+
+             const performBulkAction = async (action) => {
+                const locationName = (action === 'assign') ? bulkAssignLocation.value.trim() : null;
+
+                if (action === 'assign' && !locationName) {
+                    bulkFeedback.textContent = "Bitte Standort eintragen.";
+                    bulkFeedback.className = "text-sm text-red-400";
+                    setTimeout(() => bulkFeedback.textContent = "", 3000);
+                    return;
+                }
+
+                if (selectedGameIds.size === 0) {
+                    bulkFeedback.textContent = "Keine Spiele ausgewählt.";
+                    bulkFeedback.className = "text-sm text-yellow-400";
+                    setTimeout(() => bulkFeedback.textContent = "", 3000);
+                    return;
+                }
+
+                const actionText = action === 'assign' ? `"${locationName}" zugewiesen...` : "Standorte zurückgesetzt...";
+                bulkFeedback.textContent = actionText;
+                bulkFeedback.className = "text-sm text-yellow-400";
+
+                try {
+                    const batch = writeBatch(db);
+                    selectedGameIds.forEach(gameId => {
+                        const gameRef = doc(db, "games", gameId);
+                        batch.update(gameRef, { lagerort: locationName });
+                    });
+                    await batch.commit();
+
+                    bulkFeedback.textContent = `${selectedGameIds.size} Spiele aktualisiert!`;
+                    bulkFeedback.className = "text-sm text-green-400";
+                    
+                    // Reset UI
+                    bulkAssignLocation.value = "";
+                    bulkSelectAll.checked = false;
+                    tableBody.querySelectorAll('.bulk-select-game:checked').forEach(cb => cb.checked = false);
+                    updateBulkSelection();
+
+                } catch (error) {
+                    console.error("Bulk-Update Fehler:", error);
+                    bulkFeedback.textContent = "Fehler beim Update.";
+                    bulkFeedback.className = "text-sm text-red-400";
+                }
+                setTimeout(() => bulkFeedback.textContent = "", 5000);
+             };
+
 
             // --- DATENBANK-LISTENER ---
             const setupGameListener = () => {
@@ -838,23 +829,24 @@
                             <span class="ean-inline">${game.id}</span>
                             ${deleteButtonHtml} 
                         </div>`;
- 
+
                      row.innerHTML = `
-                         <td class="p-4 text-center bulk-action-col align-middle">
-                             <input type="checkbox" class="bulk-select-checkbox h-5 w-5 bg-gray-800 border-gray-600 rounded text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900" data-game-id="${game.id}">
+                         <!-- NEU: Bulk Edit Checkbox Zelle -->
+                         <td class="p-4 w-12 text-center bulk-edit-col">
+                            <input type="checkbox" class="bulk-select-game w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 focus:ring-2" data-game-id="${game.id}">
                          </td>
-                         <td class="p-4 font-medium text-white game-title-cell align-middle">
+                         <td class="p-4 font-medium text-white game-title-cell">
                              <span class="game-title-link hover:text-blue-400">${game.name || 'Unbenannt'}</span>
                              ${eanLineHtml} 
                          </td>
                          <!-- EAN-Spalte wurde entfernt -->
-                         <td class="p-4 text-left text-gray-300 hidden md:table-cell align-middle">${game.category || '-'}</td>
-                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg align-middle">${game.lagerort || '-'}</td>
-                         <td class="p-4 text-center text-gray-300 hidden lg:table-cell align-middle">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
-                         <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell align-middle">${game.Duration ? `${game.Duration} Min.` : '-'}</td>
-                         <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell align-middle">${game.minAge ? game.minAge + '+' : '-'}</td>
-                         <td class="p-4 text-center font-semibold ${statusClasses} align-middle">${statusText}</td>
-                         <td class="p-4 text-center admin-action-col align-middle">
+                         <td class="p-4 text-left text-gray-300 hidden md:table-cell">${game.category || '-'}</td>
+                         <td class="p-4 text-center text-gray-300 hidden sm:table-cell font-semibold text-lg">${game.lagerort || '-'}</td>
+                         <td class="p-4 text-center text-gray-300 hidden lg:table-cell">${game.minPlayers != null && game.maxPlayers != null ? `${game.minPlayers}-${game.maxPlayers}` : '-'}</td>
+                         <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell">${game.Duration ? `${game.Duration} Min.` : '-'}</td>
+                         <td class="p-4 text-center text-gray-300 public-col hidden xl:table-cell">${game.minAge ? game.minAge + '+' : '-'}</td>
+                         <td class="p-4 text-center font-semibold ${statusClasses}">${statusText}</td>
+                         <td class="p-4 text-center admin-action-col">
                              <button class="status-button w-full sm:w-auto text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm ${buttonClasses}" title="Status ändern">${buttonText}</button>
                          </td>`;
                      tableBody.appendChild(row);
@@ -891,8 +883,6 @@
                     return nameMatch && categoryMatch && locationMatch && playersMatch && durationMatch && ageMatch && statusMatch;
                 });
                 renderTable(filteredGames);
-                selectAllCheckbox.checked = false; // Zurücksetzen bei jedem Filter-Durchlauf
-                updateSelectedCount(); // Zähler auf 0 setzen
              };
              const toggleLentStatus = async (gameId) => {
                  if (!currentUser) { showInfoModal("Fehler", "<p>Bitte melden Sie sich an.</p>"); return; }
@@ -910,21 +900,6 @@
                          }
                      } 
                      catch (error) { console.error("Status Update Error:", error); showInfoModal("Fehler", "<p>Status konnte nicht geändert werden.</p>"); }
-                 }
-             };
- 
-             // NEU: Funktion zum Zählen der ausgewählten Checkboxen
-             const updateSelectedCount = () => {
-                 const count = document.querySelectorAll('.bulk-select-checkbox:checked').length;
-                 if (bulkSelectedCount) bulkSelectedCount.textContent = count;
-                 
-                 // Deaktiviere "Alle auswählen", wenn eine einzelne Checkbox deaktiviert wird
-                 if (count === 0) {
-                     selectAllCheckbox.checked = false;
-                 } else {
-                     // Prüfen, ob alle sichtbar sind
-                     const totalVisible = document.querySelectorAll('#game-table-body .bulk-select-checkbox').length;
-                     selectAllCheckbox.checked = (count === totalVisible && totalVisible > 0);
                  }
              };
 
@@ -971,7 +946,7 @@
                     if (source.value) target.value = source.value; else if (target.options.length > 0) target.selectedIndex = 0;
                  });
              };
- 
+             
              // --- EVENT LISTENERS ---
              const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
              desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
@@ -985,62 +960,103 @@
                  const deleteButtonInline = target.closest('.delete-button-inline');
                  const statusButton = target.closest('.status-button');
                  const titleLink = target.closest('.game-title-link'); 
-                 const checkbox = target.closest('.bulk-select-checkbox'); // NEU
+                 // NEU: Checkbox-Klick
+                 const bulkCheckbox = target.closest('.bulk-select-game');
 
-                 if (checkbox) { // NEU: Checkbox-Klick
-                     updateSelectedCount();
-                     return; // Verhindert, dass InfoModal aufgeht
-                 }
                  if (deleteButtonInline && currentUser) { showDeleteModal(gameId, 'game'); return; } 
                  if (statusButton && currentUser) { toggleLentStatus(gameId); } 
                  else if (titleLink) { // Nur auf Titellink reagieren
                      const game = allGames.find(g => g.id === gameId);
                      if (game) showInfoModal(game);
                  }
+                 // NEU: Checkbox-Handler
+                 if (bulkCheckbox) {
+                    updateBulkSelection();
+                 }
              });
- 
-             // --- INITIALIZATION ---
-             // setupGameListener(); // ENTFERNT: Wird jetzt von onAuthStateChanged aufgerufen
- 
-             // NEU: Auth-Flow starten, der dann setupGameListener aufruft
-             const initAuth = async () => {
-                 // 1. Auth-Listener setzen
-                 onAuthStateChanged(auth, user => {
-                     const isAdmin = user && !user.isAnonymous;
-                     currentUser = isAdmin ? user : null;
-                     loginView.classList.toggle('hidden', isAdmin);
-                     userInfo.classList.toggle('hidden', !isAdmin);
-                     adminPanel.classList.toggle('hidden', !isAdmin);
-                     gameTable.classList.toggle('admin-view', isAdmin);
- 
-                     // NEU: Massenbearbeitung ausschalten, wenn kein Admin
-                     if (!isAdmin) {
-                         gameTable.classList.remove('bulk-edit-view');
+
+             // NEU: Weitere Listener für Massenbearbeitung
+             if(toggleBulkEdit) {
+                toggleBulkEdit.addEventListener('change', () => {
+                    const isEnabled = toggleBulkEdit.checked;
+                    gameTable.classList.toggle('bulk-edit-view', isEnabled);
+                    
+                    if (isEnabled) {
+                         bulkActionToolbar.classList.remove('hidden');
+                         bulkActionToolbar.classList.add('md:flex'); // md:flex für Desktop
+                    } else {
                          bulkActionToolbar.classList.add('hidden');
-                         bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
-                         if (toggleBulkEdit) toggleBulkEdit.checked = false;
-                     }
- 
-                     if (isAdmin) userEmailDisplay.textContent = user.email;
-                     
-                     // setupGameListener erst HIER aufrufen, wenn Auth-Status klar ist
-                     if (unsubscribe === null) {
-                         setupGameListener(); // Startet DB-Listener beim ersten Mal
-                     } else {
-                         // Listener läuft schon, nur neu rendern (z.B. nach Admin-Login/Logout)
-                         filterAndRender();
-                     }
-                 });
- 
-                 // 2. Anmeldeversuch (Token oder Anonym)
+                         bulkActionToolbar.classList.remove('md:flex');
+                    }
+
+                    if (!isEnabled) {
+                        // Reset Checkboxen wenn Modus ausgeschaltet wird
+                        bulkSelectAll.checked = false;
+                        bulkSelectAll.indeterminate = false;
+                        tableBody.querySelectorAll('.bulk-select-game:checked').forEach(cb => cb.checked = false);
+                        updateBulkSelection();
+                    }
+                    filterAndRender(); // Neu rendern, um Checkboxen (falls nötig) zu zeichnen
+                });
+             }
+
+             bulkSelectAll.addEventListener('change', () => {
+                const isChecked = bulkSelectAll.checked;
+                tableBody.querySelectorAll('.bulk-select-game').forEach(cb => {
+                    cb.checked = isChecked;
+                });
+                updateBulkSelection();
+             });
+
+             bulkAssignBtn.addEventListener('click', () => performBulkAction('assign'));
+             bulkResetBtn.addEventListener('click', () => performBulkAction('reset'));
+
+
+             // --- INITIALIZATION ---
+             // KORREKTUR: setupGameListener() wird durch initAuth() ersetzt
+             
+             // KORREKTUR: Neuer Auth-Flow
+             const initAuth = async () => {
                  try {
+                     // 1. ERST Anmeldeversuch (Token oder Anonym)
                      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          console.log("Signing in with custom token...");
                          await signInWithCustomToken(auth, __initial_auth_token);
-                     } else {
+                     } else if (!auth.currentUser) { // Nur anmelden, wenn nicht schon (z.B. gecached)
                          console.log("Signing in anonymously...");
                          await signInAnonymously(auth);
                      }
+ 
+                     // 2. DANN Auth-Listener setzen (feuert sofort mit dem User von oben)
+                     onAuthStateChanged(auth, user => {
+                         const isAdmin = user && !user.isAnonymous;
+                         currentUser = isAdmin ? user : null;
+                         loginView.classList.toggle('hidden', isAdmin);
+                         userInfo.classList.toggle('hidden', !isAdmin);
+                         adminPanel.classList.toggle('hidden', !isAdmin);
+                         gameTable.classList.toggle('admin-view', isAdmin);
+ 
+                         // NEU: Massenbearbeitung ausschalten, wenn kein Admin
+                         if (!isAdmin) {
+                             gameTable.classList.remove('bulk-edit-view');
+                             bulkActionToolbar.classList.add('hidden');
+                             bulkActionToolbar.classList.remove('md:flex');
+                             if (toggleBulkEdit) toggleBulkEdit.checked = false;
+                         }
+ 
+                         if (isAdmin) userEmailDisplay.textContent = user.email;
+                         
+                         // 3. DB-Listener aufsetzen, NACHDEM Auth klar ist
+                         if (unsubscribe === null) {
+                             console.log("Setting up DB listener for user:", user?.uid);
+                             setupGameListener(); // Startet DB-Listener beim ersten Mal
+                         } else {
+                             // Listener läuft schon, nur neu rendern (z.B. nach Admin-Login/Logout)
+                             console.log("Auth state changed, re-rendering.");
+                             filterAndRender();
+                         }
+                     });
+ 
                  } catch (error) {
                      console.error("Auth-Initialisierungsfehler:", error);
                      loadingStateDiv.innerHTML = `<p class="text-red-500">Authentifizierung fehlgeschlagen. Seite kann nicht geladen werden.</p>`;
@@ -1048,8 +1064,8 @@
              };
  
              initAuth(); // Auth-Prozess starten
- 
- 
+
+
              // --- Make key functions globally accessible ---
              window.renderStats = renderStats;
              window.populateFilters = populateFilters;
@@ -1064,8 +1080,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
