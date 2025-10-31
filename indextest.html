@@ -209,9 +209,23 @@
                     <input type="text" id="assign-location-name" placeholder="Standortname (z.B. Regal A)" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <label for="assign-location-eans" class="text-sm text-gray-400 mt-2 block">EANs (eine pro Zeile):</label>
                     <textarea id="assign-location-eans" rows="5" class="w-full p-2 mt-1 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="EAN1\nEAN2\nEAN3..."></textarea>
-                     <p id="delete-location-feedback" class="text-sm mt-2"></p>
-                  </div>
-
+                     <!-- KORREKTUR: Fehlende Elemente wieder eingefügt -->
+                     <button id="assign-location-btn" class="w-full mt-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">EANs zuweisen</button>
+                     <p id="assign-location-feedback" class="text-sm mt-2"></p>
+                </div>
+                <!-- Standort löschen -->
+                <div class="border-t border-gray-700 pt-4">
+                     <label for="delete-location-select" class="text-sm text-gray-400">Standort aus Datenbank entfernen:</label>
+                     <div class="flex gap-2 mt-1">
+                         <select id="delete-location-select" class="flex-grow p-2 bg-gray-800 border border-gray-700 rounded-md text-white appearance-none">
+                             <option value="">-- Standort wählen --</option>
+                         </select>
+                         <button id="delete-location-btn" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold rounded-md transition-colors disabled:opacity-50" disabled>Löschen</button>
+                    </div>
+                    <!-- KORREKTUR: Dieses <p> war im Code oben fälschlicherweise in das "Standort zuweisen"-Div gerutscht. -->
+                    <p id="delete-location-feedback" class="text-sm mt-2"></p>
+                 </div>
+ 
                   <!-- NEU: Massenbearbeitung Umschalter -->
                   <div class="border-t border-gray-700 pt-4">
                     <label for="toggle-bulk-edit" class="flex items-center justify-between text-sm text-gray-400 cursor-pointer">
@@ -1080,3 +1094,4 @@
     </script>
 </body>
 </html>
+
