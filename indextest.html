@@ -253,6 +253,7 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // HINZUGEFÜGT: signInAnonymously, signInWithCustomToken
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -356,52 +357,10 @@
              };
              hamburgerBtn.addEventListener('click', () => toggleMenu());
              mobileMenuOverlay.addEventListener('click', () => toggleMenu(true));
-
+ 
              // --- AUTHENTIFIZIERUNG ---
-            // NEU: Wrapper-Funktion für Auth
-            const initializeAuth = async () => {
-                onAuthStateChanged(auth, user => {
-                    const isAdmin = user && !user.isAnonymous;
-                    currentUser = isAdmin ? user : null;
-                    loginView.classList.toggle('hidden', isAdmin);
-                    userInfo.classList.toggle('hidden', !isAdmin);
-                    adminPanel.classList.toggle('hidden', !isAdmin);
-                    gameTable.classList.toggle('admin-view', isAdmin);
-
-                    // NEU: Massenbearbeitung ausschalten, wenn kein Admin
-                    if (!isAdmin) {
-                        gameTable.classList.remove('bulk-edit-view');
-                        bulkActionToolbar.classList.add('hidden');
-                        bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
-                        if (toggleBulkEdit) toggleBulkEdit.checked = false;
-                    }
-
-                    if (isAdmin) userEmailDisplay.textContent = user.email;
-                    
-                    // WICHTIG: Listener nur einmal aufrufen, NACHDEM auth-Status bekannt ist
-                    if (unsubscribe === null) {
-                        console.log("Auth state confirmed, setting up game listener.");
-                        setupGameListener(); 
-                    } else {
-                        console.log("Auth state changed, re-filtering.");
-                        filterAndRender(); // Nur neu filtern, wenn Listener schon läuft
-                    }
-                });
-
-                // NEU: Anonymer oder Custom-Token-Login
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        console.log("Signing in with custom token...");
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        console.log("Signing in anonymously...");
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Initial sign-in error:", error);
-                    loadingStateDiv.innerHTML = `<p class="text-red-500">Authentifizierungs-Fehler. Seite neu laden.</p>`;
-                }
-            };
+             // HINWEIS: Der onAuthStateChanged-Listener wird jetzt in initAuth() unten gesetzt,
+             // NACHDEM die Event-Listener für Login/Logout definiert wurden.
              
              loginBtn.addEventListener('click', () => {
                  const email = document.getElementById('login-email').value;
@@ -1012,7 +971,7 @@
                     if (source.value) target.value = source.value; else if (target.options.length > 0) target.selectedIndex = 0;
                  });
              };
-             
+ 
              // --- EVENT LISTENERS ---
              const desktopFilters = [searchInput, playersFilter, durationFilter, locationFilter, ageFilter, statusFilter];
              desktopFilters.forEach(el => el.addEventListener('change', filterAndRender));
@@ -1039,11 +998,58 @@
                      if (game) showInfoModal(game);
                  }
              });
-
+ 
              // --- INITIALIZATION ---
-             // setupGameListener(); // ENTFERNT: Wird jetzt von initializeAuth() nach Auth-Prüfung aufgerufen
-             initializeAuth(); // NEU: Auth-Flow starten
-
+             // setupGameListener(); // ENTFERNT: Wird jetzt von onAuthStateChanged aufgerufen
+ 
+             // NEU: Auth-Flow starten, der dann setupGameListener aufruft
+             const initAuth = async () => {
+                 // 1. Auth-Listener setzen
+                 onAuthStateChanged(auth, user => {
+                     const isAdmin = user && !user.isAnonymous;
+                     currentUser = isAdmin ? user : null;
+                     loginView.classList.toggle('hidden', isAdmin);
+                     userInfo.classList.toggle('hidden', !isAdmin);
+                     adminPanel.classList.toggle('hidden', !isAdmin);
+                     gameTable.classList.toggle('admin-view', isAdmin);
+ 
+                     // NEU: Massenbearbeitung ausschalten, wenn kein Admin
+                     if (!isAdmin) {
+                         gameTable.classList.remove('bulk-edit-view');
+                         bulkActionToolbar.classList.add('hidden');
+                         bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
+                         if (toggleBulkEdit) toggleBulkEdit.checked = false;
+                     }
+ 
+                     if (isAdmin) userEmailDisplay.textContent = user.email;
+                     
+                     // setupGameListener erst HIER aufrufen, wenn Auth-Status klar ist
+                     if (unsubscribe === null) {
+                         setupGameListener(); // Startet DB-Listener beim ersten Mal
+                     } else {
+                         // Listener läuft schon, nur neu rendern (z.B. nach Admin-Login/Logout)
+                         filterAndRender();
+                     }
+                 });
+ 
+                 // 2. Anmeldeversuch (Token oder Anonym)
+                 try {
+                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                         console.log("Signing in with custom token...");
+                         await signInWithCustomToken(auth, __initial_auth_token);
+                     } else {
+                         console.log("Signing in anonymously...");
+                         await signInAnonymously(auth);
+                     }
+                 } catch (error) {
+                     console.error("Auth-Initialisierungsfehler:", error);
+                     loadingStateDiv.innerHTML = `<p class="text-red-500">Authentifizierung fehlgeschlagen. Seite kann nicht geladen werden.</p>`;
+                 }
+             };
+ 
+             initAuth(); // Auth-Prozess starten
+ 
+ 
              // --- Make key functions globally accessible ---
              window.renderStats = renderStats;
              window.populateFilters = populateFilters;
