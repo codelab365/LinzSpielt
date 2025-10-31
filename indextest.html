@@ -102,29 +102,8 @@
             <div id="category-stats" class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-gray-400"></div>
         </div>
 
-        <!-- Filterleiste Desktop -->
-        <div class="bg-gray-800 p-4 rounded-lg mb-8 hidden md:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 sticky top-4 z-10 shadow-lg border border-gray-700">
-            <div class="md:col-span-2 lg:col-span-2">
-                <input type="text" id="search-input" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-             <div><select id="location-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="all">Alle Standorte</option></select></div>
-             <div><select id="players-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Jede Spielerzahl</option><option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option><option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option></select></div>
-             <div><select id="duration-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Alle Spielzeiten</option><option value="30">max. 30 Min.</option><option value="60">max. 60 Min.</option><option value="90">max. 90 Min.</option><option value="120">max. 120 Min.</option></select></div>
-             <div><select id="age-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="0">Jedes Alter</option><option value="6">Ab 6+</option><option value="8">Ab 8+</option><option value="10">Ab 10+</option><option value="12">Ab 12+</option><option value="14">Ab 14+</option><option value="16">Ab 16+</option></select></div>
-             <div><select id="status-filter" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"><option value="all">Alle Status</option><option value="verfügbar">Nur Verfügbare</option><option value="ausgeliehen">Nur Ausgeliehene</option></select></div>
-        </div>
-
-        <!-- Filterleiste Mobile -->
-        <div class="grid grid-cols-1 md:hidden gap-4 mb-8 sticky top-4 z-10">
-             <div class="relative"><input type="text" id="search-input-mobile" placeholder="Spiel suchen..." class="w-full p-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-             <button id="open-filter-modal-btn" class="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-colors flex items-center justify-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L12 14.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 016 17v-2.586L3.293 6.707A1 1 0 013 6V4z"></path></svg>
-                Filter anpassen
-            </button>
-        </div>
-
-        <!-- NEU: Toolbar für Massenbearbeitung -->
-        <div id="bulk-action-toolbar" class="hidden bg-gray-700 p-3 rounded-lg mb-4 md:flex items-center gap-4 sticky top-[108px] md:top-[88px] z-10 shadow-lg border border-gray-600">
+        <!-- NEU: Toolbar für Massenbearbeitung - "md:flex" entfernt, wird nun per JS gesteuert -->
+        <div id="bulk-action-toolbar" class="hidden bg-gray-700 p-3 rounded-lg mb-4 items-center gap-4 sticky top-[108px] md:top-[88px] z-10 shadow-lg border border-gray-600">
             <span class="text-white font-semibold">Aktion für <span id="bulk-selected-count">0</span> Spiele:</span>
             <input type="text" id="bulk-assign-location" placeholder="Standort eingeben (z.B. Verein)" class="flex-grow p-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <button id="bulk-assign-btn" class="p-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-md transition-colors">Zuweisen</button>
@@ -391,6 +370,7 @@
                  if (!isAdmin) {
                      gameTable.classList.remove('bulk-edit-view');
                      bulkActionToolbar.classList.add('hidden');
+                     bulkActionToolbar.classList.remove('md:flex'); // explizit entfernen
                      if (toggleBulkEdit) toggleBulkEdit.checked = false;
                  }
 
@@ -504,8 +484,8 @@
                  setTimeout(() => { importFeedback.textContent = '' }, 5000);
              });
 
-            // NEU: Standortzuweisung per EAN-Liste Listener
-             assignLocationBtn.addEventListener('click', async () => {
+             // NEU: Standortzuweisung per EAN-Liste Listener
+              assignLocationBtn.addEventListener('click', async () => {
                  const locationName = assignLocationNameInput.value.trim();
                  const eanListData = assignLocationEansTextarea.value.trim();
                  assignLocationFeedback.textContent = '';
@@ -573,7 +553,16 @@
                  toggleBulkEdit.addEventListener('change', () => {
                      const isEnabled = toggleBulkEdit.checked;
                      gameTable.classList.toggle('bulk-edit-view', isEnabled);
-                     bulkActionToolbar.classList.toggle('hidden', !isEnabled);
+                     // bulkActionToolbar.classList.toggle('hidden', !isEnabled); // ALTE Zeile
+                     // NEUE Logik:
+                     if (isEnabled) {
+                         bulkActionToolbar.classList.remove('hidden');
+                         bulkActionToolbar.classList.add('md:flex');
+                     } else {
+                         bulkActionToolbar.classList.add('hidden');
+                         bulkActionToolbar.classList.remove('md:flex');
+                     }
+
                      if (!isEnabled) {
                          // Reset Checkboxen wenn Modus ausgeschaltet wird
                          document.querySelectorAll('.bulk-select-checkbox:checked').forEach(cb => cb.checked = false);
@@ -1042,6 +1031,7 @@
     </script>
 </body>
 </html>
+
 
 
 
