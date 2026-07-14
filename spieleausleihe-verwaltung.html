@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v4</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v6</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -187,7 +187,10 @@
         <div class="cl-card cl-card--pad sv-event-bar">
             <div>
                 <label class="cl-label" for="active-event-select">Aktives Event (für Ausleihe)</label>
-                <select id="active-event-select" class="cl-select"></select>
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                    <select id="active-event-select" class="cl-select"></select>
+                    <button type="button" id="deactivate-event-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Deaktivieren</button>
+                </div>
             </div>
             <div id="active-event-info" class="cl-muted"></div>
         </div>
@@ -463,6 +466,20 @@
             <button type="button" id="copy-embed-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Code kopieren</button>
         </div>
 
+        <h3 style="margin-top: var(--cl-space-3);">Ausleihe-Tresen für dieses Event</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Eigene, schlanke Seite für den Ausleihtresen — Live-Statistik, Live-Liste der ausgeliehenen Spiele, Scannen ohne Rückfrage.</p>
+        <div class="sv-embed-box" style="margin-bottom: var(--cl-space-3);">
+            <textarea id="event-desk-link" class="cl-input" rows="2" readonly></textarea>
+            <button type="button" id="copy-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Link kopieren</button>
+            <button type="button" id="open-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Öffnen</button>
+        </div>
+        <label class="cl-label">Rückgabe-Meldung am Tresen</label>
+        <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
+            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-confirm" value="confirm"> Manuell bestätigen</label>
+            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-timer" value="timer"> Automatisch ausblenden nach</label>
+            <input type="number" id="return-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+        </div>
+
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
             <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
             <div style="display:flex; gap:.5rem;">
@@ -494,8 +511,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v4 — aktuelle Version, siehe auch Anzeige im Header.
+// VERSION: v6 — aktuelle Version, siehe auch Anzeige im Header.
 // Änderungsprotokoll:
+//   v6 — Neue eigenständige Seite "spieleausleihe-tresen.html" pro Event:
+//        Live-Statistik, Live-Liste der ausgeliehenen Spiele, Schnellscan,
+//        Rückgabemeldung mit Regal-Hinweis. Pro Event einstellbar, ob die
+//        Meldung manuell bestätigt werden muss oder nach X Sekunden
+//        automatisch verschwindet (Einstellung im Event-Fenster).
+//   v5 — Aktives Event lässt sich jetzt auch explizit deaktivieren: neuer
+//        "Deaktivieren"-Button oben in der Werkzeugleiste, und der Button im
+//        Event-Fenster wechselt automatisch zwischen "Als aktiv setzen" und
+//        "Deaktivieren", je nachdem ob das geöffnete Event gerade aktiv ist.
 //   v4 — Schnellscan jetzt auch direkt im Event-Fenster (Regal wählen,
 //        scannen, ohne Rückfrage — unabhängig vom global aktiven Event).
 //        Bugfix: Einbettungs-Code-URL war fehlerhaft, wenn die Seite ohne
@@ -837,14 +863,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateActiveEventInfo() {
         const ev = allEvents.find(e => e.id === activeEventId);
         activeEventInfo.textContent = ev ? `Ausleihen werden aktuell "${ev.name}" zugeordnet.` : 'Kein Event gewählt – Ausleihen sind derzeit nicht möglich.';
+        document.getElementById('deactivate-event-btn').disabled = !activeEventId;
     }
 
-    activeEventSelect.addEventListener('change', () => {
-        activeEventId = activeEventSelect.value;
+    function setActiveEvent(id) {
+        activeEventId = id || '';
         localStorage.setItem('sv_active_event', activeEventId);
+        activeEventSelect.value = activeEventId;
         updateActiveEventInfo();
         renderAusleiheTab();
         renderQuickTab();
+        renderEventsTab();
+        updateSetActiveEventBtnLabel();
+    }
+
+    activeEventSelect.addEventListener('change', () => setActiveEvent(activeEventSelect.value));
+    document.getElementById('deactivate-event-btn').addEventListener('click', () => {
+        setActiveEvent('');
+        showToast('Aktives Event deaktiviert.');
     });
 
     // ======================================================
@@ -1564,8 +1600,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
         const embedUrl = basePath + `index.html?event=${id}`;
         document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
+        const deskUrl = basePath + `spieleausleihe-tresen.html?event=${id}`;
+        document.getElementById('event-desk-link').value = deskUrl;
+        const mode = ev.returnMessageMode === 'timer' ? 'timer' : 'confirm';
+        document.getElementById('return-msg-confirm').checked = mode === 'confirm';
+        document.getElementById('return-msg-timer').checked = mode === 'timer';
+        document.getElementById('return-msg-seconds').value = ev.returnMessageSeconds ?? 5;
         renderEventShelfGrid();
         renderEventGamesTable();
+        updateSetActiveEventBtnLabel();
         showModal(eventModalOverlay);
     }
     function closeEventModal() { hideModal(eventModalOverlay); currentEventId = null; }
@@ -1578,16 +1621,40 @@ document.addEventListener('DOMContentLoaded', () => {
         ta.select();
         navigator.clipboard?.writeText(ta.value).then(() => showToast('Code kopiert.')).catch(() => {});
     });
+    document.getElementById('copy-desk-link-btn').addEventListener('click', () => {
+        const ta = document.getElementById('event-desk-link');
+        ta.select();
+        navigator.clipboard?.writeText(ta.value).then(() => showToast('Link kopiert.')).catch(() => {});
+    });
+    document.getElementById('open-desk-link-btn').addEventListener('click', () => {
+        window.open(document.getElementById('event-desk-link').value, '_blank');
+    });
 
+    async function saveReturnMessageSettings() {
+        if (!currentEventId) return;
+        const mode = document.getElementById('return-msg-timer').checked ? 'timer' : 'confirm';
+        const seconds = Math.max(1, Math.min(60, parseInt(document.getElementById('return-msg-seconds').value) || 5));
+        try { await updateDoc(doc(db, 'events', currentEventId), { returnMessageMode: mode, returnMessageSeconds: seconds }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); }
+    }
+    document.getElementById('return-msg-confirm').addEventListener('change', saveReturnMessageSettings);
+    document.getElementById('return-msg-timer').addEventListener('change', saveReturnMessageSettings);
+    document.getElementById('return-msg-seconds').addEventListener('change', saveReturnMessageSettings);
+
+    function updateSetActiveEventBtnLabel() {
+        const btn = document.getElementById('set-active-event-btn');
+        if (!currentEventId) return;
+        btn.textContent = currentEventId === activeEventId ? 'Deaktivieren (aktuell aktiv)' : 'Als aktiv setzen';
+    }
     document.getElementById('set-active-event-btn').addEventListener('click', () => {
         if (!currentEventId) return;
-        activeEventId = currentEventId;
-        localStorage.setItem('sv_active_event', activeEventId);
-        activeEventSelect.value = activeEventId;
-        updateActiveEventInfo();
-        renderEventsTab();
-        renderAusleiheTab();
-        showToast('Aktives Event gesetzt.');
+        if (currentEventId === activeEventId) {
+            setActiveEvent('');
+            showToast('Aktives Event deaktiviert.');
+        } else {
+            setActiveEvent(currentEventId);
+            showToast('Aktives Event gesetzt.');
+        }
     });
 
     document.getElementById('delete-event-btn').addEventListener('click', () => {
