@@ -44,6 +44,10 @@
     .sv-tab-btn.is-active { background: var(--cl-signal); color: var(--cl-on-signal, #fff); border-color: var(--cl-signal); }
 
     .sv-scan-card { text-align: center; }
+    .sv-mode-toggle { display: flex; gap: .5rem; justify-content: center; }
+    .sv-mode-btn { flex: 1; max-width: 220px; border: 2px solid var(--cl-line); font-weight: 600; }
+    .sv-mode-btn.is-active-borrow { background: var(--cl-signal); border-color: var(--cl-signal); color: var(--cl-on-signal, #fff); }
+    .sv-mode-btn.is-active-return { background: var(--cl-ok); border-color: var(--cl-ok); color: #fff; }
     .sv-scan-input { font-size: 1.3rem; text-align: center; letter-spacing: .05em; padding: 1rem !important; }
     .sv-scan-result { margin-top: var(--cl-space-3); padding: var(--cl-space-3); border-radius: var(--cl-radius);
         border: 1px solid var(--cl-line); display: none; }
@@ -145,7 +149,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v8</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v9</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -306,7 +310,12 @@
         <!-- TAB: AUSLEIHE -->
         <section id="tab-ausleihe" class="sv-tab-panel">
             <div class="cl-card cl-card--pad sv-scan-card">
-                <label class="cl-label" for="scan-input">EAN scannen oder eingeben</label>
+                <label class="cl-label">Modus für den nächsten Scan</label>
+                <div class="sv-mode-toggle">
+                    <button type="button" id="ausleihe-mode-borrow-btn" class="cl-btn sv-mode-btn">📖 Ausleihen</button>
+                    <button type="button" id="ausleihe-mode-return-btn" class="cl-btn sv-mode-btn">↩️ Rückgabe</button>
+                </div>
+                <label class="cl-label" for="scan-input" style="margin-top:.75rem;">EAN scannen oder eingeben</label>
                 <input type="text" id="scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
                 <div id="scan-result" class="sv-scan-result"></div>
             </div>
@@ -511,8 +520,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v8 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v9 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v9 — Bugfix: Derselbe Ausleihen/Rückgabe-Modus-Schalter wie am Tresen
+//        (seit v7) fehlte noch im Ausleihe/Rückgabe-Tab des Verwaltungs-
+//        tools selbst — dort war die Mehrdeutigkeit bei Mehrfach-
+//        Exemplaren noch nicht behoben. Jetzt nachgezogen.
 //   v8 — BGG-Beschreibung wird jetzt mit erfasst (games + eventGames), für
 //        die Detailansicht in der öffentlichen Übersicht. Öffentliche Seite:
 //        Spiele anklickbar (Detailkarte mit Bild, Beschreibung, BGG-Link),
@@ -1918,6 +1931,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const borrowedTableBody = document.getElementById('borrowed-table-body');
     const borrowedEmpty = document.getElementById('borrowed-empty');
 
+    // Modus (Ausleihen/Rückgabe) statt automatischem Raten — bei Mehrfach-
+    // Exemplaren ist "verfügbar > 0" allein nicht eindeutig, ob der nächste
+    // Scan eine weitere Ausleihe oder eine Rückgabe sein soll.
+    let ausleiheMode = localStorage.getItem('sv_ausleihe_mode') || 'borrow';
+    function updateAusleiheModeButtons() {
+        document.getElementById('ausleihe-mode-borrow-btn').classList.toggle('is-active-borrow', ausleiheMode === 'borrow');
+        document.getElementById('ausleihe-mode-return-btn').classList.toggle('is-active-return', ausleiheMode === 'return');
+    }
+    document.getElementById('ausleihe-mode-borrow-btn').addEventListener('click', () => {
+        ausleiheMode = 'borrow'; localStorage.setItem('sv_ausleihe_mode', ausleiheMode); updateAusleiheModeButtons(); scanInput.focus();
+    });
+    document.getElementById('ausleihe-mode-return-btn').addEventListener('click', () => {
+        ausleiheMode = 'return'; localStorage.setItem('sv_ausleihe_mode', ausleiheMode); updateAusleiheModeButtons(); scanInput.focus();
+    });
+    updateAusleiheModeButtons();
+
     scanInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -1939,7 +1968,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const eg = allEventGames.find(g => g.eventId === activeEventId && g.ean === ean);
-        if (eg) { await borrowOrReturn(eg); return; }
+        if (eg) { await processScanAction(eg); return; }
 
         const masterGame = allGames.find(g => g.id === ean);
         if (masterGame) {
@@ -1972,14 +2001,28 @@ document.addEventListener('DOMContentLoaded', () => {
         scanInput.focus();
     }
 
-    // Ein Exemplar ausleihen, solange welche verfügbar sind — erst wenn ALLE
-    // Exemplare draußen sind, bedeutet ein erneuter Scan "eines wird zurückgebracht".
-    // Bei nur einem Exemplar entspricht das exakt dem bisherigen Umschalt-Verhalten.
-    async function borrowOrReturn(eg) {
-        const avail = eg.availableQuantity ?? 1;
-        if (avail > 0) { await borrowOne(eg); } else { await returnOne(eg); }
+    // Führt die Aktion aus, die der gewählte Modus vorgibt — nicht mehr
+    // automatisch geraten. Passt die Aktion nicht (z.B. "Ausleihen" gewählt,
+    // aber schon alle Exemplare draußen), gibt es eine klare Warnung statt
+    // einer falschen Buchung.
+    async function processScanAction(eg) {
+        const qty = eg.quantity ?? 1, avail = eg.availableQuantity ?? qty;
+        if (ausleiheMode === 'borrow' && avail <= 0) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `<div class="sv-scan-result__body"><p class="sv-scan-result__title">${escapeHTML(eg.gameName)}</p><p class="cl-muted" style="margin:0;">Alle Exemplare sind bereits ausgeliehen — nichts zum Verleihen übrig. Modus auf "Rückgabe" umschalten?</p></div>`;
+            scanInput.focus();
+            return;
+        }
+        if (ausleiheMode === 'return' && avail >= qty) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `<div class="sv-scan-result__body"><p class="sv-scan-result__title">${escapeHTML(eg.gameName)}</p><p class="cl-muted" style="margin:0;">Es ist gerade nichts von diesem Spiel ausgeliehen.</p></div>`;
+            scanInput.focus();
+            return;
+        }
+        if (ausleiheMode === 'borrow') await borrowOne(eg); else await returnOne(eg);
         scanInput.focus();
     }
+
 
     async function borrowOne(eg) {
         const egRef = doc(db, 'eventGames', eg.id);
@@ -2037,7 +2080,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = e.target.closest('.sv-manual-result-item');
         if (!item) return;
         const eg = allEventGames.find(g => g.id === item.dataset.id);
-        if (eg) { borrowOrReturn(eg); manualSearchInput.value = ''; manualResults.classList.add('cl-hidden'); }
+        if (eg) { processScanAction(eg); manualSearchInput.value = ''; manualResults.classList.add('cl-hidden'); }
     });
 
     function renderAusleiheTab() {
