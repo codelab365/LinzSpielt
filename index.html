@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spieleübersicht – Linz Spielt</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    /* Schlanke Ansicht — gedacht zum Einbetten per <iframe> auf der Vereins-Website. */
+    body { background: transparent; }
+    .ov-wrap { padding: var(--cl-space-3); max-width: 78rem; margin: 0 auto; }
+    .ov-title { margin: 0 0 .2rem 0; }
+    .ov-sub { margin: 0 0 var(--cl-space-3) 0; }
+    .ov-event-picker { margin-bottom: var(--cl-space-3); }
+    .ov-stats { display: flex; flex-wrap: wrap; gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
+    .ov-stat { font-size: .9rem; color: var(--cl-muted); }
+    .ov-stat strong { color: var(--cl-text); font-size: 1.1rem; }
+    .ov-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .ov-toolbar .cl-input { flex: 1; min-width: 200px; }
+    .ov-toolbar .cl-select { min-width: 160px; }
+    .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    table.ov-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.ov-table tbody tr:last-child td { border-bottom: none; }
+    table.ov-table img.ov-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .ov-badge--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .ov-badge--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+    .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
+    @media (max-width: 640px) {
+        .ov-toolbar .cl-select { min-width: 140px; }
+    }
+</style>
+</head>
+<body>
+<div class="ov-wrap">
+    <h2 class="ov-title">🎲 Spieleübersicht</h2>
+    <p class="ov-sub cl-muted" id="ov-event-title">Live-Stand der Spielothek — was ist gerade verfügbar, was ist ausgeliehen.</p>
+
+    <div class="ov-event-picker cl-hidden" id="ov-event-picker-wrap">
+        <label class="cl-label" for="ov-event-picker">Event auswählen</label>
+        <select id="ov-event-picker" class="cl-select" style="width:100%; max-width:24rem;"></select>
+    </div>
+
+    <div id="ov-main" class="cl-hidden">
+        <div class="ov-stats" id="ov-stats"></div>
+
+        <div class="ov-toolbar">
+            <input type="text" id="ov-search" class="cl-input" placeholder="Spiel suchen…" autocomplete="off">
+            <select id="ov-shelf-filter" class="cl-select"><option value="all">Alle Regale</option></select>
+            <select id="ov-players-filter" class="cl-select">
+                <option value="0">Jede Spielerzahl</option>
+                <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
+                <option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option>
+            </select>
+            <select id="ov-status-filter" class="cl-select">
+                <option value="all">Alle Status</option>
+                <option value="verfügbar">Nur verfügbar</option>
+                <option value="ausgeliehen">Nur ausgeliehen</option>
+            </select>
+        </div>
+
+        <div class="ov-table-wrap">
+            <table class="ov-table">
+                <thead>
+                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Regal</th><th>Status</th></tr>
+                </thead>
+                <tbody id="ov-table-body"></tbody>
+            </table>
+            <p id="ov-empty" class="ov-empty cl-hidden">Keine Spiele gefunden.</p>
+        </div>
+        <p class="ov-footer-note">Daten aktualisieren sich automatisch. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
+    </div>
+
+    <p id="ov-loading" class="ov-empty">Lade Events…</p>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+    authDomain: "linzspielt.firebaseapp.com",
+    projectId: "linzspielt",
+    storageBucket: "linzspielt.firebasestorage.app",
+    messagingSenderId: "41406614659",
+    appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+    measurementId: "G-5X66HE5YLY"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+
+let allEvents = [];
+let eventGamesUnsub = null;
+let eventShelvesUnsub = null;
+let currentEventGames = [];
+let currentEventShelves = [];
+let selectedEventId = new URLSearchParams(location.search).get('event') || '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const loadingEl = document.getElementById('ov-loading');
+    const pickerWrap = document.getElementById('ov-event-picker-wrap');
+    const picker = document.getElementById('ov-event-picker');
+    const mainEl = document.getElementById('ov-main');
+    const eventTitleEl = document.getElementById('ov-event-title');
+
+    const searchInput = document.getElementById('ov-search');
+    const shelfFilter = document.getElementById('ov-shelf-filter');
+    const playersFilter = document.getElementById('ov-players-filter');
+    const statusFilter = document.getElementById('ov-status-filter');
+    const tableBody = document.getElementById('ov-table-body');
+    const emptyEl = document.getElementById('ov-empty');
+    const statsEl = document.getElementById('ov-stats');
+
+    [searchInput, shelfFilter, playersFilter, statusFilter].forEach(el => el.addEventListener('input', render));
+    shelfFilter.addEventListener('change', render);
+    playersFilter.addEventListener('change', render);
+    statusFilter.addEventListener('change', render);
+
+    onSnapshot(collection(db, 'events'), (snap) => {
+        allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        loadingEl.classList.add('cl-hidden');
+
+        if (allEvents.length === 0) {
+            loadingEl.textContent = 'Aktuell sind keine Events verfügbar.';
+            loadingEl.classList.remove('cl-hidden');
+            return;
+        }
+
+        picker.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('');
+
+        if (!selectedEventId || !allEvents.some(ev => ev.id === selectedEventId)) {
+            selectedEventId = allEvents[0].id;
+        }
+        picker.value = selectedEventId;
+
+        if (!new URLSearchParams(location.search).get('event')) {
+            pickerWrap.classList.remove('cl-hidden');
+        }
+
+        loadEvent(selectedEventId);
+    }, err => {
+        console.error('events onSnapshot Fehler:', err);
+        loadingEl.textContent = 'Events konnten nicht geladen werden.';
+    });
+
+    picker.addEventListener('change', () => {
+        selectedEventId = picker.value;
+        const url = new URL(location.href);
+        url.searchParams.set('event', selectedEventId);
+        history.replaceState(null, '', url);
+        loadEvent(selectedEventId);
+    });
+
+    function loadEvent(eventId) {
+        const ev = allEvents.find(e => e.id === eventId);
+        eventTitleEl.textContent = ev ? `Live-Stand für "${ev.name}"${ev.date ? ' · ' + ev.date : ''}` : 'Live-Stand der Spielothek';
+        mainEl.classList.remove('cl-hidden');
+
+        if (eventGamesUnsub) eventGamesUnsub();
+        if (eventShelvesUnsub) eventShelvesUnsub();
+
+        eventShelvesUnsub = onSnapshot(query(collection(db, 'eventShelves'), where('eventId', '==', eventId)), (snap) => {
+            currentEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+            const prev = shelfFilter.value;
+            shelfFilter.innerHTML = '<option value="all">Alle Regale</option>' + currentEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+            if ([...shelfFilter.options].some(o => o.value === prev)) shelfFilter.value = prev;
+            render();
+        }, err => console.error('eventShelves onSnapshot Fehler:', err));
+
+        eventGamesUnsub = onSnapshot(query(collection(db, 'eventGames'), where('eventId', '==', eventId)), (snap) => {
+            currentEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            render();
+        }, err => console.error('eventGames onSnapshot Fehler:', err));
+    }
+
+    function shelfName(id) {
+        if (!id) return '—';
+        const s = currentEventShelves.find(s => s.id === id);
+        return s ? s.name : '—';
+    }
+
+    function render() {
+        const term = searchInput.value.trim().toLowerCase();
+        const shelfVal = shelfFilter.value;
+        const playersVal = parseInt(playersFilter.value, 10);
+        const statusVal = statusFilter.value;
+
+        const filtered = currentEventGames.filter(g => {
+            const nameMatch = !term || (g.gameName || '').toLowerCase().includes(term);
+            const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
+            const statusMatch = statusVal === 'all' || g.ausleihstatus === statusVal;
+            let playersMatch = true;
+            if (playersVal > 0) {
+                if (g.minPlayers != null && g.maxPlayers != null) {
+                    playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
+                } else { playersMatch = false; }
+            }
+            return nameMatch && shelfMatch && statusMatch && playersMatch;
+        }).sort((a, b) => (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+
+        emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
+        tableBody.innerHTML = filtered.map(g => `
+            <tr>
+                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(g.gameName)}</td>
+                <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
+                <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
+                <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
+                <td>${escapeHTML(shelfName(g.shelfId))}</td>
+                <td><span class="ov-badge ${g.ausleihstatus === 'ausgeliehen' ? 'ov-badge--aus' : 'ov-badge--frei'}">${g.ausleihstatus === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'}</span></td>
+            </tr>`).join('');
+
+        const total = currentEventGames.length;
+        const available = currentEventGames.filter(g => g.ausleihstatus !== 'ausgeliehen').length;
+        const borrowed = total - available;
+        statsEl.innerHTML = `
+            <span class="ov-stat"><strong>${total}</strong> Spiele gesamt</span>
+            <span class="ov-stat"><strong>${available}</strong> verfügbar</span>
+            <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>`;
+    }
+});
+</script>
+</body>
+</html>

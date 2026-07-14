@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spieleausleihe Verwaltung – Linz Spielt</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    /* =========================================================
+       sv- : Spieleausleihe-Verwaltung — Ergänzungen zum
+       codeLAB365 Design-System. Nutzt ausschließlich cl-* Tokens.
+       ========================================================= */
+    .qb-brand-block { display: flex; flex-direction: column; gap: .1rem; }
+    .qb-brand-row { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+    .qb-tagline { margin: 0; font-size: .85rem; }
+    .qb-header-actions { display: flex; align-items: center; gap: var(--cl-space-2); flex-wrap: wrap; justify-content: flex-end; }
+    .qb-error { color: var(--cl-err); text-align: center; margin-top: var(--cl-space-2); min-height: 1.25rem; font-size: .9rem; }
+    .qb-feedback { color: var(--cl-ok); font-size: .9rem; min-height: 1.1rem; }
+    .qb-modal-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+        background: color-mix(in srgb, black 55%, transparent); padding: 1rem; }
+    .qb-modal { width: 100%; max-width: 30rem; position: relative; max-height: 90vh; overflow-y: auto; }
+    .qb-modal--lg { max-width: 46rem; }
+    .qb-modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+        font-size: 1.6rem; line-height: 1; color: var(--cl-muted); cursor: pointer; z-index: 5; }
+    .qb-modal-close:hover { color: var(--cl-text); }
+    .modal-enter { animation: qbFadeIn .22s ease-out; }
+    @keyframes qbFadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    #toast-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 100;
+        display: flex; flex-direction: column; gap: .5rem; align-items: center; }
+    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: .75rem 1.4rem;
+        border-radius: var(--cl-radius-pill); box-shadow: var(--cl-shadow-lg); font-size: .9rem; max-width: 90vw; text-align: center; }
+    .qb-toast--err { background: var(--cl-err); }
+    .toast-enter { animation: qbFadeIn .25s ease-out; }
+
+    .sv-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+    .sv-link-btn { background: none; border: none; color: var(--cl-signal); cursor: pointer; font-size: .85rem; text-decoration: underline; padding: 0; }
+
+    .sv-event-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+        gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
+    .sv-event-bar > div:first-child { min-width: 220px; }
+
+    .sv-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: var(--cl-space-4); }
+    .sv-tab-btn { cursor: pointer; border: 1px solid var(--cl-line); }
+    .sv-tab-btn.is-active { background: var(--cl-signal); color: var(--cl-on-signal, #fff); border-color: var(--cl-signal); }
+
+    .sv-scan-card { text-align: center; }
+    .sv-scan-input { font-size: 1.3rem; text-align: center; letter-spacing: .05em; padding: 1rem !important; }
+    .sv-scan-result { margin-top: var(--cl-space-3); padding: var(--cl-space-3); border-radius: var(--cl-radius);
+        border: 1px solid var(--cl-line); display: none; }
+    .sv-scan-result.is-visible { display: flex; gap: var(--cl-space-3); align-items: center; text-align: left; }
+    .sv-scan-result.sv-result--out { background: color-mix(in srgb, var(--cl-err) 12%, transparent); border-color: color-mix(in srgb, var(--cl-err) 45%, transparent); }
+    .sv-scan-result.sv-result--in { background: color-mix(in srgb, var(--cl-ok) 12%, transparent); border-color: color-mix(in srgb, var(--cl-ok) 45%, transparent); }
+    .sv-scan-result.sv-result--unknown { background: color-mix(in srgb, var(--cl-warn) 14%, transparent); border-color: color-mix(in srgb, var(--cl-warn) 45%, transparent); }
+    .sv-scan-result img { width: 64px; height: 64px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .sv-scan-result__body { flex: 1; min-width: 0; }
+    .sv-scan-result__title { font-weight: 700; font-size: 1.1rem; margin: 0 0 .25rem 0; }
+    .sv-manual-search { position: relative; margin-top: var(--cl-space-4); }
+    .sv-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
+        margin-top: .3rem; max-height: 260px; overflow-y: auto; }
+    .sv-manual-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem .75rem;
+        cursor: pointer; border-bottom: 1px solid var(--cl-line); align-items: center; }
+    .sv-manual-result-item:last-child { border-bottom: none; }
+    .sv-manual-result-item:hover { background: var(--cl-surface-2); }
+    .sv-badge-status { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .sv-badge-status--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .sv-badge-status--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .sv-badge-enrich { font-size: .68rem; font-weight: 600; padding: .1rem .5rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .sv-badge-enrich--done { background: color-mix(in srgb, var(--cl-ok) 18%, transparent); color: var(--cl-ok); }
+    .sv-badge-enrich--pending { background: color-mix(in srgb, var(--cl-warn) 18%, transparent); color: var(--cl-warn); }
+    .sv-badge-enrich--not_found { background: color-mix(in srgb, var(--cl-muted) 20%, transparent); color: var(--cl-muted); }
+    .sv-badge-enrich--error { background: color-mix(in srgb, var(--cl-err) 18%, transparent); color: var(--cl-err); }
+
+    .sv-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    table.sv-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    table.sv-table th, table.sv-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.sv-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.sv-table tbody tr:last-child td { border-bottom: none; }
+    table.sv-table img.sv-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .sv-row-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .sv-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); align-items: center; justify-content: space-between; margin-bottom: var(--cl-space-3); }
+    .sv-toolbar .cl-input, .sv-toolbar .cl-select { min-width: 180px; }
+    .sv-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+
+    .qb-bgg-panel { margin-top: .5rem; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm);
+        background: var(--cl-surface-2); max-height: 220px; overflow-y: auto; }
+    .qb-bgg-results { padding: .35rem; }
+    .qb-bgg-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .45rem .6rem;
+        cursor: pointer; border-radius: var(--cl-radius-sm); }
+    .qb-bgg-result-item:hover { background: var(--cl-surface); }
+    .qb-bgg-result-item__year { color: var(--cl-muted); font-size: .8rem; flex-shrink: 0; }
+    .qb-bgg-hint { padding: .6rem; font-size: .85rem; color: var(--cl-muted); }
+    .qb-bgg-match { display: flex; gap: .75rem; margin-top: .6rem; padding: .6rem; border: 1px solid var(--cl-line);
+        border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); align-items: flex-start; }
+    .qb-bgg-match img { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; flex-shrink: 0; background: var(--cl-surface); }
+    .qb-bgg-match__body { min-width: 0; flex: 1; }
+    .qb-bgg-match__title { font-weight: 600; font-size: .9rem; }
+    .qb-bgg-match__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .3rem; }
+    .qb-bgg-badge { font-size: .72rem; font-weight: 600; padding: .1rem .5rem; border-radius: var(--cl-radius-pill);
+        background: color-mix(in srgb, var(--cl-warn) 20%, transparent); color: var(--cl-warn); }
+
+    .sv-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--cl-space-3); margin-bottom: var(--cl-space-4); }
+    .sv-entity-card { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); }
+    .sv-entity-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+    .sv-entity-card__title { font-weight: 700; margin: 0; }
+    .sv-entity-card__meta { color: var(--cl-muted); font-size: .82rem; margin: .2rem 0 .6rem 0; }
+    .sv-entity-card__actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
+
+    .sv-shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .sv-shelf-card { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-2) var(--cl-space-3);
+        display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+
+    .sv-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .sv-stat-box { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); text-align: center; }
+    .sv-stat-box__num { font-size: 1.8rem; font-weight: 700; font-family: var(--cl-font-display); }
+    .sv-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
+
+    .sv-progress { width: 100%; height: 10px; border-radius: var(--cl-radius-pill); background: var(--cl-surface-2); overflow: hidden; margin: .5rem 0; }
+    .sv-progress__bar { height: 100%; background: var(--cl-signal); transition: width .2s ease; width: 0%; }
+    .sv-progress-log { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); font-size: .85rem; }
+    .sv-progress-log-item { padding: .4rem .6rem; border-bottom: 1px solid var(--cl-line); display: flex; justify-content: space-between; gap: .5rem; }
+    .sv-progress-log-item:last-child { border-bottom: none; }
+
+    .sv-checkbox-list { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .sv-checkbox-chip { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--cl-line);
+        border-radius: var(--cl-radius-pill); padding: .3rem .7rem; font-size: .85rem; cursor: pointer; }
+    .sv-checkbox-chip input { margin: 0; }
+
+    .sv-embed-box textarea { font-family: monospace; font-size: .78rem; }
+
+    .sv-detail-panel { border-top: 1px dashed var(--cl-line); margin-top: var(--cl-space-3); padding-top: var(--cl-space-3); }
+
+    @media (max-width: 640px) {
+        .cl-card--pad { padding: var(--cl-space-3); }
+        .qb-modal-overlay { padding: .6rem; align-items: flex-end; }
+        .qb-modal, .qb-modal--lg { max-width: 100%; }
+        .sv-event-bar { flex-direction: column; align-items: stretch; }
+    }
+</style>
+</head>
+<body>
+
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <div class="qb-brand-block">
+            <div class="qb-brand-row">
+                <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
+            </div>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt</p>
+        </div>
+        <div class="cl-header__spacer"></div>
+        <div class="qb-header-actions" id="header-actions"></div>
+    </div>
+</header>
+
+<main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
+
+    <!-- LOGIN -->
+    <div id="login-view" class="sv-login-wrap">
+        <div class="cl-card cl-card--pad" style="max-width:26rem; width:100%;">
+            <h2 class="cl-center" id="auth-title">Anmelden</h2>
+            <p class="cl-muted cl-center">Nur für Team-Mitglieder von Linz Spielt.</p>
+
+            <form id="login-form" class="cl-stack">
+                <div><label class="cl-label" for="login-email">E-Mail</label><input class="cl-input" id="login-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="login-password">Passwort</label><input class="cl-input" id="login-password" type="password" required autocomplete="current-password"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Einloggen</button>
+            </form>
+
+            <form id="register-form" class="cl-stack cl-hidden">
+                <div><label class="cl-label" for="register-email">E-Mail</label><input class="cl-input" id="register-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="register-password">Passwort (mind. 6 Zeichen)</label><input class="cl-input" id="register-password" type="password" required minlength="6" autocomplete="new-password"></div>
+                <div><label class="cl-label" for="register-code">Zugangscode</label><input class="cl-input" id="register-code" type="text" required autocomplete="off"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Konto anlegen</button>
+            </form>
+
+            <p id="login-error" class="qb-error"></p>
+            <p class="cl-center" style="margin-top:.5rem;">
+                <button type="button" id="show-register-btn" class="sv-link-btn">Noch kein Konto? Registrieren</button>
+                <button type="button" id="show-login-btn" class="sv-link-btn cl-hidden">Zurück zum Login</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app-view" class="cl-hidden">
+
+        <div class="cl-card cl-card--pad sv-event-bar">
+            <div>
+                <label class="cl-label" for="active-event-select">Aktives Event (für Ausleihe)</label>
+                <select id="active-event-select" class="cl-select"></select>
+            </div>
+            <div id="active-event-info" class="cl-muted"></div>
+        </div>
+
+        <nav class="sv-tabs" role="tablist">
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="datenbank">🎲 Spieledatenbank</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="sammlungen">📚 Sammlungen</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="events">🗓️ Events</button>
+            <button type="button" class="cl-chip sv-tab-btn is-active" data-tab="ausleihe">📖 Ausleihe / Rückgabe</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="statistik">📊 Statistik</button>
+        </nav>
+
+        <!-- TAB: SPIELEDATENBANK -->
+        <section id="tab-datenbank" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Stufe 1 — EAN-Liste erfassen</h3>
+                <p class="cl-muted" style="font-size:.85rem;">EANs scannen oder einfügen (eine pro Zeile). Neue Codes werden als "offen" angelegt.</p>
+                <textarea id="stage1-textarea" rows="5" class="cl-input" placeholder="4001504xxxxxx&#10;4001504yyyyyy"></textarea>
+                <button type="button" id="stage1-add-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Erfassen</button>
+                <p id="stage1-feedback" class="qb-feedback"></p>
+            </div>
+
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Stufe 2 — Titel-Liste importieren (JSON)</h3>
+                <p class="cl-muted" style="font-size:.85rem;">Füge die von Claude recherchierte Liste ein, Format: <code>[{"ean":"...","title":"..."}]</code>. Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand) und die Daten werden übernommen.</p>
+                <textarea id="stage2-textarea" rows="6" class="cl-input" placeholder='[{"ean":"4001504xxxxxx","title":"Catan"}]'></textarea>
+                <button type="button" id="stage2-import-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Import starten</button>
+                <div id="stage2-progress-wrap" class="cl-hidden" style="margin-top:.75rem;">
+                    <div class="sv-progress"><div class="sv-progress__bar" id="stage2-progress-bar"></div></div>
+                    <p id="stage2-progress-text" class="cl-muted" style="font-size:.85rem;"></p>
+                    <div id="stage2-log" class="sv-progress-log"></div>
+                </div>
+            </div>
+
+            <div class="sv-toolbar">
+                <input type="text" id="db-search-input" class="cl-input" placeholder="Spiele durchsuchen…">
+                <select id="db-status-filter" class="cl-select">
+                    <option value="all">Alle Status</option>
+                    <option value="pending">Offen (Stufe 1)</option>
+                    <option value="done">Fertig angereichert</option>
+                    <option value="not_found">Kein BGG-Treffer</option>
+                    <option value="error">Fehler</option>
+                </select>
+                <button type="button" id="open-add-game-btn" class="cl-btn cl-btn--signal">(+) Spiel manuell anlegen</button>
+            </div>
+            <div class="sv-table-wrap">
+                <table class="sv-table">
+                    <thead><tr><th></th><th>Name</th><th>EAN</th><th>Spieler</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="games-table-body"></tbody>
+                </table>
+                <p id="games-empty" class="sv-empty cl-hidden">Keine Spiele gefunden.</p>
+            </div>
+        </section>
+
+        <!-- TAB: SAMMLUNGEN -->
+        <section id="tab-sammlungen" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Neue Sammlung anlegen</h3>
+                <div class="sv-toolbar" style="margin-bottom:0;">
+                    <input type="text" id="new-collection-name" class="cl-input" placeholder="z.B. Spieleversum">
+                    <input type="text" id="new-collection-desc" class="cl-input" placeholder="Beschreibung (optional)">
+                    <button type="button" id="add-collection-btn" class="cl-btn cl-btn--signal">Anlegen</button>
+                </div>
+                <p id="collection-feedback" class="qb-feedback"></p>
+            </div>
+            <div id="collections-grid" class="sv-card-grid"></div>
+        </section>
+
+        <!-- TAB: EVENTS -->
+        <section id="tab-events" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Neues Event anlegen</h3>
+                <div class="cl-stack">
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                        <input type="text" id="new-event-name" class="cl-input" placeholder="z.B. Linz Spielt 2026" style="flex:1; min-width:180px;">
+                        <input type="date" id="new-event-date" class="cl-input">
+                    </div>
+                    <div>
+                        <label class="cl-label">Sammlungen, aus denen Spiele gewählt werden können</label>
+                        <div id="new-event-collections" class="sv-checkbox-list"></div>
+                    </div>
+                    <button type="button" id="add-event-btn" class="cl-btn cl-btn--signal">Event anlegen</button>
+                </div>
+                <p id="event-feedback" class="qb-feedback"></p>
+            </div>
+            <div id="events-grid"></div>
+        </section>
+
+        <!-- TAB: AUSLEIHE -->
+        <section id="tab-ausleihe" class="sv-tab-panel">
+            <div class="cl-card cl-card--pad sv-scan-card">
+                <label class="cl-label" for="scan-input">EAN scannen oder eingeben</label>
+                <input type="text" id="scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+                <div id="scan-result" class="sv-scan-result"></div>
+            </div>
+
+            <div class="cl-card cl-card--pad sv-manual-search">
+                <label class="cl-label" for="manual-search-input">Spiel manuell suchen (falls Scanner nicht verfügbar)</label>
+                <input type="text" id="manual-search-input" class="cl-input" placeholder="Spielname eingeben…" autocomplete="off">
+                <div id="manual-search-results" class="sv-manual-results cl-hidden"></div>
+            </div>
+
+            <h3 style="margin-top: var(--cl-space-4);">Aktuell ausgeliehen</h3>
+            <div class="sv-table-wrap">
+                <table class="sv-table">
+                    <thead><tr><th>Spiel</th><th>Regal</th><th>Seit</th><th></th></tr></thead>
+                    <tbody id="borrowed-table-body"></tbody>
+                </table>
+                <p id="borrowed-empty" class="sv-empty cl-hidden">Aktuell ist kein Spiel ausgeliehen.</p>
+            </div>
+        </section>
+
+        <!-- TAB: STATISTIK -->
+        <section id="tab-statistik" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad">
+                <h3 style="margin-top:0;">Statistik pro Event</h3>
+                <label class="cl-label" for="stats-event-select">Event auswählen</label>
+                <select id="stats-event-select" class="cl-select"></select>
+                <div id="stats-content" style="margin-top: var(--cl-space-3);"></div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt – Interne Verwaltung</span></div>
+</footer>
+
+<div id="toast-container"></div>
+
+<!-- ADD/EDIT GAME MODAL (Master-Datenbank) -->
+<div id="game-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="game-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 id="game-modal-title" style="margin-top:0;">Neues Spiel anlegen</h2>
+        <form id="game-form">
+            <div class="cl-stack">
+                <div>
+                    <label class="cl-label" for="game-ean">EAN / Barcode</label>
+                    <input type="text" id="game-ean" class="cl-input" required autocomplete="off">
+                </div>
+                <div>
+                    <label class="cl-label" for="game-name-input">Spielname</label>
+                    <div style="display:flex; gap:.5rem;">
+                        <input type="text" id="game-name-input" class="cl-input" required style="flex:1;">
+                        <button type="button" id="bgg-search-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="white-space:nowrap;">🎲 BGG suchen</button>
+                    </div>
+                    <div id="bgg-search-panel" class="qb-bgg-panel cl-hidden">
+                        <div id="bgg-search-results" class="qb-bgg-results"></div>
+                    </div>
+                    <div id="bgg-match-preview" class="qb-bgg-match cl-hidden"></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--cl-space-2);">
+                    <div><label class="cl-label" for="game-minplayers">Min. Spieler</label><input type="number" id="game-minplayers" class="cl-input" min="1"></div>
+                    <div><label class="cl-label" for="game-maxplayers">Max. Spieler</label><input type="number" id="game-maxplayers" class="cl-input" min="1"></div>
+                    <div><label class="cl-label" for="game-minage">Alter ab</label><input type="number" id="game-minage" class="cl-input" min="0"></div>
+                    <div><label class="cl-label" for="game-duration">Dauer (Min.)</label><input type="number" id="game-duration" class="cl-input" min="0"></div>
+                </div>
+                <div>
+                    <label class="cl-label" for="game-category">Kategorie (frei, optional)</label>
+                    <input type="text" id="game-category" class="cl-input" placeholder="z.B. Familienspiel">
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: var(--cl-space-3); gap: 1rem; flex-wrap: wrap;">
+                <button type="button" id="delete-game-btn" class="cl-btn cl-btn--ghost cl-hidden" style="color: var(--cl-err);">Spiel löschen</button>
+                <div style="margin-left:auto; display:flex; gap:.5rem;">
+                    <button type="button" id="game-modal-cancel" class="cl-btn cl-btn--ghost">Abbrechen</button>
+                    <button type="submit" class="cl-btn cl-btn--signal">Speichern</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- COLLECTION DETAIL MODAL -->
+<div id="collection-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="collection-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 id="collection-modal-title" style="margin-top:0;">Sammlung</h2>
+        <p id="collection-modal-desc" class="cl-muted"></p>
+        <label class="cl-label" for="collection-add-search">Spiel aus Datenbank hinzufügen</label>
+        <input type="text" id="collection-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
+        <div id="collection-add-results" class="sv-manual-results cl-hidden"></div>
+        <h3 style="margin-top: var(--cl-space-3);">Spiele in dieser Sammlung</h3>
+        <div class="sv-table-wrap">
+            <table class="sv-table">
+                <thead><tr><th></th><th>Name</th><th>EAN</th><th></th></tr></thead>
+                <tbody id="collection-items-body"></tbody>
+            </table>
+            <p id="collection-items-empty" class="sv-empty cl-hidden">Noch keine Spiele in dieser Sammlung.</p>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3);">
+            <button type="button" id="delete-collection-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Sammlung löschen</button>
+            <button type="button" id="collection-modal-close2" class="cl-btn cl-btn--ghost">Schließen</button>
+        </div>
+    </div>
+</div>
+
+<!-- EVENT DETAIL MODAL -->
+<div id="event-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="event-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 id="event-modal-title" style="margin-top:0;">Event</h2>
+        <p id="event-modal-meta" class="cl-muted"></p>
+
+        <h3>Regale für dieses Event</h3>
+        <div id="event-shelf-grid" class="sv-shelf-grid"></div>
+        <div class="sv-toolbar" style="margin-bottom: var(--cl-space-3);">
+            <input type="text" id="new-event-shelf-name" class="cl-input" placeholder="z.B. Regal A">
+            <button type="button" id="add-event-shelf-btn" class="cl-btn cl-btn--signal">Regal anlegen</button>
+        </div>
+
+        <h3>Spiele zum Event hinzufügen</h3>
+        <label class="cl-label" for="event-add-search">Spiel aus den gewählten Sammlungen suchen</label>
+        <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
+        <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
+
+        <h3 style="margin-top: var(--cl-space-3);">Spiele bei diesem Event</h3>
+        <div class="sv-table-wrap">
+            <table class="sv-table">
+                <thead><tr><th></th><th>Name</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <tbody id="event-games-body"></tbody>
+            </table>
+            <p id="event-games-empty" class="sv-empty cl-hidden">Noch keine Spiele bei diesem Event.</p>
+        </div>
+
+        <h3 style="margin-top: var(--cl-space-3);">Einbettungs-Code für die Website</h3>
+        <div class="sv-embed-box">
+            <textarea id="event-embed-code" class="cl-input" rows="3" readonly></textarea>
+            <button type="button" id="copy-embed-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Code kopieren</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
+            <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
+            <div style="display:flex; gap:.5rem;">
+                <button type="button" id="set-active-event-btn" class="cl-btn cl-btn--ghost">Als aktiv setzen</button>
+                <button type="button" id="event-modal-close2" class="cl-btn cl-btn--ghost">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal modal-enter">
+        <h2 id="confirm-modal-title" style="margin-top:0;">Bestätigen</h2>
+        <p id="confirm-modal-text" class="cl-muted"></p>
+        <div style="display:flex; justify-content:flex-end; gap:.5rem; margin-top: var(--cl-space-3);">
+            <button type="button" id="confirm-modal-cancel" class="cl-btn cl-btn--ghost">Abbrechen</button>
+            <button type="button" id="confirm-modal-ok" class="cl-btn cl-btn--signal" style="background: var(--cl-err); border-color: var(--cl-err);">Löschen</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import {
+    getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc,
+    addDoc, getDoc, getDocs, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// --- FIREBASE KONFIGURATION (gleiche Datenbank wie linzspielt.at) ---
+const firebaseConfig = {
+    apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+    authDomain: "linzspielt.firebaseapp.com",
+    projectId: "linzspielt",
+    storageBucket: "linzspielt.firebasestorage.app",
+    messagingSenderId: "41406614659",
+    appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+    measurementId: "G-5X66HE5YLY"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// --- BoardGameGeek (BGG) Integration ---
+// Hinweis: Der Token liegt im Klartext im Quellcode (Ansicht -> Seitenquelltext).
+// Für ein internes Vereinstool unkritisch, aber nicht als Basis für ein
+// kommerzielles Angebot verwenden, ohne den Token serverseitig zu verstecken.
+const BGG_API_TOKEN = 'cb319383-f7f5-4e5b-bc40-78090627231e';
+let selectedBggMatch = null;
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function callBggApi(endpoint, params = {}) {
+    const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    const headers = new Headers();
+    if (BGG_API_TOKEN) headers.append('Authorization', `Bearer ${BGG_API_TOKEN}`);
+    let response = await fetch(url.toString(), { method: 'GET', headers });
+    let retries = 0;
+    while (response.status === 202 && retries < 5) {
+        retries++;
+        await sleep(1500);
+        response = await fetch(url.toString(), { method: 'GET', headers });
+    }
+    if (!response.ok) throw new Error(`BGG HTTP Fehler ${response.status}`);
+    const xmlText = await response.text();
+    const xmlDoc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (xmlDoc.querySelector("parsererror")) throw new Error("Fehler beim Parsen der BGG-Antwort.");
+    return xmlDoc;
+}
+
+function parseBggDetails(xmlDoc) {
+    const item = xmlDoc.querySelector('item');
+    if (!item) return null;
+    const getPrimaryName = () => {
+        const names = item.querySelectorAll('name');
+        for (const n of names) if (n.getAttribute('type') === 'primary') return n.getAttribute('value');
+        return names.length > 0 ? names[0].getAttribute('value') : null;
+    };
+    const getFirstCategory = () => {
+        const link = item.querySelector('link[type="boardgamecategory"]');
+        return link ? link.getAttribute('value') : null;
+    };
+    const yearNode = item.querySelector('yearpublished');
+    const minPlayersNode = item.querySelector('minplayers');
+    const maxPlayersNode = item.querySelector('maxplayers');
+    const minAgeNode = item.querySelector('minage');
+    const playTimeNode = item.querySelector('playingtime');
+    const ratingNode = item.querySelector('statistics ratings average');
+    const weightNode = item.querySelector('statistics ratings averageweight');
+    return {
+        bggId: parseInt(item.getAttribute('id')) || null,
+        bggName: getPrimaryName(),
+        bggYear: yearNode ? yearNode.getAttribute('value') : null,
+        bggImageUrl: item.querySelector('image')?.textContent || item.querySelector('thumbnail')?.textContent || null,
+        bggCategory: getFirstCategory(),
+        minPlayers: minPlayersNode ? parseInt(minPlayersNode.getAttribute('value')) || null : null,
+        maxPlayers: maxPlayersNode ? parseInt(maxPlayersNode.getAttribute('value')) || null : null,
+        minAge: minAgeNode ? parseInt(minAgeNode.getAttribute('value')) || null : null,
+        duration: playTimeNode ? parseInt(playTimeNode.getAttribute('value')) || null : null,
+        bggRating: ratingNode ? parseFloat(ratingNode.getAttribute('value')) : null,
+        bggComplexity: weightNode ? parseFloat(weightNode.getAttribute('value')) : null
+    };
+}
+
+async function bggSearchAndFetchBest(title) {
+    const searchXml = await callBggApi('search', { query: title, type: 'boardgame' });
+    const firstItem = searchXml.querySelector('item');
+    if (!firstItem) return null;
+    const id = firstItem.getAttribute('id');
+    const detailXml = await callBggApi('thing', { id, stats: 1 });
+    return parseBggDetails(detailXml);
+}
+
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+
+// --- Toast ---
+function showToast(message, isError = false) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'qb-toast toast-enter' + (isError ? ' qb-toast--err' : '');
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 4500);
+}
+
+function showModal(el) { el.classList.remove('cl-hidden'); }
+function hideModal(el) { el.classList.add('cl-hidden'); }
+
+let confirmCallback = null;
+function showConfirm(title, text, onConfirm) {
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-text').textContent = text;
+    confirmCallback = onConfirm;
+    showModal(document.getElementById('confirm-modal-overlay'));
+}
+document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+    if (confirmCallback) confirmCallback();
+    confirmCallback = null;
+    hideModal(document.getElementById('confirm-modal-overlay'));
+});
+document.getElementById('confirm-modal-cancel').addEventListener('click', () => hideModal(document.getElementById('confirm-modal-overlay')));
+
+// --- Globaler State ---
+let allGames = [];
+let allCollections = [];
+let allCollectionItems = [];
+let allEvents = [];
+let allEventShelves = [];
+let allEventGames = [];
+let currentUser = null;
+let activeEventId = localStorage.getItem('sv_active_event') || '';
+let unsubs = [];
+
+// --- GTNM-Referenzdatenbank (EAN -> Titel) ---
+// Statische Datei, kein Firestore-Import: ~18.500 EANs würden als Dokumente
+// nur unnötig Zeit/Kosten verursachen. Liegt lokal neben dieser HTML-Datei.
+// WICHTIG: Diese Referenz bedeutet NICHT, dass wir das Spiel besitzen — sie
+// liefert nur einen Titel-Vorschlag für tatsächlich von uns gescannte EANs.
+let eanReference = {};
+let eanReferenceLoaded = false;
+fetch('./ean-referenz.json')
+    .then(r => r.ok ? r.json() : {})
+    .then(data => { eanReference = data || {}; eanReferenceLoaded = true; })
+    .catch(() => { eanReferenceLoaded = true; });
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const loginView = document.getElementById('login-view');
+    const appView = document.getElementById('app-view');
+    const headerActions = document.getElementById('header-actions');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const loginError = document.getElementById('login-error');
+
+    // --- AUTH: Login / Register ---
+    document.getElementById('show-register-btn').addEventListener('click', () => {
+        loginForm.classList.add('cl-hidden');
+        registerForm.classList.remove('cl-hidden');
+        document.getElementById('show-register-btn').classList.add('cl-hidden');
+        document.getElementById('show-login-btn').classList.remove('cl-hidden');
+        document.getElementById('auth-title').textContent = 'Konto anlegen';
+        loginError.textContent = '';
+    });
+    document.getElementById('show-login-btn').addEventListener('click', () => {
+        registerForm.classList.add('cl-hidden');
+        loginForm.classList.remove('cl-hidden');
+        document.getElementById('show-login-btn').classList.add('cl-hidden');
+        document.getElementById('show-register-btn').classList.remove('cl-hidden');
+        document.getElementById('auth-title').textContent = 'Anmelden';
+        loginError.textContent = '';
+    });
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        loginError.textContent = '';
+        signInWithEmailAndPassword(auth, email, password)
+            .catch(err => {
+                console.error('Login-Fehler:', err.code, err.message);
+                loginError.textContent = 'Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.';
+            });
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.textContent = '';
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const code = document.getElementById('register-code').value.trim();
+        try {
+            const configSnap = await getDoc(doc(db, 'config', 'registration'));
+            const validCode = configSnap.exists() ? configSnap.data().code : null;
+            if (!validCode || code !== validCode) {
+                loginError.textContent = 'Zugangscode ist falsch.';
+                return;
+            }
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch (err) {
+            console.error('Registrierung fehlgeschlagen:', err.code, err.message);
+            loginError.textContent = err.code === 'auth/email-already-in-use' ? 'Diese E-Mail ist schon registriert.' : 'Registrierung fehlgeschlagen.';
+        }
+    });
+
+    function renderHeaderActions() {
+        if (currentUser) {
+            headerActions.innerHTML = `
+                <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
+                <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        } else {
+            headerActions.innerHTML = '';
+        }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        renderHeaderActions();
+        if (user) {
+            loginView.classList.add('cl-hidden');
+            appView.classList.remove('cl-hidden');
+            startListeners();
+        } else {
+            loginView.classList.remove('cl-hidden');
+            appView.classList.add('cl-hidden');
+            stopListeners();
+        }
+    });
+
+    function startListeners() {
+        if (unsubs.length) return;
+        unsubs.push(onSnapshot(collection(db, 'games'), (snap) => {
+            allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDatenbankTab();
+            renderCollectionsTab();
+        }, err => console.error('games onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'collections'), (snap) => {
+            allCollections = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+            renderCollectionsTab();
+            renderNewEventCollectionCheckboxes();
+        }, err => console.error('collections onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'collectionItems'), (snap) => {
+            allCollectionItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderCollectionsTab();
+        }, err => console.error('collectionItems onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'events'), (snap) => {
+            allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            renderEventSelects();
+            renderEventsTab();
+        }, err => console.error('events onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'eventShelves'), (snap) => {
+            allEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderEventsTab();
+        }, err => console.error('eventShelves onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'eventGames'), (snap) => {
+            allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderAusleiheTab();
+            renderEventsTab();
+        }, err => console.error('eventGames onSnapshot Fehler:', err)));
+    }
+
+    function stopListeners() {
+        unsubs.forEach(u => u());
+        unsubs = [];
+        allGames = []; allCollections = []; allCollectionItems = []; allEvents = []; allEventShelves = []; allEventGames = [];
+    }
+
+    // --- TABS ---
+    document.querySelectorAll('.sv-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.sv-tab-btn').forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            document.querySelectorAll('.sv-tab-panel').forEach(p => p.classList.add('cl-hidden'));
+            document.getElementById('tab-' + btn.dataset.tab).classList.remove('cl-hidden');
+        });
+    });
+    function switchToTab(tabName) { document.querySelector(`.sv-tab-btn[data-tab="${tabName}"]`).click(); }
+
+    // ======================================================
+    // AKTIVES EVENT
+    // ======================================================
+    const activeEventSelect = document.getElementById('active-event-select');
+    const activeEventInfo = document.getElementById('active-event-info');
+
+    function renderEventSelects() {
+        const opts = ['<option value="">— kein aktives Event —</option>']
+            .concat(allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`));
+        activeEventSelect.innerHTML = opts.join('');
+        activeEventSelect.value = allEvents.some(ev => ev.id === activeEventId) ? activeEventId : '';
+        if (activeEventSelect.value !== activeEventId) { activeEventId = activeEventSelect.value; localStorage.setItem('sv_active_event', activeEventId); }
+        updateActiveEventInfo();
+
+        const statsSelect = document.getElementById('stats-event-select');
+        const prevStats = statsSelect.value;
+        statsSelect.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('') || '<option value="">— keine Events —</option>';
+        if (allEvents.some(ev => ev.id === prevStats)) statsSelect.value = prevStats;
+        renderStats();
+        renderAusleiheTab();
+    }
+
+    function updateActiveEventInfo() {
+        const ev = allEvents.find(e => e.id === activeEventId);
+        activeEventInfo.textContent = ev ? `Ausleihen werden aktuell "${ev.name}" zugeordnet.` : 'Kein Event gewählt – Ausleihen sind derzeit nicht möglich.';
+    }
+
+    activeEventSelect.addEventListener('change', () => {
+        activeEventId = activeEventSelect.value;
+        localStorage.setItem('sv_active_event', activeEventId);
+        updateActiveEventInfo();
+        renderAusleiheTab();
+    });
+
+    // ======================================================
+    // TAB: SPIELEDATENBANK
+    // ======================================================
+    // Gemeinsame Warteschlange für den throttled BGG-Abgleich (5 Sek. Abstand),
+    // genutzt sowohl vom Stufe-2-JSON-Import als auch vom automatischen
+    // Abgleich mit der GTNM-Referenzliste nach Stufe 1.
+    async function runBggEnrichQueue(items, defaultTitleSource) {
+        const progressWrap = document.getElementById('stage2-progress-wrap');
+        const progressBar = document.getElementById('stage2-progress-bar');
+        const progressText = document.getElementById('stage2-progress-text');
+        const log = document.getElementById('stage2-log');
+        progressWrap.classList.remove('cl-hidden');
+        log.innerHTML = '';
+        document.getElementById('stage2-import-btn').disabled = true;
+
+        let done = 0;
+        function updateProgress() {
+            const pct = Math.round((done / items.length) * 100);
+            progressBar.style.width = pct + '%';
+            progressText.textContent = `${done} von ${items.length} erledigt`;
+        }
+        function logLine(text, ok) {
+            const div = document.createElement('div');
+            div.className = 'sv-progress-log-item';
+            div.innerHTML = `<span>${escapeHTML(text)}</span><span>${ok ? '✅' : '⚠️'}</span>`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        for (const item of items) {
+            const ean = (item.ean || '').toString().trim();
+            const titleGuess = item.title ? String(item.title).trim() : '';
+            const titleSource = item.source || defaultTitleSource || null;
+            if (!ean) { done++; updateProgress(); continue; }
+            const gameRef = doc(db, 'games', ean);
+            try {
+                if (!allGames.some(g => g.id === ean)) {
+                    await setDoc(gameRef, { ean, name: titleGuess || null, titleSource, enrichStatus: 'pending', addedAt: serverTimestamp() });
+                }
+                if (titleGuess) {
+                    const match = await bggSearchAndFetchBest(titleGuess);
+                    if (match) {
+                        await updateDoc(gameRef, {
+                            name: titleGuess || match.bggName, titleSource,
+                            bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
+                            minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
+                            Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
+                            category: match.bggCategory, enrichStatus: 'done', updatedAt: serverTimestamp()
+                        });
+                        logLine(`${ean}: ${titleGuess || match.bggName}`, true);
+                    } else {
+                        await updateDoc(gameRef, { name: titleGuess, titleSource, enrichStatus: 'not_found', updatedAt: serverTimestamp() });
+                        logLine(`${ean}: kein BGG-Treffer für "${titleGuess}"`, false);
+                    }
+                } else {
+                    await updateDoc(gameRef, { enrichStatus: 'not_found', updatedAt: serverTimestamp() });
+                    logLine(`${ean}: kein Titel angegeben`, false);
+                }
+            } catch (err) {
+                console.error('BGG-Abgleich Fehler für', ean, err);
+                await updateDoc(gameRef, { enrichStatus: 'error', updatedAt: serverTimestamp() }).catch(() => {});
+                logLine(`${ean}: Fehler (${err.message})`, false);
+            }
+            done++;
+            updateProgress();
+            if (done < items.length) await sleep(5000);
+        }
+        document.getElementById('stage2-import-btn').disabled = false;
+        showToast('Abgleich abgeschlossen. Bitte Ergebnisse in der Tabelle prüfen.');
+    }
+
+    function resetConfirmModalStyle() {
+        const okBtn = document.getElementById('confirm-modal-ok');
+        okBtn.textContent = 'Löschen';
+        okBtn.style.background = 'var(--cl-err)';
+        okBtn.style.borderColor = 'var(--cl-err)';
+    }
+
+    document.getElementById('stage1-add-btn').addEventListener('click', async () => {
+        const textarea = document.getElementById('stage1-textarea');
+        const feedback = document.getElementById('stage1-feedback');
+        const lines = textarea.value.split('\n').map(x => x.trim()).filter(Boolean);
+        if (lines.length === 0) { feedback.textContent = 'Bitte mindestens eine EAN eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        feedback.textContent = `Erfasse ${lines.length} EAN(s)…`;
+        feedback.style.color = 'var(--cl-muted)';
+        let added = 0, skipped = 0;
+        const matchedForEnrich = [];
+        for (const ean of lines) {
+            if (allGames.some(g => g.id === ean)) { skipped++; continue; }
+            const refTitle = eanReference[ean] || null;
+            try {
+                await setDoc(doc(db, 'games', ean), {
+                    ean, name: refTitle, titleSource: refTitle ? 'gtnm' : null,
+                    enrichStatus: 'pending', addedAt: serverTimestamp()
+                });
+                added++;
+                if (refTitle) matchedForEnrich.push({ ean, title: refTitle, source: 'gtnm' });
+            } catch (err) { console.error('EAN erfassen fehlgeschlagen:', ean, err); }
+        }
+        feedback.textContent = `${added} neu erfasst.` + (skipped > 0 ? ` ${skipped} bereits vorhanden.` : '')
+            + (matchedForEnrich.length > 0 ? ` ${matchedForEnrich.length} Titel aus der GTNM-Referenzliste erkannt.` : '');
+        feedback.style.color = 'var(--cl-ok)';
+        textarea.value = '';
+
+        if (matchedForEnrich.length > 0) {
+            const okBtn = document.getElementById('confirm-modal-ok');
+            okBtn.textContent = 'Ja, anreichern';
+            okBtn.style.background = '';
+            okBtn.style.borderColor = '';
+            showConfirm(
+                'Titel automatisch anreichern?',
+                `Für ${matchedForEnrich.length} der neu erfassten EAN(s) wurde ein Titel in der GTNM-Referenzliste gefunden (kein Besitznachweis, nur ein Titel-Vorschlag). Jetzt automatisch bei BGG abgleichen (Bild, Spieleranzahl, Alter, Dauer, Bewertung)? Das dauert bei vielen Treffern etwas (5 Sek. je Spiel).`,
+                () => { runBggEnrichQueue(matchedForEnrich, 'gtnm'); resetConfirmModalStyle(); }
+            );
+        }
+    });
+
+    document.getElementById('stage2-import-btn').addEventListener('click', async () => {
+        const textarea = document.getElementById('stage2-textarea');
+        let items;
+        try { items = JSON.parse(textarea.value.trim()); }
+        catch (err) { showToast('Ungültiges JSON.', true); return; }
+        if (!Array.isArray(items) || items.length === 0) { showToast('Die Liste ist leer oder kein Array.', true); return; }
+        await runBggEnrichQueue(items, 'stage2-import');
+    });
+
+    const dbSearchInput = document.getElementById('db-search-input');
+    const dbStatusFilter = document.getElementById('db-status-filter');
+    const gamesTableBody = document.getElementById('games-table-body');
+    const gamesEmpty = document.getElementById('games-empty');
+    dbSearchInput.addEventListener('input', renderDatenbankTab);
+    dbStatusFilter.addEventListener('change', renderDatenbankTab);
+
+    function enrichBadge(status) {
+        const map = { done: ['Fertig', 'done'], pending: ['Offen', 'pending'], not_found: ['Kein Treffer', 'not_found'], error: ['Fehler', 'error'] };
+        const [label, cls] = map[status] || ['Offen', 'pending'];
+        return `<span class="sv-badge-enrich sv-badge-enrich--${cls}">${label}</span>`;
+    }
+
+    function titleSourceLabel(source) {
+        const map = { gtnm: 'GTNM-Referenz', manual: 'manuell', 'stage2-import': 'Recherche-Import' };
+        return source ? (map[source] || source) : null;
+    }
+
+    function renderDatenbankTab() {
+        const term = dbSearchInput.value.trim().toLowerCase();
+        const statusVal = dbStatusFilter.value;
+        const filtered = allGames.filter(g => {
+            const nameMatch = !term || (g.name || '').toLowerCase().includes(term) || (g.id || '').includes(term);
+            const statusMatch = statusVal === 'all' || (g.enrichStatus || 'pending') === statusVal;
+            return nameMatch && statusMatch;
+        }).sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || '', 'de'));
+
+        gamesEmpty.classList.toggle('cl-hidden', filtered.length > 0);
+        gamesTableBody.innerHTML = filtered.map(g => `
+            <tr>
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(g.name || '(ohne Titel)')}${titleSourceLabel(g.titleSource) ? `<br><span class="cl-muted" style="font-size:.75rem;">Quelle: ${escapeHTML(titleSourceLabel(g.titleSource))}</span>` : ''}</td>
+                <td style="font-family: monospace; font-size:.8rem;">${escapeHTML(g.id)}</td>
+                <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
+                <td>${enrichBadge(g.enrichStatus)}</td>
+                <td class="sv-row-actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-edit-game-btn" data-id="${g.id}">Bearbeiten</button>
+                </td>
+            </tr>`).join('');
+    }
+    gamesTableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-edit-game-btn');
+        if (!btn) return;
+        const game = allGames.find(g => g.id === btn.dataset.id);
+        if (game) openGameModal(game);
+    });
+    document.getElementById('open-add-game-btn').addEventListener('click', () => openGameModal(null));
+
+    // --- Game Modal (Master-Datenbank) ---
+    const gameModalOverlay = document.getElementById('game-modal-overlay');
+    const gameModalTitle = document.getElementById('game-modal-title');
+    const gameForm = document.getElementById('game-form');
+    const gameEanInput = document.getElementById('game-ean');
+    const gameNameInput = document.getElementById('game-name-input');
+    const gameMinPlayers = document.getElementById('game-minplayers');
+    const gameMaxPlayers = document.getElementById('game-maxplayers');
+    const gameMinAge = document.getElementById('game-minage');
+    const gameDuration = document.getElementById('game-duration');
+    const gameCategory = document.getElementById('game-category');
+    const deleteGameBtn = document.getElementById('delete-game-btn');
+    let editingGameId = null;
+
+    function clearBggMatch() {
+        selectedBggMatch = null;
+        document.getElementById('bgg-match-preview').classList.add('cl-hidden');
+        document.getElementById('bgg-match-preview').innerHTML = '';
+        document.getElementById('bgg-search-panel').classList.add('cl-hidden');
+        document.getElementById('bgg-search-results').innerHTML = '';
+    }
+
+    function openGameModal(game, prefillEan) {
+        clearBggMatch();
+        gameForm.reset();
+        if (game) {
+            editingGameId = game.id;
+            gameModalTitle.textContent = 'Spiel bearbeiten';
+            gameEanInput.value = game.id;
+            gameEanInput.disabled = true;
+            gameNameInput.value = game.name || '';
+            gameMinPlayers.value = game.minPlayers ?? '';
+            gameMaxPlayers.value = game.maxPlayers ?? '';
+            gameMinAge.value = game.minAge ?? '';
+            gameDuration.value = game.Duration ?? '';
+            gameCategory.value = game.category || '';
+            deleteGameBtn.classList.remove('cl-hidden');
+            if (game.bggImageUrl || game.bggId) {
+                selectedBggMatch = { bggId: game.bggId, bggImageUrl: game.bggImageUrl, bggName: game.name, bggRating: game.rating, bggComplexity: game.complexity };
+                renderBggMatchPreview(selectedBggMatch, true);
+            }
+        } else {
+            editingGameId = null;
+            gameModalTitle.textContent = 'Neues Spiel anlegen';
+            gameEanInput.value = prefillEan || '';
+            gameEanInput.disabled = false;
+            deleteGameBtn.classList.add('cl-hidden');
+        }
+        showModal(gameModalOverlay);
+        (prefillEan || game ? gameNameInput : gameEanInput).focus();
+    }
+
+    document.getElementById('game-modal-close').addEventListener('click', () => hideModal(gameModalOverlay));
+    document.getElementById('game-modal-cancel').addEventListener('click', () => hideModal(gameModalOverlay));
+    gameModalOverlay.addEventListener('click', (e) => { if (e.target === gameModalOverlay) hideModal(gameModalOverlay); });
+
+    document.getElementById('bgg-search-btn').addEventListener('click', async () => {
+        const q = gameNameInput.value.trim();
+        const panel = document.getElementById('bgg-search-panel');
+        const results = document.getElementById('bgg-search-results');
+        if (!q) { showToast('Bitte zuerst einen Spielnamen eingeben.', true); return; }
+        panel.classList.remove('cl-hidden');
+        results.innerHTML = '<p class="qb-bgg-hint">Suche auf BGG…</p>';
+        try {
+            const xmlDoc = await callBggApi('search', { query: q, type: 'boardgame' });
+            const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 20);
+            if (items.length === 0) { results.innerHTML = '<p class="qb-bgg-hint">Keine Treffer auf BGG gefunden.</p>'; return; }
+            results.innerHTML = items.map(item => {
+                const id = item.getAttribute('id');
+                const nameNode = item.querySelector('name');
+                const yearNode = item.querySelector('yearpublished');
+                const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannt';
+                const year = yearNode ? yearNode.getAttribute('value') : '';
+                return `<div class="qb-bgg-result-item" data-id="${id}"><span>${escapeHTML(name)}</span><span class="qb-bgg-result-item__year">${escapeHTML(year)}</span></div>`;
+            }).join('');
+        } catch (err) {
+            console.error('BGG-Suche fehlgeschlagen:', err);
+            results.innerHTML = '<p class="qb-bgg-hint">Suche fehlgeschlagen (evtl. Netzwerk/CORS). Du kannst den Namen frei eingeben.</p>';
+        }
+    });
+
+    document.getElementById('bgg-search-results').addEventListener('click', async (e) => {
+        const item = e.target.closest('.qb-bgg-result-item');
+        if (!item) return;
+        const id = item.dataset.id;
+        const results = document.getElementById('bgg-search-results');
+        results.innerHTML = '<p class="qb-bgg-hint">Lade Details…</p>';
+        try {
+            const xmlDoc = await callBggApi('thing', { id, stats: 1 });
+            const match = parseBggDetails(xmlDoc);
+            if (!match) throw new Error('Keine Details gefunden.');
+            selectedBggMatch = match;
+            gameNameInput.value = gameNameInput.value.trim() || match.bggName || '';
+            if (match.minPlayers) gameMinPlayers.value = match.minPlayers;
+            if (match.maxPlayers) gameMaxPlayers.value = match.maxPlayers;
+            if (match.minAge) gameMinAge.value = match.minAge;
+            if (match.duration) gameDuration.value = match.duration;
+            if (match.bggCategory) gameCategory.value = match.bggCategory;
+            renderBggMatchPreview(match, false);
+        } catch (err) {
+            console.error('BGG-Details fehlgeschlagen:', err);
+            results.innerHTML = '<p class="qb-bgg-hint">Details konnten nicht geladen werden.</p>';
+        }
+    });
+
+    function renderBggMatchPreview(match, isExisting) {
+        const el = document.getElementById('bgg-match-preview');
+        el.innerHTML = `
+            ${match.bggImageUrl ? `<img src="${escapeHTML(match.bggImageUrl)}" alt="">` : ''}
+            <div class="qb-bgg-match__body">
+                <div class="qb-bgg-match__title">${escapeHTML(match.bggName || '')}</div>
+                <div class="qb-bgg-match__badges">
+                    ${match.bggRating ? `<span class="qb-bgg-badge">⭐ ${match.bggRating.toFixed(1)}</span>` : ''}
+                    ${match.bggComplexity ? `<span class="qb-bgg-badge">⚙️ ${match.bggComplexity.toFixed(1)}</span>` : ''}
+                    ${isExisting ? '<span class="qb-bgg-badge">bereits verknüpft</span>' : ''}
+                </div>
+            </div>`;
+        el.classList.remove('cl-hidden');
+        document.getElementById('bgg-search-panel').classList.add('cl-hidden');
+    }
+
+    gameForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ean = gameEanInput.value.trim();
+        if (!ean) { showToast('Bitte eine EAN eingeben.', true); return; }
+        const payload = {
+            ean,
+            name: gameNameInput.value.trim(),
+            minPlayers: gameMinPlayers.value ? parseInt(gameMinPlayers.value) : null,
+            maxPlayers: gameMaxPlayers.value ? parseInt(gameMaxPlayers.value) : null,
+            minAge: gameMinAge.value ? parseInt(gameMinAge.value) : null,
+            Duration: gameDuration.value ? parseInt(gameDuration.value) : null,
+            category: gameCategory.value.trim() || null,
+            bggId: selectedBggMatch?.bggId ?? null,
+            bggImageUrl: selectedBggMatch?.bggImageUrl ?? null,
+            bggYear: selectedBggMatch?.bggYear ?? null,
+            rating: selectedBggMatch?.bggRating ?? null,
+            complexity: selectedBggMatch?.bggComplexity ?? null,
+            enrichStatus: selectedBggMatch ? 'done' : 'pending',
+            updatedAt: serverTimestamp()
+        };
+        try {
+            if (editingGameId) {
+                await updateDoc(doc(db, 'games', editingGameId), payload);
+                showToast('Spiel aktualisiert.');
+            } else {
+                const existing = await getDoc(doc(db, 'games', ean));
+                if (existing.exists() && existing.data().name) { showToast('Diese EAN ist bereits vorhanden.', true); return; }
+                await setDoc(doc(db, 'games', ean), { ...payload, addedAt: serverTimestamp() });
+                showToast('Spiel angelegt.');
+            }
+            hideModal(gameModalOverlay);
+        } catch (err) {
+            console.error('Speichern fehlgeschlagen:', err);
+            showToast('Speichern fehlgeschlagen.', true);
+        }
+    });
+
+    deleteGameBtn.addEventListener('click', () => {
+        if (!editingGameId) return;
+        showConfirm('Spiel löschen', `Soll "${gameNameInput.value}" wirklich endgültig aus der Datenbank gelöscht werden? (Sammlungs-Zuordnungen bleiben als Karteileichen bestehen.)`, async () => {
+            try {
+                await deleteDoc(doc(db, 'games', editingGameId));
+                showToast('Spiel gelöscht.');
+                hideModal(gameModalOverlay);
+            } catch (err) {
+                console.error('Löschen fehlgeschlagen:', err);
+                showToast('Löschen fehlgeschlagen.', true);
+            }
+        });
+    });
+
+    // ======================================================
+    // TAB: SAMMLUNGEN
+    // ======================================================
+    document.getElementById('add-collection-btn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-collection-name');
+        const descInput = document.getElementById('new-collection-desc');
+        const feedback = document.getElementById('collection-feedback');
+        const name = nameInput.value.trim();
+        if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        try {
+            await addDoc(collection(db, 'collections'), { name, description: descInput.value.trim() || null, createdAt: serverTimestamp() });
+            nameInput.value = ''; descInput.value = '';
+            feedback.textContent = `Sammlung "${name}" angelegt.`;
+            feedback.style.color = 'var(--cl-ok)';
+        } catch (err) {
+            console.error('Sammlung anlegen fehlgeschlagen:', err);
+            feedback.textContent = 'Anlegen fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderCollectionsTab() {
+        const grid = document.getElementById('collections-grid');
+        if (allCollections.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Sammlungen angelegt.</p>'; return; }
+        grid.innerHTML = allCollections.map(c => {
+            const count = allCollectionItems.filter(ci => ci.collectionId === c.id).length;
+            return `
+            <div class="sv-entity-card">
+                <div class="sv-entity-card__head">
+                    <div>
+                        <p class="sv-entity-card__title">${escapeHTML(c.name)}</p>
+                        <p class="sv-entity-card__meta">${count} Spiel(e)${c.description ? ' · ' + escapeHTML(c.description) : ''}</p>
+                    </div>
+                </div>
+                <div class="sv-entity-card__actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-open-collection-btn" data-id="${c.id}">Öffnen</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('collections-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-open-collection-btn');
+        if (btn) openCollectionModal(btn.dataset.id);
+    });
+
+    let currentCollectionId = null;
+    const collectionModalOverlay = document.getElementById('collection-modal-overlay');
+    function openCollectionModal(id) {
+        currentCollectionId = id;
+        const c = allCollections.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('collection-modal-title').textContent = c.name;
+        document.getElementById('collection-modal-desc').textContent = c.description || '';
+        document.getElementById('collection-add-search').value = '';
+        document.getElementById('collection-add-results').classList.add('cl-hidden');
+        renderCollectionItemsTable();
+        showModal(collectionModalOverlay);
+    }
+    function closeCollectionModal() { hideModal(collectionModalOverlay); currentCollectionId = null; }
+    document.getElementById('collection-modal-close').addEventListener('click', closeCollectionModal);
+    document.getElementById('collection-modal-close2').addEventListener('click', closeCollectionModal);
+    collectionModalOverlay.addEventListener('click', (e) => { if (e.target === collectionModalOverlay) closeCollectionModal(); });
+
+    function renderCollectionItemsTable() {
+        const body = document.getElementById('collection-items-body');
+        const empty = document.getElementById('collection-items-empty');
+        const items = allCollectionItems.filter(ci => ci.collectionId === currentCollectionId);
+        empty.classList.toggle('cl-hidden', items.length > 0);
+        body.innerHTML = items.map(ci => {
+            const g = allGames.find(g => g.id === ci.ean);
+            return `<tr>
+                <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(ci.gameName || g?.name || ci.ean)}</td>
+                <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-collection-item" data-id="${ci.id}">Entfernen</button></td>
+            </tr>`;
+        }).join('');
+    }
+    document.getElementById('collection-items-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-remove-collection-item');
+        if (!btn) return;
+        deleteDoc(doc(db, 'collectionItems', btn.dataset.id)).catch(err => { console.error(err); showToast('Entfernen fehlgeschlagen.', true); });
+    });
+
+    const collectionAddSearch = document.getElementById('collection-add-search');
+    const collectionAddResults = document.getElementById('collection-add-results');
+    collectionAddSearch.addEventListener('input', () => {
+        const term = collectionAddSearch.value.trim().toLowerCase();
+        if (!term) { collectionAddResults.classList.add('cl-hidden'); return; }
+        const already = new Set(allCollectionItems.filter(ci => ci.collectionId === currentCollectionId).map(ci => ci.ean));
+        const matches = allGames.filter(g => !already.has(g.id) && ((g.name || '').toLowerCase().includes(term) || g.id.includes(term))).slice(0, 15);
+        collectionAddResults.innerHTML = matches.length ? matches.map(g => `
+            <div class="sv-manual-result-item" data-ean="${g.id}" data-name="${escapeHTML(g.name || g.id)}">
+                <span>${escapeHTML(g.name || '(ohne Titel)')} <span class="cl-muted" style="font-size:.8rem;">${escapeHTML(g.id)}</span></span>
+                <span class="cl-btn cl-btn--ghost cl-btn--sm">+ hinzufügen</span>
+            </div>`).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
+        collectionAddResults.classList.remove('cl-hidden');
+    });
+    collectionAddResults.addEventListener('click', async (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item || !currentCollectionId) return;
+        const ean = item.dataset.ean, name = item.dataset.name;
+        try {
+            await setDoc(doc(db, 'collectionItems', `${currentCollectionId}_${ean}`), { collectionId: currentCollectionId, ean, gameName: name, addedAt: serverTimestamp() });
+            collectionAddSearch.value = '';
+            collectionAddResults.classList.add('cl-hidden');
+            showToast(`"${name}" zur Sammlung hinzugefügt.`);
+        } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
+    });
+
+    document.getElementById('delete-collection-btn').addEventListener('click', () => {
+        if (!currentCollectionId) return;
+        const c = allCollections.find(x => x.id === currentCollectionId);
+        showConfirm('Sammlung löschen', `Sammlung "${c?.name}" inkl. aller Zuordnungen wirklich löschen? Die Spiele selbst bleiben in der Datenbank erhalten.`, async () => {
+            try {
+                const items = allCollectionItems.filter(ci => ci.collectionId === currentCollectionId);
+                for (const ci of items) await deleteDoc(doc(db, 'collectionItems', ci.id));
+                await deleteDoc(doc(db, 'collections', currentCollectionId));
+                showToast('Sammlung gelöscht.');
+                closeCollectionModal();
+            } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    // ======================================================
+    // TAB: EVENTS
+    // ======================================================
+    function renderNewEventCollectionCheckboxes() {
+        const wrap = document.getElementById('new-event-collections');
+        wrap.innerHTML = allCollections.map(c => `
+            <label class="sv-checkbox-chip"><input type="checkbox" value="${c.id}"> ${escapeHTML(c.name)}</label>
+        `).join('') || '<p class="cl-muted" style="font-size:.85rem;">Erst eine Sammlung anlegen.</p>';
+    }
+
+    document.getElementById('add-event-btn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-event-name');
+        const dateInput = document.getElementById('new-event-date');
+        const feedback = document.getElementById('event-feedback');
+        const name = nameInput.value.trim();
+        const selectedCollections = Array.from(document.querySelectorAll('#new-event-collections input:checked')).map(cb => cb.value);
+        if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        try {
+            await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp() });
+            nameInput.value = ''; dateInput.value = '';
+            document.querySelectorAll('#new-event-collections input:checked').forEach(cb => cb.checked = false);
+            feedback.textContent = `Event "${name}" angelegt.`;
+            feedback.style.color = 'var(--cl-ok)';
+        } catch (err) {
+            console.error('Event anlegen fehlgeschlagen:', err);
+            feedback.textContent = 'Anlegen fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderEventsTab() {
+        const grid = document.getElementById('events-grid');
+        if (allEvents.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Events angelegt.</p>'; return; }
+        grid.innerHTML = '<div class="sv-card-grid">' + allEvents.map(ev => {
+            const count = allEventGames.filter(eg => eg.eventId === ev.id).length;
+            const colNames = (ev.sourceCollectionIds || []).map(id => allCollections.find(c => c.id === id)?.name).filter(Boolean).join(', ');
+            return `
+            <div class="sv-entity-card">
+                <div class="sv-entity-card__head">
+                    <div>
+                        <p class="sv-entity-card__title">${escapeHTML(ev.name)} ${ev.id === activeEventId ? '<span class="qb-bgg-badge">aktiv</span>' : ''}</p>
+                        <p class="sv-entity-card__meta">${ev.date ? escapeHTML(ev.date) + ' · ' : ''}${count} Spiel(e)${colNames ? ' · Aus: ' + escapeHTML(colNames) : ''}</p>
+                    </div>
+                </div>
+                <div class="sv-entity-card__actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-open-event-btn" data-id="${ev.id}">Öffnen</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+    document.getElementById('events-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-open-event-btn');
+        if (btn) openEventModal(btn.dataset.id);
+    });
+
+    let currentEventId = null;
+    const eventModalOverlay = document.getElementById('event-modal-overlay');
+    function openEventModal(id) {
+        currentEventId = id;
+        const ev = allEvents.find(e => e.id === id);
+        if (!ev) return;
+        document.getElementById('event-modal-title').textContent = ev.name;
+        const colNames = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+        document.getElementById('event-modal-meta').textContent = (ev.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
+        document.getElementById('event-add-search').value = '';
+        document.getElementById('event-add-results').classList.add('cl-hidden');
+        const embedUrl = location.href.replace(/spieleausleihe-verwaltung\.html.*$/, '') + `index.html?event=${id}`;
+        document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
+        renderEventShelfGrid();
+        renderEventGamesTable();
+        showModal(eventModalOverlay);
+    }
+    function closeEventModal() { hideModal(eventModalOverlay); currentEventId = null; }
+    document.getElementById('event-modal-close').addEventListener('click', closeEventModal);
+    document.getElementById('event-modal-close2').addEventListener('click', closeEventModal);
+    eventModalOverlay.addEventListener('click', (e) => { if (e.target === eventModalOverlay) closeEventModal(); });
+
+    document.getElementById('copy-embed-btn').addEventListener('click', () => {
+        const ta = document.getElementById('event-embed-code');
+        ta.select();
+        navigator.clipboard?.writeText(ta.value).then(() => showToast('Code kopiert.')).catch(() => {});
+    });
+
+    document.getElementById('set-active-event-btn').addEventListener('click', () => {
+        if (!currentEventId) return;
+        activeEventId = currentEventId;
+        localStorage.setItem('sv_active_event', activeEventId);
+        activeEventSelect.value = activeEventId;
+        updateActiveEventInfo();
+        renderEventsTab();
+        renderAusleiheTab();
+        showToast('Aktives Event gesetzt.');
+    });
+
+    document.getElementById('delete-event-btn').addEventListener('click', () => {
+        if (!currentEventId) return;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        showConfirm('Event löschen', `Event "${ev?.name}" inkl. Regale und Spielzuordnungen wirklich löschen? Ausleihstatistiken (bereits erfasste Ausleihen) bleiben erhalten.`, async () => {
+            try {
+                const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+                for (const s of shelves) await deleteDoc(doc(db, 'eventShelves', s.id));
+                const games = allEventGames.filter(g => g.eventId === currentEventId);
+                for (const g of games) await deleteDoc(doc(db, 'eventGames', g.id));
+                await deleteDoc(doc(db, 'events', currentEventId));
+                if (activeEventId === currentEventId) { activeEventId = ''; localStorage.removeItem('sv_active_event'); }
+                showToast('Event gelöscht.');
+                closeEventModal();
+            } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    function renderEventShelfGrid() {
+        const grid = document.getElementById('event-shelf-grid');
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        if (shelves.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>'; return; }
+        grid.innerHTML = shelves.map(s => {
+            const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === s.id).length;
+            return `<div class="sv-shelf-card">
+                <div><div style="font-weight:600;">${escapeHTML(s.name)}</div><div class="cl-muted" style="font-size:.8rem;">${count} Spiel(e)</div></div>
+                <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('add-event-shelf-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const input = document.getElementById('new-event-shelf-name');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+            await addDoc(collection(db, 'eventShelves'), { eventId: currentEventId, name, createdAt: serverTimestamp() });
+            input.value = '';
+        } catch (err) { console.error(err); showToast('Regal anlegen fehlgeschlagen.', true); }
+    });
+    document.getElementById('event-shelf-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-delete-event-shelf');
+        if (!btn) return;
+        const count = parseInt(btn.dataset.count);
+        if (count > 0) { showToast(`Regal "${btn.dataset.name}" enthält noch ${count} Spiel(e).`, true); return; }
+        showConfirm('Regal löschen', `Regal "${btn.dataset.name}" wirklich löschen?`, async () => {
+            try { await deleteDoc(doc(db, 'eventShelves', btn.dataset.id)); } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    const eventAddSearch = document.getElementById('event-add-search');
+    const eventAddResults = document.getElementById('event-add-results');
+    eventAddSearch.addEventListener('input', () => {
+        const term = eventAddSearch.value.trim().toLowerCase();
+        eventAddResults.classList.toggle('cl-hidden', !term);
+        if (!term || !currentEventId) return;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        const sourceIds = ev?.sourceCollectionIds || [];
+        const already = new Set(allEventGames.filter(g => g.eventId === currentEventId).map(g => g.ean));
+        const candidates = allCollectionItems.filter(ci => sourceIds.includes(ci.collectionId) && !already.has(ci.ean) &&
+            ((ci.gameName || '').toLowerCase().includes(term) || ci.ean.includes(term)));
+        eventAddResults.innerHTML = candidates.length ? candidates.slice(0, 15).map(ci => {
+            const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
+            return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(ci.gameName || ci.ean)}">
+                <span>${escapeHTML(ci.gameName || ci.ean)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
+                <span class="cl-btn cl-btn--ghost cl-btn--sm">+ hinzufügen</span>
+            </div>`;
+        }).join('') : '<div class="qb-bgg-hint">Keine Treffer in den gewählten Sammlungen.</div>';
+    });
+    eventAddResults.addEventListener('click', async (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item || !currentEventId) return;
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        if (shelves.length === 0) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
+        const ean = item.dataset.ean, collectionId = item.dataset.collection, name = item.dataset.name;
+        const g = allGames.find(g => g.id === ean);
+        try {
+            await setDoc(doc(db, 'eventGames', `${currentEventId}_${ean}`), {
+                eventId: currentEventId, ean, collectionId, gameName: name,
+                bggImageUrl: g?.bggImageUrl ?? null, minPlayers: g?.minPlayers ?? null, maxPlayers: g?.maxPlayers ?? null,
+                minAge: g?.minAge ?? null, Duration: g?.Duration ?? null, rating: g?.rating ?? null, complexity: g?.complexity ?? null, category: g?.category ?? null,
+                shelfId: shelves[0].id, ausleihstatus: 'verfügbar', currentLoanId: null, borrowedAt: null, addedAt: serverTimestamp()
+            });
+            eventAddSearch.value = '';
+            eventAddResults.classList.add('cl-hidden');
+            showToast(`"${name}" zum Event hinzugefügt.`);
+        } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
+    });
+
+    function renderEventGamesTable() {
+        const body = document.getElementById('event-games-body');
+        const empty = document.getElementById('event-games-empty');
+        const games = allEventGames.filter(g => g.eventId === currentEventId);
+        empty.classList.toggle('cl-hidden', games.length > 0);
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        body.innerHTML = games.map(g => {
+            return `<tr>
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(g.gameName)}</td>
+                <td>
+                    <select class="cl-select sv-event-game-shelf-select" data-id="${g.id}" style="min-width:100px;">
+                        ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
+                    </select>
+                </td>
+                <td><span class="sv-badge-status ${g.ausleihstatus === 'ausgeliehen' ? 'sv-badge-status--aus' : 'sv-badge-status--frei'}">${g.ausleihstatus === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'}</span></td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-event-game" data-id="${g.id}" ${g.ausleihstatus === 'ausgeliehen' ? 'disabled' : ''}>Entfernen</button></td>
+            </tr>`;
+        }).join('');
+    }
+    document.getElementById('event-games-body').addEventListener('change', async (e) => {
+        const sel = e.target.closest('.sv-event-game-shelf-select');
+        if (!sel) return;
+        try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value }); }
+        catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
+    });
+    document.getElementById('event-games-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-remove-event-game');
+        if (!btn || btn.disabled) return;
+        showConfirm('Spiel entfernen', 'Dieses Spiel aus dem Event entfernen?', async () => {
+            try { await deleteDoc(doc(db, 'eventGames', btn.dataset.id)); }
+            catch (err) { console.error(err); showToast('Entfernen fehlgeschlagen.', true); }
+        });
+    });
+
+    // ======================================================
+    // TAB: AUSLEIHE / RÜCKGABE (scoped auf aktives Event)
+    // ======================================================
+    const scanInput = document.getElementById('scan-input');
+    const scanResult = document.getElementById('scan-result');
+    const manualSearchInput = document.getElementById('manual-search-input');
+    const manualResults = document.getElementById('manual-search-results');
+    const borrowedTableBody = document.getElementById('borrowed-table-body');
+    const borrowedEmpty = document.getElementById('borrowed-empty');
+
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = scanInput.value.trim();
+            scanInput.value = '';
+            if (value) handleScan(value);
+        }
+    });
+
+    function shelfNameFor(eventId, shelfId) {
+        const s = allEventShelves.find(s => s.eventId === eventId && s.id === shelfId);
+        return s ? s.name : '—';
+    }
+
+    async function handleScan(ean) {
+        if (!activeEventId) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `<div class="sv-scan-result__body"><p class="sv-scan-result__title">Kein aktives Event gewählt</p><p class="cl-muted" style="margin:0;">Bitte oben zuerst ein aktives Event auswählen.</p></div>`;
+            return;
+        }
+        const eg = allEventGames.find(g => g.eventId === activeEventId && g.ean === ean);
+        if (eg) { await toggleLoanStatus(eg); return; }
+
+        const masterGame = allGames.find(g => g.id === ean);
+        if (masterGame) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">${escapeHTML(masterGame.name || ean)}</p>
+                    <p class="cl-muted" style="margin:0 0 .5rem 0;">Ist in der Datenbank, aber noch nicht diesem Event zugeordnet.</p>
+                    <button type="button" class="cl-btn cl-btn--signal cl-btn--sm" id="scan-add-to-event-btn">Zum Event hinzufügen</button>
+                </div>`;
+            document.getElementById('scan-add-to-event-btn').addEventListener('click', () => {
+                switchToTab('events');
+                openEventModal(activeEventId);
+                document.getElementById('event-add-search').value = masterGame.name || ean;
+                document.getElementById('event-add-search').dispatchEvent(new Event('input'));
+            });
+        } else {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">Unbekannte EAN: ${escapeHTML(ean)}</p>
+                    <p class="cl-muted" style="margin:0 0 .5rem 0;">Dieses Spiel ist noch nicht in der Datenbank.</p>
+                    <button type="button" class="cl-btn cl-btn--signal cl-btn--sm" id="scan-add-new-btn">Jetzt in Datenbank anlegen</button>
+                </div>`;
+            document.getElementById('scan-add-new-btn').addEventListener('click', () => {
+                switchToTab('datenbank');
+                openGameModal(null, ean);
+            });
+        }
+        scanInput.focus();
+    }
+
+    async function toggleLoanStatus(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        const ev = allEvents.find(e => e.id === eg.eventId);
+        if (eg.ausleihstatus === 'ausgeliehen') {
+            try {
+                if (eg.currentLoanId) await updateDoc(doc(db, 'loans', eg.currentLoanId), { returnedAt: serverTimestamp() }).catch(() => {});
+                await updateDoc(egRef, { ausleihstatus: 'verfügbar', currentLoanId: null, borrowedAt: null });
+                scanResult.className = 'sv-scan-result is-visible sv-result--in';
+                scanResult.innerHTML = `
+                    ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                    <div class="sv-scan-result__body">
+                        <p class="sv-scan-result__title">${escapeHTML(eg.gameName)} zurückgelegt ✅</p>
+                        <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
+                    </div>`;
+                showToast(`<strong>${escapeHTML(eg.gameName)}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`);
+            } catch (err) { console.error('Rückgabe-Fehler:', err); showToast('Rückgabe fehlgeschlagen.', true); }
+        } else {
+            try {
+                const loanRef = await addDoc(collection(db, 'loans'), {
+                    ean: eg.ean, gameName: eg.gameName, eventId: eg.eventId, eventName: ev ? ev.name : '',
+                    shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+                });
+                await updateDoc(egRef, { ausleihstatus: 'ausgeliehen', currentLoanId: loanRef.id, borrowedAt: serverTimestamp() });
+                scanResult.className = 'sv-scan-result is-visible sv-result--out';
+                scanResult.innerHTML = `
+                    ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                    <div class="sv-scan-result__body">
+                        <p class="sv-scan-result__title">${escapeHTML(eg.gameName)} ausgeliehen 📖</p>
+                        <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Viel Spaß!</p>
+                    </div>`;
+                showToast(`<strong>${escapeHTML(eg.gameName)}</strong> ausgeliehen.`);
+            } catch (err) { console.error('Ausleih-Fehler:', err); showToast('Ausleihe fehlgeschlagen.', true); }
+        }
+        scanInput.focus();
+    }
+
+    manualSearchInput.addEventListener('input', () => {
+        const term = manualSearchInput.value.trim().toLowerCase();
+        if (!term || !activeEventId) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
+        const matches = allEventGames.filter(g => g.eventId === activeEventId && (g.gameName || '').toLowerCase().includes(term)).slice(0, 15);
+        manualResults.innerHTML = matches.length ? matches.map(g => `
+            <div class="sv-manual-result-item" data-id="${g.id}">
+                <span>${escapeHTML(g.gameName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfNameFor(g.eventId, g.shelfId))})</span></span>
+                <span class="sv-badge-status ${g.ausleihstatus === 'ausgeliehen' ? 'sv-badge-status--aus' : 'sv-badge-status--frei'}">${g.ausleihstatus === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'}</span>
+            </div>`).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
+        manualResults.classList.remove('cl-hidden');
+    });
+    manualResults.addEventListener('click', (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item) return;
+        const eg = allEventGames.find(g => g.id === item.dataset.id);
+        if (eg) { toggleLoanStatus(eg); manualSearchInput.value = ''; manualResults.classList.add('cl-hidden'); }
+    });
+
+    function renderAusleiheTab() {
+        const borrowed = allEventGames.filter(g => g.eventId === activeEventId && g.ausleihstatus === 'ausgeliehen')
+            .sort((a, b) => (b.borrowedAt?.seconds || 0) - (a.borrowedAt?.seconds || 0));
+        borrowedEmpty.classList.toggle('cl-hidden', borrowed.length > 0);
+        borrowedTableBody.innerHTML = borrowed.map(g => `
+            <tr>
+                <td>${escapeHTML(g.gameName)}</td>
+                <td>${escapeHTML(shelfNameFor(g.eventId, g.shelfId))}</td>
+                <td>${g.borrowedAt?.seconds ? new Date(g.borrowedAt.seconds * 1000).toLocaleString('de-AT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-return-btn" data-id="${g.id}">Zurückgeben</button></td>
+            </tr>`).join('');
+    }
+    borrowedTableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-return-btn');
+        if (!btn) return;
+        const eg = allEventGames.find(g => g.id === btn.dataset.id);
+        if (eg) toggleLoanStatus(eg);
+    });
+
+    // ======================================================
+    // TAB: STATISTIK
+    // ======================================================
+    document.getElementById('stats-event-select').addEventListener('change', renderStats);
+
+    async function renderStats() {
+        const select = document.getElementById('stats-event-select');
+        const content = document.getElementById('stats-content');
+        const eventId = select.value;
+        if (!eventId) { content.innerHTML = '<p class="sv-empty">Bitte ein Event wählen.</p>'; return; }
+        content.innerHTML = '<p class="cl-muted">Lade Statistik…</p>';
+        try {
+            const q = query(collection(db, 'loans'), where('eventId', '==', eventId));
+            const snap = await getDocs(q);
+            const loans = snap.docs.map(d => d.data());
+            const totalLoans = loans.length;
+            const gameCounts = {};
+            loans.forEach(l => { gameCounts[l.gameName || l.ean] = (gameCounts[l.gameName || l.ean] || 0) + 1; });
+            const distinctGames = Object.keys(gameCounts).length;
+            const stillOut = loans.filter(l => !l.returnedAt).length;
+            const sortedGames = Object.entries(gameCounts).sort((a, b) => b[1] - a[1]);
+
+            content.innerHTML = `
+                <div class="sv-stats-grid">
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${totalLoans}</div><div class="sv-stat-box__label">Ausleihen gesamt</div></div>
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${distinctGames}</div><div class="sv-stat-box__label">Verschiedene Spiele</div></div>
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${stillOut}</div><div class="sv-stat-box__label">Aktuell noch draußen</div></div>
+                </div>
+                <div class="sv-table-wrap">
+                    <table class="sv-table">
+                        <thead><tr><th>Spiel</th><th>Anzahl Ausleihen</th></tr></thead>
+                        <tbody>${sortedGames.map(([name, count]) => `<tr><td>${escapeHTML(name)}</td><td>${count}</td></tr>`).join('') || '<tr><td colspan="2" class="sv-empty">Keine Ausleihen erfasst.</td></tr>'}</tbody>
+                    </table>
+                </div>`;
+        } catch (err) {
+            console.error('Statistik-Ladefehler:', err);
+            content.innerHTML = '<p class="sv-empty">Statistik konnte nicht geladen werden.</p>';
+        }
+    }
+
+});
+</script>
+</body>
+</html>

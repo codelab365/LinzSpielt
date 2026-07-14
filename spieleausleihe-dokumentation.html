@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dokumentation – Spieleausleihe Linz Spielt</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    .doc-layout { display: grid; grid-template-columns: 240px 1fr; gap: var(--cl-space-4); align-items: start; }
+    .doc-toc { position: sticky; top: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius);
+        padding: var(--cl-space-3); font-size: .88rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
+    .doc-toc h4 { margin: .9rem 0 .3rem 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--cl-muted); }
+    .doc-toc h4:first-child { margin-top: 0; }
+    .doc-toc ul { list-style: none; margin: 0; padding: 0; }
+    .doc-toc li { margin: .15rem 0; }
+    .doc-toc a { color: var(--cl-text); text-decoration: none; display: block; padding: .2rem 0; }
+    .doc-toc a:hover { color: var(--cl-signal); }
+    .doc-content section { margin-bottom: var(--cl-space-5); scroll-margin-top: 1rem; }
+    .doc-content h2 { border-bottom: 2px solid var(--cl-line); padding-bottom: .4rem; margin-top: 0; }
+    .doc-content h3 { margin-top: var(--cl-space-4); }
+    .doc-step-list { padding-left: 1.3rem; }
+    .doc-step-list li { margin-bottom: .5rem; }
+    .doc-callout { border-left: 4px solid var(--cl-signal); background: color-mix(in srgb, var(--cl-signal) 8%, transparent);
+        padding: var(--cl-space-2) var(--cl-space-3); border-radius: 0 var(--cl-radius-sm) var(--cl-radius-sm) 0; margin: var(--cl-space-3) 0; }
+    .doc-callout--warn { border-left-color: var(--cl-warn); background: color-mix(in srgb, var(--cl-warn) 10%, transparent); }
+    .doc-callout--err { border-left-color: var(--cl-err); background: color-mix(in srgb, var(--cl-err) 8%, transparent); }
+    .doc-callout p:first-child { margin-top: 0; }
+    .doc-callout p:last-child { margin-bottom: 0; }
+    table.doc-table { width: 100%; border-collapse: collapse; margin: var(--cl-space-2) 0 var(--cl-space-3) 0; }
+    table.doc-table th, table.doc-table td { border: 1px solid var(--cl-line); padding: .5rem .7rem; text-align: left; font-size: .9rem; vertical-align: top; }
+    table.doc-table th { background: var(--cl-surface-2); }
+    code { background: var(--cl-surface-2); padding: .1rem .35rem; border-radius: 4px; font-size: .88em; }
+    .doc-badge { display: inline-block; font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: var(--cl-radius-pill);
+        background: color-mix(in srgb, var(--cl-signal) 18%, transparent); color: var(--cl-signal); margin-left: .4rem; }
+    @media (max-width: 900px) {
+        .doc-layout { grid-template-columns: 1fr; }
+        .doc-toc { position: static; max-height: none; }
+    }
+</style>
+</head>
+<body>
+
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <a href="#" class="cl-brand"><span style="font-size:1.6rem">📖</span><span class="cl-brand__name">Spiele<b>ausleihe</b> Doku</span></a>
+        <div class="cl-header__spacer"></div>
+        <span class="cl-muted" style="font-size:.85rem;">Linz Spielt · Spieleversum</span>
+    </div>
+</header>
+
+<main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
+    <h1>Dokumentation: Spieleausleihe-Verwaltung</h1>
+    <p class="cl-muted">Diese Seite beschreibt alle Funktionen des Verwaltungstools und der öffentlichen Übersichtsseite. Sie richtet sich an alle, die am Ausleihtresen oder bei der Vorbereitung eines Events mit dem System arbeiten.</p>
+
+    <div class="doc-layout">
+        <nav class="doc-toc">
+            <h4>Grundlagen</h4>
+            <ul>
+                <li><a href="#konzept">Systemkonzept</a></li>
+                <li><a href="#zugriff">Zugriff &amp; Anmeldung</a></li>
+                <li><a href="#ablauf">Typischer Ablauf</a></li>
+            </ul>
+            <h4>Spieledatenbank</h4>
+            <ul>
+                <li><a href="#stufe1">Stufe 1 — EAN erfassen</a></li>
+                <li><a href="#stufe2">Stufe 2 — Titel-Import</a></li>
+                <li><a href="#datenbank-tabelle">Datenbank durchsuchen &amp; bearbeiten</a></li>
+            </ul>
+            <h4>Sammlungen</h4>
+            <ul>
+                <li><a href="#sammlungen">Sammlungen verwalten</a></li>
+            </ul>
+            <h4>Events</h4>
+            <ul>
+                <li><a href="#events-anlegen">Event anlegen</a></li>
+                <li><a href="#events-regale">Regale je Event</a></li>
+                <li><a href="#events-spiele">Spiele zum Event hinzufügen</a></li>
+                <li><a href="#events-embed">Einbett-Code für die Website</a></li>
+                <li><a href="#events-aktiv">Aktives Event</a></li>
+            </ul>
+            <h4>Betrieb</h4>
+            <ul>
+                <li><a href="#ausleihe">Ausleihe &amp; Rückgabe</a></li>
+                <li><a href="#statistik">Statistik</a></li>
+                <li><a href="#oeffentlich">Öffentliche Übersicht</a></li>
+            </ul>
+            <h4>Sonstiges</h4>
+            <ul>
+                <li><a href="#glossar">Glossar</a></li>
+                <li><a href="#troubleshooting">Häufige Probleme</a></li>
+            </ul>
+        </nav>
+
+        <div class="doc-content">
+
+            <section id="konzept">
+                <h2>Systemkonzept</h2>
+                <p>Das System besteht aus vier aufeinander aufbauenden Ebenen. Wer das Prinzip einmal verstanden hat, findet sich in allen Tabs zurecht:</p>
+                <table class="doc-table">
+                    <thead><tr><th>Ebene</th><th>Was ist das?</th><th>Bedeutet Besitz?</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Spieledatenbank</strong></td><td>Referenz aller EANs, die wir jemals gescannt haben — Titel, Bild, Spieleranzahl, Alter, Dauer, Bewertung.</td><td>Nein — reine Nachschlage-Referenz.</td></tr>
+                        <tr><td><strong>Sammlung</strong></td><td>Eine benannte Gruppe von Spielen, die jemand tatsächlich besitzt (z.B. "Spieleversum", "Andreas privat", "Genduron").</td><td>Ja — eine Sammlung sagt aus, wer ein Exemplar besitzt.</td></tr>
+                        <tr><td><strong>Event</strong></td><td>Eine konkrete Veranstaltung, die aus einer oder mehreren Sammlungen Spiele auswählt und in eigene Regale einräumt.</td><td>Legt fest, was bei dieser Veranstaltung verfügbar ist.</td></tr>
+                        <tr><td><strong>Ausleihe</strong></td><td>Der operative Betrieb: Scannen, Ausleihen, Zurückgeben — immer bezogen auf das gerade aktive Event.</td><td>Zeigt den Live-Status während der Veranstaltung.</td></tr>
+                    </tbody>
+                </table>
+                <div class="doc-callout">
+                    <p><strong>Merksatz:</strong> Ein Spiel muss zuerst in der Datenbank stehen, dann einer Sammlung gehören, dann einem Event zugeordnet sein, bevor es überhaupt ausgeliehen werden kann.</p>
+                </div>
+            </section>
+
+            <section id="zugriff">
+                <h2>Zugriff &amp; Anmeldung</h2>
+                <ul class="doc-step-list">
+                    <li>Das Verwaltungstool (<code>spieleausleihe-verwaltung.html</code>) erfordert für <strong>alle</strong> Funktionen eine Anmeldung mit E-Mail und Passwort.</li>
+                    <li>Neue Konten können sich über "Noch kein Konto? Registrieren" selbst anlegen — dafür ist ein <strong>Zugangscode</strong> nötig, den die Vereinsleitung ausgibt.</li>
+                    <li>Die öffentliche Übersichtsseite (<code>index.html</code>) benötigt <strong>keine</strong> Anmeldung — sie zeigt nur, keine Bearbeitung möglich.</li>
+                </ul>
+            </section>
+
+            <section id="ablauf">
+                <h2>Typischer Ablauf vor einem Event</h2>
+                <ol class="doc-step-list">
+                    <li>Neue Spiele scannen → <a href="#stufe1">Stufe 1</a> in der Spieledatenbank.</li>
+                    <li>Titel automatisch anreichern lassen (GTNM-Referenz oder Titel-Import) → <a href="#stufe2">Stufe 2</a>.</li>
+                    <li>Spiele der passenden <a href="#sammlungen">Sammlung</a> zuordnen (z.B. "Spieleversum").</li>
+                    <li><a href="#events-anlegen">Event anlegen</a>, Quell-Sammlungen wählen.</li>
+                    <li><a href="#events-regale">Regale für das Event</a> anlegen (Regal A, B, C, …).</li>
+                    <li><a href="#events-spiele">Spiele aus den Sammlungen ins Event holen</a> und Regalen zuweisen.</li>
+                    <li>Event als <a href="#events-aktiv">aktiv</a> setzen.</li>
+                    <li>Am Ausleihtresen: <a href="#ausleihe">Ausleihe/Rückgabe</a> nutzen.</li>
+                    <li><a href="#events-embed">Einbett-Code</a> auf der Vereins-Website einfügen, damit Besucher live sehen, was verfügbar ist.</li>
+                    <li>Nach dem Event: <a href="#statistik">Statistik</a> auswerten für die nächste Planung.</li>
+                </ol>
+            </section>
+
+            <section id="stufe1">
+                <h2>Spieledatenbank — Stufe 1: EAN erfassen</h2>
+                <p>Tab <strong>Spieledatenbank</strong>. Hier werden neue Barcodes roh erfasst, bevor sie einen Titel haben.</p>
+                <ul class="doc-step-list">
+                    <li>EANs nacheinander scannen (Scanner tippt automatisch in das Textfeld, eine Zeile pro Code) oder als Liste einfügen.</li>
+                    <li>Auf <strong>"Erfassen"</strong> klicken.</li>
+                    <li>Das Tool gleicht jede neue EAN automatisch gegen die hinterlegte <strong>GTNM-Referenzliste</strong> ab (eine Titel-Datenbank mit ca. 18.500 Einträgen). Bei Treffer wird der Titel sofort übernommen und mit <span class="doc-badge">Quelle: GTNM-Referenz</span> markiert.</li>
+                    <li>Werden Titel gefunden, fragt das Tool nach, ob diese sofort automatisch bei BoardGameGeek (BGG) angereichert werden sollen (Bild, Spieleranzahl, Alter, Dauer, Bewertung). Das läuft mit Fortschrittsbalken, ca. 5 Sekunden pro Spiel (BGG-Rate-Limit).</li>
+                </ul>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Ein Treffer in der GTNM-Referenz ist <strong>kein Besitznachweis</strong> — er liefert nur einen wahrscheinlichen Titel. Bei Karteileichen oder falsch zugeordneten EANs (z.B. Erweiterung statt Grundspiel) im Zweifel manuell nachschärfen (siehe <a href="#datenbank-tabelle">Datenbank bearbeiten</a>).</p>
+                </div>
+            </section>
+
+            <section id="stufe2">
+                <h2>Spieledatenbank — Stufe 2: Titel-Liste importieren</h2>
+                <p>Für EANs, die weder Scanner-Team noch GTNM-Referenz kennen (z.B. seltene/regionale Ausgaben), kann eine von Claude recherchierte Titel-Liste importiert werden.</p>
+                <ul class="doc-step-list">
+                    <li>Format: <code>[{"ean":"4001504xxxxxx","title":"Catan"}]</code> — eine JSON-Liste mit EAN und vermutetem Titel.</li>
+                    <li>In das Textfeld einfügen, auf <strong>"Import starten"</strong> klicken.</li>
+                    <li>Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand), das Ergebnis wird übernommen und mit <span class="doc-badge">Quelle: Recherche-Import</span> markiert.</li>
+                    <li>Der Fortschrittsbalken und das Protokoll darunter zeigen, welche Einträge erfolgreich waren (✅) und welche nicht (⚠️).</li>
+                </ul>
+                <div class="doc-callout">
+                    <p>Ergebnisse aus Stufe 2 danach immer in der Tabelle stichprobenartig kontrollieren — automatischer BGG-Abgleich wählt bei Mehrdeutigkeit den ersten Suchtreffer, das kann gelegentlich die falsche Edition sein.</p>
+                </div>
+            </section>
+
+            <section id="datenbank-tabelle">
+                <h2>Datenbank durchsuchen &amp; bearbeiten</h2>
+                <ul class="doc-step-list">
+                    <li>Suchfeld filtert nach Name oder EAN, Status-Filter zeigt nur Offene / Fertige / Fehlerhafte Einträge.</li>
+                    <li><strong>"(+) Spiel manuell anlegen"</strong> öffnet die Eingabemaske für Einzelfälle, inkl. eigener BGG-Suche mit Trefferauswahl.</li>
+                    <li><strong>"Bearbeiten"</strong> in einer Zeile öffnet dasselbe Formular zum Korrigieren oder Löschen.</li>
+                    <li>Status-Badges: <span class="doc-badge">Offen</span> (Stufe 1, noch kein Titel/BGG-Daten), <span class="doc-badge">Fertig</span> (BGG-Daten vorhanden), <span class="doc-badge">Kein Treffer</span> (Titel bekannt, aber BGG fand nichts), <span class="doc-badge">Fehler</span> (technisches Problem beim Abgleich).</li>
+                </ul>
+            </section>
+
+            <section id="sammlungen">
+                <h2>Sammlungen verwalten</h2>
+                <p>Tab <strong>Sammlungen</strong>. Eine Sammlung bündelt die Spiele, die eine bestimmte Person oder Gruppe besitzt.</p>
+                <ul class="doc-step-list">
+                    <li>Neue Sammlung anlegen: Name (Pflicht) und Beschreibung (optional).</li>
+                    <li>Sammlung öffnen → Spiele aus der Datenbank per Name/EAN-Suche hinzufügen. Nur Spiele, die bereits in der Datenbank stehen, können hinzugefügt werden.</li>
+                    <li>Dasselbe Spiel (gleiche EAN) kann in mehreren Sammlungen stehen, wenn mehrere Exemplare existieren.</li>
+                    <li>Spiele lassen sich aus der Sammlung entfernen, ohne dass sie aus der Datenbank verschwinden.</li>
+                    <li>Sammlung löschen entfernt nur die Zuordnung, nicht die Spiele selbst.</li>
+                </ul>
+            </section>
+
+            <section id="events-anlegen">
+                <h2>Event anlegen</h2>
+                <p>Tab <strong>Events</strong>. Name, Datum, und Häkchen bei den Sammlungen setzen, aus denen bei diesem Event Spiele ausgewählt werden dürfen.</p>
+                <div class="doc-callout">
+                    <p>Ohne mindestens eine ausgewählte Sammlung lassen sich später keine Spiele zum Event hinzufügen — die Auswahl-Liste bliebe leer.</p>
+                </div>
+            </section>
+
+            <section id="events-regale">
+                <h2>Regale je Event</h2>
+                <p>Jedes Event hat seine <strong>eigenen</strong> Regale (Regal A, B, C, …) — Regale werden nicht zwischen Events geteilt, da sich der Aufbau von Veranstaltung zu Veranstaltung unterscheiden kann.</p>
+                <ul class="doc-step-list">
+                    <li>Event öffnen → Regal-Name eingeben → "Regal anlegen".</li>
+                    <li>Ein Regal mit zugeordneten Spielen kann nicht gelöscht werden — zuerst die Spiele umlagern oder entfernen.</li>
+                </ul>
+            </section>
+
+            <section id="events-spiele">
+                <h2>Spiele zum Event hinzufügen</h2>
+                <ul class="doc-step-list">
+                    <li>Im Event-Fenster nach Name oder EAN suchen — es werden nur Spiele aus den für dieses Event gewählten Sammlungen vorgeschlagen.</li>
+                    <li>Klick auf einen Treffer fügt das Spiel dem Event hinzu, automatisch im zuerst angelegten Regal (danach über die Dropdown-Auswahl in der Tabelle jederzeit änderbar).</li>
+                    <li>Ein Spiel entfernen ist nur möglich, solange es nicht gerade ausgeliehen ist.</li>
+                </ul>
+            </section>
+
+            <section id="events-embed">
+                <h2>Einbett-Code für die Website</h2>
+                <p>Jedes Event hat einen eigenen Einbettungs-Code (<code>&lt;iframe&gt;</code>), sichtbar im geöffneten Event-Fenster. Auf "Code kopieren" klicken und in die Vereins-Website einfügen — zeigt live den Ausleihstatus dieses konkreten Events, ganz ohne Login.</p>
+            </section>
+
+            <section id="events-aktiv">
+                <h2>Aktives Event</h2>
+                <p>Oben im Tool wählt eine Dropdown-Liste das <strong>aktive Event</strong>. Alle Aktionen im Tab "Ausleihe/Rückgabe" beziehen sich ausschließlich auf dieses Event. Die Auswahl wird lokal im Browser gespeichert — jeder Rechner/jedes Gerät am Ausleihtresen muss sein eigenes aktives Event setzen.</p>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Ohne gewähltes aktives Event ist keine Ausleihe möglich — das Scannen zeigt dann einen entsprechenden Hinweis.</p>
+                </div>
+            </section>
+
+            <section id="ausleihe">
+                <h2>Ausleihe &amp; Rückgabe</h2>
+                <ul class="doc-step-list">
+                    <li><strong>Scannen:</strong> EAN in das obere Feld scannen (oder eintippen + Enter). Ist das Spiel dem aktiven Event zugeordnet, wird der Status <strong>sofort automatisch</strong> umgeschaltet — kein Bestätigungsschritt nötig.</li>
+                    <li><strong>Manuelle Suche:</strong> Falls der Scanner ausfällt, Spielname im zweiten Feld eintippen, Treffer anklicken.</li>
+                    <li><strong>Unbekannte EAN:</strong> Ist das Spiel gar nicht in der Datenbank, bietet das Tool an, es direkt anzulegen. Ist es in der Datenbank, aber diesem Event noch nicht zugeordnet, bietet es an, es dem Event hinzuzufügen.</li>
+                    <li>Die Tabelle "Aktuell ausgeliehen" zeigt alle offenen Ausleihen mit Regal und Zeitpunkt, inkl. direktem Rückgabe-Button.</li>
+                </ul>
+            </section>
+
+            <section id="statistik">
+                <h2>Statistik</h2>
+                <p>Tab <strong>Statistik</strong>. Event auswählen, um Kennzahlen zu sehen: Gesamtzahl Ausleihen, Anzahl verschiedener ausgeliehener Spiele, aktuell noch nicht zurückgegebene Spiele, sowie eine Rangliste der am häufigsten ausgeliehenen Spiele — hilfreich für die Planung, welche Spiele beim nächsten Event unbedingt wieder mitgenommen werden sollten.</p>
+            </section>
+
+            <section id="oeffentlich">
+                <h2>Öffentliche Übersicht (index.html)</h2>
+                <ul class="doc-step-list">
+                    <li>Aufruf mit <code>?event=EVENT_ID</code> in der URL zeigt direkt dieses Event (so ist auch der Einbett-Code aufgebaut).</li>
+                    <li>Ohne Event-Parameter zeigt die Seite ein Dropdown zur Auswahl unter allen vorhandenen Events.</li>
+                    <li>Suchfeld, Regal-Filter, Spielerzahl-Filter und Status-Filter helfen Besuchern, ein passendes verfügbares Spiel zu finden.</li>
+                    <li>Kein Login nötig, keine Bearbeitung möglich — reine Live-Ansicht.</li>
+                </ul>
+            </section>
+
+            <section id="glossar">
+                <h2>Glossar</h2>
+                <table class="doc-table">
+                    <thead><tr><th>Begriff</th><th>Bedeutung</th></tr></thead>
+                    <tbody>
+                        <tr><td>EAN</td><td>Der Barcode auf der Spielschachtel, eindeutige Kennung eines Spiels in der Datenbank.</td></tr>
+                        <tr><td>GTNM-Referenz</td><td>Statische Titel-Nachschlageliste (EAN → Titel) aus einer Händler-Tabelle, nur zur Titel-Erkennung, kein Besitznachweis.</td></tr>
+                        <tr><td>Sammlung</td><td>Wer besitzt welches Spiel-Exemplar (z.B. Spieleversum, Genduron, privat).</td></tr>
+                        <tr><td>Event</td><td>Eine konkrete Veranstaltung mit eigenen Regalen und einer Auswahl an Spielen aus bestimmten Sammlungen.</td></tr>
+                        <tr><td>Aktives Event</td><td>Das Event, auf das sich die Ausleihe/Rückgabe-Funktion gerade bezieht (pro Gerät einstellbar).</td></tr>
+                        <tr><td>Enrich-Status</td><td>Zeigt, ob ein Datenbankeintrag vollständige BGG-Daten hat (Offen / Fertig / Kein Treffer / Fehler).</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="troubleshooting">
+                <h2>Häufige Probleme</h2>
+                <table class="doc-table">
+                    <thead><tr><th>Problem</th><th>Lösung</th></tr></thead>
+                    <tbody>
+                        <tr><td>Scan zeigt "Kein aktives Event gewählt"</td><td>Oben im Tool ein aktives Event auswählen.</td></tr>
+                        <tr><td>Scan zeigt "Unbekannte EAN"</td><td>Spiel ist noch nie in der Datenbank erfasst worden → über den angebotenen Button direkt anlegen.</td></tr>
+                        <tr><td>Scan zeigt "Ist in der Datenbank, aber noch nicht diesem Event zugeordnet"</td><td>Spiel existiert, gehört aber (noch) nicht zum aktiven Event → über den Button direkt hinzufügen.</td></tr>
+                        <tr><td>Regal lässt sich nicht löschen</td><td>Enthält noch zugeordnete Spiele — zuerst umlagern oder aus dem Event entfernen.</td></tr>
+                        <tr><td>Spiel taucht bei "Spiele zum Event hinzufügen" nicht auf</td><td>Es gehört zu keiner der für dieses Event ausgewählten Sammlungen, oder es ist noch keiner Sammlung zugeordnet.</td></tr>
+                        <tr><td>BGG-Suche liefert nichts</td><td>Titel evtl. zu ungenau/falsch geschrieben — im Bearbeiten-Formular Titel anpassen und BGG-Suche erneut starten.</td></tr>
+                        <tr><td>Registrierung schlägt fehl</td><td>Zugangscode falsch oder E-Mail bereits vergeben — Zugangscode bei der Vereinsleitung erfragen.</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+        </div>
+    </div>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt — Interne Dokumentation</span></div>
+</footer>
+
+</body>
+</html>
