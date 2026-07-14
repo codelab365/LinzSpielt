@@ -19,18 +19,43 @@
     .ov-toolbar .cl-input { flex: 1; min-width: 200px; }
     .ov-toolbar .cl-select { min-width: 160px; }
     .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
-    table.ov-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    table.ov-table { width: 100%; border-collapse: collapse; min-width: 620px; }
     table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
     table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
     table.ov-table tbody tr:last-child td { border-bottom: none; }
+    table.ov-table tbody tr { cursor: pointer; }
+    table.ov-table tbody tr:hover { background: var(--cl-surface-2); }
     table.ov-table img.ov-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
     .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
     .ov-badge--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
     .ov-badge--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .ov-rating { color: var(--cl-warn); font-weight: 600; white-space: nowrap; }
     .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
     .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
+
+    /* Detailansicht */
+    .ov-modal-overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
+        background: color-mix(in srgb, black 55%, transparent); padding: 1rem; }
+    .ov-modal-overlay.is-visible { display: flex; }
+    .ov-modal { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-4); max-width: 32rem; width: 100%;
+        max-height: 90vh; overflow-y: auto; position: relative; box-shadow: var(--cl-shadow-lg); }
+    .ov-modal-close { position: absolute; top: .8rem; right: .8rem; background: none; border: none; font-size: 1.6rem; line-height: 1;
+        color: var(--cl-muted); cursor: pointer; }
+    .ov-modal-close:hover { color: var(--cl-text); }
+    .ov-modal-head { display: flex; gap: var(--cl-space-3); align-items: flex-start; }
+    .ov-modal-head img { width: 96px; height: 96px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .ov-modal-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .3rem 0; }
+    .ov-modal-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+    .ov-modal-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: var(--cl-space-3) 0; font-size: .9rem; }
+    .ov-modal-meta-grid div span:first-child { color: var(--cl-muted); display: block; font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; }
+    .ov-modal-desc { font-size: .9rem; line-height: 1.5; white-space: pre-line; max-height: 220px; overflow-y: auto;
+        border-top: 1px solid var(--cl-line); padding-top: var(--cl-space-3); margin-top: var(--cl-space-3); }
+    .ov-modal-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
+
     @media (max-width: 640px) {
         .ov-toolbar .cl-select { min-width: 140px; }
+        .ov-modal-head { flex-direction: column; align-items: center; text-align: center; }
+        .ov-modal-meta-grid { grid-template-columns: 1fr 1fr; }
     }
 </style>
 </head>
@@ -60,21 +85,55 @@
                 <option value="verfügbar">Nur verfügbar</option>
                 <option value="ausgeliehen">Nur ausgeliehen</option>
             </select>
+            <select id="ov-complexity-filter" class="cl-select">
+                <option value="all">Jede Komplexität</option>
+                <option value="easy">Leicht (Einsteiger)</option>
+                <option value="medium">Mittel</option>
+                <option value="hard">Anspruchsvoll (Experten)</option>
+            </select>
+            <select id="ov-rating-filter" class="cl-select">
+                <option value="all">Jede Bewertung</option>
+                <option value="7">Gut bewertet (ab 7)</option>
+                <option value="8">Sehr gut bewertet (ab 8)</option>
+            </select>
+            <select id="ov-sort" class="cl-select">
+                <option value="name">Sortieren: Name (A–Z)</option>
+                <option value="rating">Sortieren: Beliebtheit (BGG-Bewertung)</option>
+                <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
+                <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
+            </select>
         </div>
 
         <div class="ov-table-wrap">
             <table class="ov-table">
                 <thead>
-                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Regal</th><th>Status</th></tr>
+                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Regal</th><th>Status</th></tr>
                 </thead>
                 <tbody id="ov-table-body"></tbody>
             </table>
             <p id="ov-empty" class="ov-empty cl-hidden">Keine Spiele gefunden.</p>
         </div>
-        <p class="ov-footer-note">Daten aktualisieren sich automatisch. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
+        <p class="ov-footer-note">Daten aktualisieren sich automatisch. Zeile anklicken für Details. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
     </div>
 
     <p id="ov-loading" class="ov-empty">Lade Events…</p>
+</div>
+
+<!-- Detailansicht -->
+<div id="ov-modal-overlay" class="ov-modal-overlay">
+    <div class="ov-modal">
+        <button type="button" id="ov-modal-close" class="ov-modal-close" aria-label="Schließen">&times;</button>
+        <div class="ov-modal-head">
+            <img id="ov-modal-img" src="" alt="" style="display:none;">
+            <div>
+                <p class="ov-modal-title" id="ov-modal-title"></p>
+                <div class="ov-modal-badges" id="ov-modal-badges"></div>
+            </div>
+        </div>
+        <div class="ov-modal-meta-grid" id="ov-modal-meta"></div>
+        <p id="ov-modal-desc" class="ov-modal-desc" style="display:none;"></p>
+        <a id="ov-modal-bgg-link" class="ov-modal-bgg-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Auf BoardGameGeek ansehen ↗</a>
+    </div>
 </div>
 
 <script type="module">
@@ -97,6 +156,18 @@ function escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
+function complexityLabel(c) {
+    if (c == null) return null;
+    if (c <= 2) return 'Leicht';
+    if (c <= 3.5) return 'Mittel';
+    return 'Anspruchsvoll';
+}
+function complexityBucket(c) {
+    if (c == null) return null;
+    if (c <= 2) return 'easy';
+    if (c <= 3.5) return 'medium';
+    return 'hard';
+}
 
 let allEvents = [];
 let eventGamesUnsub = null;
@@ -116,14 +187,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const shelfFilter = document.getElementById('ov-shelf-filter');
     const playersFilter = document.getElementById('ov-players-filter');
     const statusFilter = document.getElementById('ov-status-filter');
+    const complexityFilter = document.getElementById('ov-complexity-filter');
+    const ratingFilter = document.getElementById('ov-rating-filter');
+    const sortSelect = document.getElementById('ov-sort');
     const tableBody = document.getElementById('ov-table-body');
     const emptyEl = document.getElementById('ov-empty');
     const statsEl = document.getElementById('ov-stats');
 
-    [searchInput, shelfFilter, playersFilter, statusFilter].forEach(el => el.addEventListener('input', render));
-    shelfFilter.addEventListener('change', render);
-    playersFilter.addEventListener('change', render);
-    statusFilter.addEventListener('change', render);
+    [searchInput, shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('input', render));
+    [shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('change', render));
 
     onSnapshot(collection(db, 'events'), (snap) => {
         allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -193,31 +265,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelfVal = shelfFilter.value;
         const playersVal = parseInt(playersFilter.value, 10);
         const statusVal = statusFilter.value;
+        const complexityVal = complexityFilter.value;
+        const ratingVal = ratingFilter.value === 'all' ? 0 : parseFloat(ratingFilter.value);
+        const sortVal = sortSelect.value;
 
-        const filtered = currentEventGames.filter(g => {
+        let filtered = currentEventGames.filter(g => {
             const avail = g.availableQuantity ?? (g.quantity ?? 1);
             const nameMatch = !term || (g.gameName || '').toLowerCase().includes(term);
             const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
             const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
+            const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
+            const ratingMatch = ratingVal === 0 || (g.rating != null && g.rating >= ratingVal);
             let playersMatch = true;
             if (playersVal > 0) {
                 if (g.minPlayers != null && g.maxPlayers != null) {
                     playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
                 } else { playersMatch = false; }
             }
-            return nameMatch && shelfMatch && statusMatch && playersMatch;
-        }).sort((a, b) => (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+            return nameMatch && shelfMatch && statusMatch && complexityMatch && ratingMatch && playersMatch;
+        });
+
+        if (sortVal === 'rating') {
+            filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+        } else if (sortVal === 'complexity-asc') {
+            filtered.sort((a, b) => (a.complexity ?? Infinity) - (b.complexity ?? Infinity) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+        } else if (sortVal === 'complexity-desc') {
+            filtered.sort((a, b) => (b.complexity ?? -Infinity) - (a.complexity ?? -Infinity) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+        } else {
+            filtered.sort((a, b) => (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+        }
 
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
         tableBody.innerHTML = filtered.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
-            return `<tr>
+            return `<tr data-id="${g.id}">
                 <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
                 <td>${escapeHTML(g.gameName)}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
                 <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
+                <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
                 <td><span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span></td>
             </tr>`;
@@ -231,6 +319,57 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="ov-stat"><strong>${available}</strong> verfügbar</span>
             <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>`;
     }
+
+    tableBody.addEventListener('click', (e) => {
+        const row = e.target.closest('tr[data-id]');
+        if (!row) return;
+        const g = currentEventGames.find(x => x.id === row.dataset.id);
+        if (g) openDetail(g);
+    });
+
+    // --- Detailansicht ---
+    const modalOverlay = document.getElementById('ov-modal-overlay');
+    function openDetail(g) {
+        document.getElementById('ov-modal-title').textContent = g.gameName || '';
+        const img = document.getElementById('ov-modal-img');
+        if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
+
+        const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+        const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
+        const cLabel = complexityLabel(g.complexity);
+        document.getElementById('ov-modal-badges').innerHTML = `
+            <span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span>
+            ${g.rating ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
+            ${cLabel ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
+        `;
+
+        document.getElementById('ov-modal-meta').innerHTML = `
+            <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
+            <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
+            <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
+            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
+            ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
+        `;
+
+        const descEl = document.getElementById('ov-modal-desc');
+        if (g.description) {
+            const short = g.description.length > 700 ? g.description.slice(0, 700).trim() + '…' : g.description;
+            descEl.textContent = short;
+            descEl.style.display = '';
+        } else {
+            descEl.style.display = 'none';
+        }
+
+        const bggLink = document.getElementById('ov-modal-bgg-link');
+        if (g.bggId) { bggLink.href = `https://boardgamegeek.com/boardgame/${g.bggId}`; bggLink.style.display = ''; }
+        else { bggLink.style.display = 'none'; }
+
+        modalOverlay.classList.add('is-visible');
+    }
+    function closeDetail() { modalOverlay.classList.remove('is-visible'); }
+    document.getElementById('ov-modal-close').addEventListener('click', closeDetail);
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeDetail(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
 });
 </script>
 </body>
