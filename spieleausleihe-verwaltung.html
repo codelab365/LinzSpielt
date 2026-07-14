@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v3</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v4</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -435,8 +435,16 @@
             <button type="button" id="add-event-shelf-btn" class="cl-btn cl-btn--signal">Regal anlegen</button>
         </div>
 
-        <h3>Spiele zum Event hinzufügen</h3>
-        <label class="cl-label" for="event-add-search">Spiel aus den gewählten Sammlungen suchen</label>
+        <h3>⚡ Schnellscan direkt ins Regal</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Regal wählen, dann scannen — jedes Spiel wird sofort ohne Rückfrage in Datenbank, Sammlung(en) dieses Events und dieses Regal eingetragen. Bereits vorhandenes Spiel wird per Scan einfach in der Stückzahl erhöht.</p>
+        <div class="sv-toolbar">
+            <select id="event-quick-shelf-select" class="cl-select"></select>
+            <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
+        </div>
+        <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
+
+        <h3 style="margin-top: var(--cl-space-3);">Spiele manuell aus den gewählten Sammlungen suchen</h3>
+        <label class="cl-label" for="event-add-search">Name oder EAN</label>
         <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
         <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
 
@@ -486,8 +494,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v3 — aktuelle Version, siehe auch Anzeige im Header.
+// VERSION: v4 — aktuelle Version, siehe auch Anzeige im Header.
 // Änderungsprotokoll:
+//   v4 — Schnellscan jetzt auch direkt im Event-Fenster (Regal wählen,
+//        scannen, ohne Rückfrage — unabhängig vom global aktiven Event).
+//        Bugfix: Einbettungs-Code-URL war fehlerhaft, wenn die Seite ohne
+//        ".html" in der Adresszeile aufgerufen wurde.
 //   v3 — Bugfix: Stückzahl-Änderungen (+/−) bei Sammlungen und Events werden
 //        jetzt sofort sichtbar aktualisiert (Live-Refresh der offenen
 //        Detail-Tabelle war vergessen worden). Untergrenze für Stückzahlen
@@ -1546,7 +1558,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-modal-meta').textContent = (ev.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
         document.getElementById('event-add-search').value = '';
         document.getElementById('event-add-results').classList.add('cl-hidden');
-        const embedUrl = location.href.replace(/spieleausleihe-verwaltung\.html.*$/, '') + `index.html?event=${id}`;
+        document.getElementById('event-quick-scan-input').value = '';
+        eventQuickScanCount = 0;
+        document.getElementById('event-quick-scan-counter').textContent = '';
+        const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
+        const embedUrl = basePath + `index.html?event=${id}`;
         document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
         renderEventShelfGrid();
         renderEventGamesTable();
@@ -1594,7 +1610,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderEventShelfGrid() {
         const grid = document.getElementById('event-shelf-grid');
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
-        if (shelves.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>'; return; }
+        const quickSelect = document.getElementById('event-quick-shelf-select');
+        const prevQuick = quickSelect.value;
+        if (shelves.length === 0) {
+            grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>';
+            quickSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
+            quickSelect.disabled = true;
+            return;
+        }
         grid.innerHTML = shelves.map(s => {
             const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === s.id).length;
             return `<div class="sv-shelf-card">
@@ -1602,6 +1625,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
             </div>`;
         }).join('');
+        quickSelect.disabled = false;
+        quickSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...quickSelect.options].some(o => o.value === prevQuick)) quickSelect.value = prevQuick;
     }
     document.getElementById('add-event-shelf-btn').addEventListener('click', async () => {
         if (!currentEventId) return;
@@ -1737,6 +1763,64 @@ document.addEventListener('DOMContentLoaded', () => {
             catch (err) { console.error(err); showToast('Entfernen fehlgeschlagen.', true); }
         });
     });
+
+    // --- Schnellscan direkt im Event-Fenster: Regal wählen, dann scannen,
+    // ohne jede einzelne Rückfrage. Nutzt dieselbe Logik wie der globale
+    // Schnellerfassungs-Tab, aber fest auf DIESES Event bezogen (unabhängig
+    // vom global gewählten "aktiven Event").
+    let eventQuickScanCount = 0;
+    const eventQuickScanInput = document.getElementById('event-quick-scan-input');
+    eventQuickScanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = eventQuickScanInput.value.trim();
+            eventQuickScanInput.value = '';
+            if (value) handleEventQuickScan(value);
+        }
+    });
+
+    async function handleEventQuickScan(ean) {
+        if (!currentEventId) return;
+        const shelfId = document.getElementById('event-quick-shelf-select').value;
+        if (!shelfId) { showToast('Bitte zuerst ein Regal für dieses Event anlegen und wählen.', true); return; }
+
+        let game = allGames.find(g => g.id === ean);
+        let isNewGame = false;
+        if (!game) {
+            const refTitle = eanReference[ean] || null;
+            try {
+                await setDoc(doc(db, 'games', ean), { ean, name: refTitle, titleSource: refTitle ? 'gtnm' : null, enrichStatus: 'pending', addedAt: serverTimestamp() });
+            } catch (err) { console.error(err); showToast(`${ean}: Fehler beim Anlegen.`, true); return; }
+            game = { id: ean, name: refTitle, bggImageUrl: null, minPlayers: null, maxPlayers: null, minAge: null, Duration: null, rating: null, complexity: null, category: null };
+            isNewGame = true;
+            if (refTitle) queueBackgroundEnrich(ean, refTitle);
+        }
+        const displayName = game.name || `(unbekannt: ${ean})`;
+
+        const ev = allEvents.find(e => e.id === currentEventId);
+        const sourceIds = ev?.sourceCollectionIds || [];
+        for (const cid of sourceIds) {
+            const citemId = `${cid}_${ean}`;
+            try {
+                if (allCollectionItems.some(ci => ci.id === citemId)) {
+                    await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                } else {
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        let eventResult = null;
+        try {
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name);
+        } catch (err) { console.error(err); }
+
+        eventQuickScanCount++;
+        const counterEl = document.getElementById('event-quick-scan-counter');
+        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
+        counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
+        eventQuickScanInput.focus();
+    }
 
     // ======================================================
     // TAB: AUSLEIHE / RÜCKGABE (scoped auf aktives Event)
