@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt</p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v1</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -474,6 +474,13 @@ import {
     getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc,
     addDoc, getDoc, getDocs, query, where, serverTimestamp, increment
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// =============================================================
+// VERSION: v1 — aktuelle Version, siehe auch Anzeige im Header.
+// Änderungsprotokoll:
+//   v1 — Versionsnummer eingeführt (Schnellerfassung, Mengen-Modell,
+//        GTNM-Referenz und deutsche Titel waren bereits vorher enthalten).
+// =============================================================
 
 // --- FIREBASE KONFIGURATION (gleiche Datenbank wie linzspielt.at) ---
 const firebaseConfig = {
