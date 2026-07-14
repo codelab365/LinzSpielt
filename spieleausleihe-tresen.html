@@ -23,13 +23,21 @@
     .td-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
 
     .td-scan-card { text-align: center; }
-    .td-mode-toggle { display: flex; gap: .5rem; justify-content: center; }
-    .td-mode-btn { flex: 1; max-width: 220px; border: 2px solid var(--cl-line); font-weight: 600; }
-    .td-mode-btn.is-active-borrow { background: var(--cl-signal); border-color: var(--cl-signal); color: var(--cl-on-signal, #fff); }
-    .td-mode-btn.is-active-return { background: var(--cl-ok); border-color: var(--cl-ok); color: #fff; }
     .td-confirm-toggle { display: flex; align-items: center; justify-content: center; gap: .4rem; margin-top: .75rem;
         font-size: .82rem; color: var(--cl-muted); cursor: pointer; }
     .td-confirm-toggle input { margin: 0; }
+
+    .td-always-stat { font-size: 1.15rem; font-weight: 700; margin-bottom: .6rem; }
+    .td-always-stat span { color: var(--cl-signal); }
+
+    .td-scan-result { margin-top: var(--cl-space-3); padding: var(--cl-space-3); border-radius: var(--cl-radius);
+        border: 1px solid var(--cl-line); display: none; text-align: left; }
+    .td-scan-result.is-visible { display: flex; gap: var(--cl-space-3); align-items: center; }
+    .td-scan-result--out { background: color-mix(in srgb, var(--cl-signal) 12%, transparent); border-color: color-mix(in srgb, var(--cl-signal) 45%, transparent); }
+    .td-scan-result--in { background: color-mix(in srgb, var(--cl-ok) 12%, transparent); border-color: color-mix(in srgb, var(--cl-ok) 45%, transparent); }
+    .td-scan-result--unknown { background: color-mix(in srgb, var(--cl-warn) 14%, transparent); border-color: color-mix(in srgb, var(--cl-warn) 45%, transparent); }
+    .td-scan-result img { width: 56px; height: 56px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .td-scan-result__title { font-weight: 700; font-size: 1.05rem; margin: 0 0 .2rem 0; }
     .td-scan-input { font-size: 1.4rem; text-align: center; letter-spacing: .05em; padding: 1.1rem !important; }
     .td-manual-search { position: relative; margin-top: var(--cl-space-3); }
     .td-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
@@ -109,16 +117,15 @@
         <h1 id="desk-event-title" style="margin-bottom:.2rem;"></h1>
         <p id="desk-event-meta" class="cl-muted" style="margin-top:0;"></p>
 
-        <div class="td-stats" id="desk-stats"></div>
+        <div class="td-always-stat" id="desk-always-stat"></div>
+
+        <button type="button" id="desk-stats-toggle-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-bottom:.75rem;">📊 Statistik anzeigen</button>
+        <div class="td-stats cl-hidden" id="desk-stats"></div>
 
         <div class="cl-card cl-card--pad td-scan-card">
-            <label class="cl-label">Modus für den nächsten Scan</label>
-            <div class="td-mode-toggle">
-                <button type="button" id="mode-borrow-btn" class="cl-btn td-mode-btn">📖 Ausleihen</button>
-                <button type="button" id="mode-return-btn" class="cl-btn td-mode-btn">↩️ Rückgabe</button>
-            </div>
-            <label class="cl-label" for="desk-scan-input" style="margin-top:.75rem;">EAN scannen</label>
+            <label class="cl-label" for="desk-scan-input">EAN scannen</label>
             <input type="text" id="desk-scan-input" class="cl-input td-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+            <div id="desk-scan-result" class="td-scan-result"></div>
             <label class="td-confirm-toggle">
                 <input type="checkbox" id="require-confirm-toggle"> Vor jeder Aktion bestätigen (langsamer, aber sicherer)
             </label>
@@ -160,15 +167,22 @@
     </div>
 </div>
 
-<!-- Optionale Vorab-Bestätigung (nur wenn "Vor jeder Aktion bestätigen" aktiv ist) -->
+<!-- Popup: entweder Auswahl (bei Mehrfach-Exemplaren mit gemischtem Status)
+     oder einfache Bestätigung (nur wenn "Vor jeder Aktion bestätigen" aktiv ist) -->
 <div id="confirm-action-overlay" class="td-return-overlay">
     <div class="td-return-card" id="confirm-action-card">
         <div class="td-return-card__icon" id="confirm-action-icon">📖</div>
         <p class="td-return-card__title" id="confirm-action-title"></p>
-        <div style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
+        <p class="cl-muted" id="confirm-action-sub"></p>
+        <div id="confirm-action-choice-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
+            <button type="button" id="confirm-action-choice-borrow-btn" class="cl-btn cl-btn--signal">📖 Ausleihen</button>
+            <button type="button" id="confirm-action-choice-return-btn" class="cl-btn cl-btn--signal" style="background:var(--cl-ok); border-color:var(--cl-ok);">↩️ Rückgabe</button>
+        </div>
+        <div id="confirm-action-single-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
             <button type="button" id="confirm-action-cancel-btn" class="cl-btn cl-btn--ghost">Abbrechen</button>
             <button type="button" id="confirm-action-ok-btn" class="cl-btn cl-btn--signal">Bestätigen</button>
         </div>
+        <button type="button" id="confirm-action-choice-cancel-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.6rem;">Abbrechen</button>
     </div>
 </div>
 
@@ -320,6 +334,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const available = allEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
         const borrowedTotal = total - available;
         const distinctBorrowed = allEventGames.filter(g => (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1)).length;
+
+        document.getElementById('desk-always-stat').innerHTML = `<span>${borrowedTotal}</span> Spiel-Exemplar(e) gerade ausgeliehen`;
+
         document.getElementById('desk-stats').innerHTML = `
             <div class="td-stat-box"><div class="td-stat-box__num">${total}</div><div class="td-stat-box__label">Spiele gesamt</div></div>
             <div class="td-stat-box"><div class="td-stat-box__num">${available}</div><div class="td-stat-box__label">Verfügbar</div></div>
@@ -347,28 +364,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eg) returnOne(eg);
     });
 
-    // --- Modus (Ausleihen/Rückgabe) und optionale Bestätigung ---
-    let scanMode = localStorage.getItem('td_scan_mode') || 'borrow';
+    const statsToggleBtn = document.getElementById('desk-stats-toggle-btn');
+    statsToggleBtn.addEventListener('click', () => {
+        const statsEl = document.getElementById('desk-stats');
+        const nowHidden = statsEl.classList.toggle('cl-hidden');
+        statsToggleBtn.textContent = nowHidden ? '📊 Statistik anzeigen' : '📊 Statistik verbergen';
+    });
+
+    // --- Optionale Vorab-Bestätigung ---
     let requireConfirm = localStorage.getItem('td_require_confirm') === '1';
-
-    function updateModeButtons() {
-        document.getElementById('mode-borrow-btn').classList.toggle('is-active-borrow', scanMode === 'borrow');
-        document.getElementById('mode-return-btn').classList.toggle('is-active-return', scanMode === 'return');
-    }
-    document.getElementById('mode-borrow-btn').addEventListener('click', () => {
-        scanMode = 'borrow'; localStorage.setItem('td_scan_mode', scanMode); updateModeButtons(); scanInput.focus();
-    });
-    document.getElementById('mode-return-btn').addEventListener('click', () => {
-        scanMode = 'return'; localStorage.setItem('td_scan_mode', scanMode); updateModeButtons(); scanInput.focus();
-    });
-    updateModeButtons();
-
     const confirmToggle = document.getElementById('require-confirm-toggle');
     confirmToggle.checked = requireConfirm;
     confirmToggle.addEventListener('change', () => {
         requireConfirm = confirmToggle.checked;
         localStorage.setItem('td_require_confirm', requireConfirm ? '1' : '0');
     });
+
+    // --- Immer sichtbares Ergebnis-Feld unterhalb des Scan-Felds ---
+    const scanResultBox = document.getElementById('desk-scan-result');
+    function showScanResultBox({ icon, title, sub, cls }) {
+        scanResultBox.className = 'td-scan-result is-visible ' + cls;
+        scanResultBox.innerHTML = `
+            <div style="font-size:2rem; line-height:1;">${icon}</div>
+            <div>
+                <p class="td-scan-result__title">${escapeHTML(title)}</p>
+                <p class="cl-muted" style="margin:0;">${sub}</p>
+            </div>`;
+    }
 
     // --- Scannen ---
     const scanInput = document.getElementById('desk-scan-input');
@@ -384,52 +406,84 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleScan(ean) {
         const eg = allEventGames.find(g => g.ean === ean);
         if (!eg) {
-            showReturnOverlay({
-                icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', shelf: '', borrowMode: true
-            });
+            showScanResultBox({ icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', cls: 'td-scan-result--unknown' });
             scanInput.focus();
             return;
         }
         processEventGameAction(eg);
     }
 
-    function processEventGameAction(eg) {
+    // Es wird nur nachgefragt, wenn es wirklich mehrdeutig ist (manche
+    // Exemplare verfügbar UND manche draußen). In jedem anderen Fall — nur
+    // 1 Exemplar, alle verfügbar, oder alle draußen — gibt es ohnehin nur
+    // eine sinnvolle Aktion, die dann automatisch ausgeführt wird.
+    function resolveScanAction(eg) {
         const qty = eg.quantity ?? 1, avail = eg.availableQuantity ?? qty;
-        if (scanMode === 'borrow' && avail <= 0) {
-            showReturnOverlay({ icon: '⚠️', title: `${eg.gameName}`, sub: 'Alle Exemplare sind bereits ausgeliehen — nichts zum Verleihen übrig.', shelf: '', borrowMode: true });
-            scanInput.focus();
-            return;
-        }
-        if (scanMode === 'return' && avail >= qty) {
-            showReturnOverlay({ icon: '⚠️', title: `${eg.gameName}`, sub: 'Es ist gerade nichts von diesem Spiel ausgeliehen.', shelf: '', borrowMode: false });
-            scanInput.focus();
-            return;
-        }
-        performOrConfirm(eg);
+        if (avail >= qty) return 'borrow';
+        if (avail <= 0) return 'return';
+        return 'ambiguous';
     }
 
-    function performOrConfirm(eg) {
-        if (!requireConfirm) { commitAction(eg); return; }
-        const isReturn = scanMode === 'return';
-        document.getElementById('confirm-action-icon').textContent = isReturn ? '↩️' : '📖';
-        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${eg.gameName}?`;
+    function processEventGameAction(eg) {
+        const action = resolveScanAction(eg);
+        if (action === 'ambiguous') { showChoicePopup(eg); return; }
+        performOrConfirm(eg, action);
+    }
+
+    function showChoicePopup(eg) {
+        document.getElementById('confirm-action-icon').textContent = '🤔';
+        document.getElementById('confirm-action-title').textContent = eg.gameName;
+        document.getElementById('confirm-action-sub').textContent = 'Manche Exemplare sind draußen, manche verfügbar — was ist das hier?';
+        document.getElementById('confirm-action-choice-buttons').classList.remove('cl-hidden');
+        document.getElementById('confirm-action-single-buttons').classList.add('cl-hidden');
+        document.getElementById('confirm-action-choice-cancel-btn').classList.remove('cl-hidden');
         document.getElementById('confirm-action-overlay').classList.add('is-visible');
         pendingAction = eg;
     }
-    let pendingAction = null;
-    document.getElementById('confirm-action-ok-btn').addEventListener('click', () => {
+    document.getElementById('confirm-action-choice-borrow-btn').addEventListener('click', () => {
         document.getElementById('confirm-action-overlay').classList.remove('is-visible');
-        if (pendingAction) commitAction(pendingAction);
+        if (pendingAction) commitAction(pendingAction, 'borrow');
         pendingAction = null;
     });
-    document.getElementById('confirm-action-cancel-btn').addEventListener('click', () => {
+    document.getElementById('confirm-action-choice-return-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        if (pendingAction) commitAction(pendingAction, 'return');
+        pendingAction = null;
+    });
+    document.getElementById('confirm-action-choice-cancel-btn').addEventListener('click', () => {
         document.getElementById('confirm-action-overlay').classList.remove('is-visible');
         pendingAction = null;
         scanInput.focus();
     });
 
-    async function commitAction(eg) {
-        if (scanMode === 'borrow') await borrowOne(eg); else await returnOne(eg);
+    function performOrConfirm(eg, action) {
+        if (!requireConfirm) { commitAction(eg, action); return; }
+        const isReturn = action === 'return';
+        document.getElementById('confirm-action-icon').textContent = isReturn ? '↩️' : '📖';
+        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${eg.gameName}?`;
+        document.getElementById('confirm-action-sub').textContent = '';
+        document.getElementById('confirm-action-choice-buttons').classList.add('cl-hidden');
+        document.getElementById('confirm-action-single-buttons').classList.remove('cl-hidden');
+        document.getElementById('confirm-action-choice-cancel-btn').classList.add('cl-hidden');
+        document.getElementById('confirm-action-overlay').classList.add('is-visible');
+        pendingAction = eg;
+        pendingActionType = action;
+    }
+    let pendingAction = null;
+    let pendingActionType = null;
+    document.getElementById('confirm-action-ok-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        if (pendingAction) commitAction(pendingAction, pendingActionType);
+        pendingAction = null; pendingActionType = null;
+    });
+    document.getElementById('confirm-action-cancel-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        pendingAction = null; pendingActionType = null;
+        scanInput.focus();
+    });
+
+    async function commitAction(eg, action) {
+        if (action === 'borrow') await borrowOne(eg); else await returnOne(eg);
         scanInput.focus();
     }
 
@@ -441,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
+            showScanResultBox({ icon: '📖', title: `${eg.gameName} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
             showReturnOverlay({ icon: '📖', title: `${eg.gameName} ausgeliehen`, sub: 'Viel Spaß!', shelf: '', borrowMode: true });
             showToast(`<strong>${escapeHTML(eg.gameName)}</strong> ausgeliehen.`);
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
@@ -453,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const snap = await getDocs(q);
             if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
+            showScanResultBox({ icon: '✅', title: `${eg.gameName} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
             showReturnOverlay({ icon: '✅', title: `${eg.gameName} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
             showToast(`<strong>${escapeHTML(eg.gameName)}</strong> zurückgelegt.`);
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
