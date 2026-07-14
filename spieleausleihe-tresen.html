@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ausleihe-Tresen – Linz Spielt</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    .qb-header-actions { display: flex; align-items: center; gap: var(--cl-space-2); flex-wrap: wrap; justify-content: flex-end; }
+    .qb-error { color: var(--cl-err); text-align: center; margin-top: var(--cl-space-2); min-height: 1.25rem; font-size: .9rem; }
+    #toast-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 100;
+        display: flex; flex-direction: column; gap: .5rem; align-items: center; }
+    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: .75rem 1.4rem;
+        border-radius: var(--cl-radius-pill); box-shadow: var(--cl-shadow-lg); font-size: .9rem; max-width: 90vw; text-align: center; }
+    .qb-toast--err { background: var(--cl-err); }
+    @keyframes qbFadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    .toast-enter { animation: qbFadeIn .25s ease-out; }
+
+    .td-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+    .td-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-4); }
+    .td-stat-box { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); text-align: center; }
+    .td-stat-box__num { font-size: 2rem; font-weight: 700; font-family: var(--cl-font-display); }
+    .td-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
+
+    .td-scan-card { text-align: center; }
+    .td-scan-input { font-size: 1.4rem; text-align: center; letter-spacing: .05em; padding: 1.1rem !important; }
+    .td-manual-search { position: relative; margin-top: var(--cl-space-3); }
+    .td-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
+        margin-top: .3rem; max-height: 260px; overflow-y: auto; }
+    .td-manual-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem .75rem;
+        cursor: pointer; border-bottom: 1px solid var(--cl-line); align-items: center; }
+    .td-manual-result-item:last-child { border-bottom: none; }
+    .td-manual-result-item:hover { background: var(--cl-surface-2); }
+    .td-badge-status { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .td-badge-status--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .td-badge-status--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+
+    .td-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    table.td-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    table.td-table th, table.td-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.td-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.td-table tbody tr:last-child td { border-bottom: none; }
+    .td-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+    .td-event-picker { max-width: 26rem; margin: 3rem auto; }
+
+    /* Rückgabe-Meldung: große, unübersehbare Overlay-Karte */
+    .td-return-overlay { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
+        background: color-mix(in srgb, black 60%, transparent); padding: 1rem; }
+    .td-return-overlay.is-visible { display: flex; }
+    .td-return-card { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-5); max-width: 30rem; width: 100%;
+        text-align: center; box-shadow: var(--cl-shadow-lg); border: 3px solid var(--cl-ok); }
+    .td-return-card--borrow { border-color: var(--cl-signal); }
+    .td-return-card__icon { font-size: 3rem; margin-bottom: .5rem; }
+    .td-return-card__title { font-size: 1.4rem; font-weight: 700; margin: 0 0 .5rem 0; }
+    .td-return-card__shelf { font-size: 1.8rem; font-weight: 700; color: var(--cl-ok); margin: .5rem 0; }
+    .td-return-card__timer { color: var(--cl-muted); font-size: .85rem; margin-top: .75rem; }
+
+    @media (max-width: 640px) {
+        .cl-card--pad { padding: var(--cl-space-3); }
+    }
+</style>
+</head>
+<body>
+
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎟️</span><span class="cl-brand__name">Ausleihe<b>-Tresen</b></span></a>
+        <div class="cl-header__spacer"></div>
+        <div class="qb-header-actions" id="header-actions"></div>
+    </div>
+</header>
+
+<main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
+
+    <!-- LOGIN -->
+    <div id="login-view" class="td-login-wrap">
+        <div class="cl-card cl-card--pad" style="max-width:26rem; width:100%;">
+            <h2 class="cl-center">Anmelden</h2>
+            <p class="cl-muted cl-center">Nur für Team-Mitglieder von Linz Spielt.</p>
+            <form id="login-form" class="cl-stack">
+                <div><label class="cl-label" for="login-email">E-Mail</label><input class="cl-input" id="login-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="login-password">Passwort</label><input class="cl-input" id="login-password" type="password" required autocomplete="current-password"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Einloggen</button>
+            </form>
+            <p id="login-error" class="qb-error"></p>
+            <p class="cl-muted cl-center" style="font-size:.85rem; margin-top:.5rem;">Noch kein Konto? Im Verwaltungstool registrieren.</p>
+        </div>
+    </div>
+
+    <!-- EVENT PICKER (falls kein ?event=... in der URL) -->
+    <div id="event-picker-view" class="cl-hidden td-event-picker">
+        <div class="cl-card cl-card--pad">
+            <h2 class="cl-center">Event wählen</h2>
+            <label class="cl-label" for="event-picker-select">Für welches Event möchtest du den Tresen öffnen?</label>
+            <select id="event-picker-select" class="cl-select" style="width:100%;"></select>
+            <button type="button" id="event-picker-go-btn" class="cl-btn cl-btn--signal" style="width:100%; margin-top:.75rem;">Tresen öffnen</button>
+        </div>
+    </div>
+
+    <!-- TRESEN -->
+    <div id="desk-view" class="cl-hidden">
+        <h1 id="desk-event-title" style="margin-bottom:.2rem;"></h1>
+        <p id="desk-event-meta" class="cl-muted" style="margin-top:0;"></p>
+
+        <div class="td-stats" id="desk-stats"></div>
+
+        <div class="cl-card cl-card--pad td-scan-card">
+            <label class="cl-label" for="desk-scan-input">EAN scannen</label>
+            <input type="text" id="desk-scan-input" class="cl-input td-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+        </div>
+
+        <div class="cl-card cl-card--pad td-manual-search">
+            <label class="cl-label" for="desk-manual-search">Spiel manuell suchen (falls Scanner nicht verfügbar)</label>
+            <input type="text" id="desk-manual-search" class="cl-input" placeholder="Spielname eingeben…" autocomplete="off">
+            <div id="desk-manual-results" class="td-manual-results cl-hidden"></div>
+        </div>
+
+        <h3 style="margin-top: var(--cl-space-4);">Aktuell ausgeliehen</h3>
+        <div class="td-table-wrap">
+            <table class="td-table">
+                <thead><tr><th>Spiel</th><th>Regal</th><th>Draußen</th><th></th></tr></thead>
+                <tbody id="desk-borrowed-body"></tbody>
+            </table>
+            <p id="desk-borrowed-empty" class="td-empty cl-hidden">Aktuell ist kein Spiel ausgeliehen.</p>
+        </div>
+    </div>
+
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt — Ausleihe-Tresen</span></div>
+</footer>
+
+<div id="toast-container"></div>
+
+<!-- Rückgabe-/Ausleihe-Meldung -->
+<div id="return-overlay" class="td-return-overlay">
+    <div class="td-return-card" id="return-card">
+        <div class="td-return-card__icon" id="return-icon">✅</div>
+        <p class="td-return-card__title" id="return-title"></p>
+        <p class="td-return-card__shelf" id="return-shelf"></p>
+        <p class="cl-muted" id="return-sub"></p>
+        <button type="button" id="return-ok-btn" class="cl-btn cl-btn--signal" style="margin-top:1rem;">OK</button>
+        <p class="td-return-card__timer" id="return-timer-text"></p>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import {
+    getFirestore, collection, doc, onSnapshot, updateDoc,
+    addDoc, getDocs, query, where, serverTimestamp, increment
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+    authDomain: "linzspielt.firebaseapp.com",
+    projectId: "linzspielt",
+    storageBucket: "linzspielt.firebasestorage.app",
+    messagingSenderId: "41406614659",
+    appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+    measurementId: "G-5X66HE5YLY"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+function showToast(message, isError = false) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'qb-toast toast-enter' + (isError ? ' qb-toast--err' : '');
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 4500);
+}
+
+let currentUser = null;
+let currentEvent = null;
+let currentEventId = new URLSearchParams(location.search).get('event') || '';
+let allEventGames = [];
+let allEventShelves = [];
+let allEvents = [];
+let unsubs = [];
+let returnTimerHandle = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const loginView = document.getElementById('login-view');
+    const eventPickerView = document.getElementById('event-picker-view');
+    const deskView = document.getElementById('desk-view');
+    const headerActions = document.getElementById('header-actions');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        loginError.textContent = '';
+        signInWithEmailAndPassword(auth, email, password)
+            .catch(err => {
+                console.error('Login-Fehler:', err.code, err.message);
+                loginError.textContent = 'Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.';
+            });
+    });
+
+    function renderHeaderActions() {
+        if (currentUser) {
+            headerActions.innerHTML = `
+                <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
+                <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>`;
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        } else {
+            headerActions.innerHTML = '';
+        }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        renderHeaderActions();
+        if (user) {
+            loginView.classList.add('cl-hidden');
+            startUp();
+        } else {
+            loginView.classList.remove('cl-hidden');
+            eventPickerView.classList.add('cl-hidden');
+            deskView.classList.add('cl-hidden');
+            stopListeners();
+        }
+    });
+
+    function stopListeners() {
+        unsubs.forEach(u => u());
+        unsubs = [];
+    }
+
+    function startUp() {
+        if (currentEventId) {
+            openDesk(currentEventId);
+        } else {
+            eventPickerView.classList.remove('cl-hidden');
+            onSnapshot(collection(db, 'events'), (snap) => {
+                allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                const select = document.getElementById('event-picker-select');
+                select.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('') || '<option value="">— keine Events —</option>';
+            });
+        }
+    }
+    document.getElementById('event-picker-go-btn').addEventListener('click', () => {
+        const id = document.getElementById('event-picker-select').value;
+        if (!id) return;
+        currentEventId = id;
+        const url = new URL(location.href);
+        url.searchParams.set('event', id);
+        history.replaceState(null, '', url);
+        document.getElementById('event-picker-view').classList.add('cl-hidden');
+        openDesk(id);
+    });
+
+    function shelfName(shelfId) {
+        const s = allEventShelves.find(s => s.id === shelfId);
+        return s ? s.name : '—';
+    }
+
+    function openDesk(eventId) {
+        deskView.classList.remove('cl-hidden');
+
+        unsubs.push(onSnapshot(doc(db, 'events', eventId), (snap) => {
+            currentEvent = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+            if (currentEvent) {
+                document.getElementById('desk-event-title').textContent = currentEvent.name;
+                document.getElementById('desk-event-meta').textContent = currentEvent.date || '';
+            }
+        }, err => console.error('event onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(query(collection(db, 'eventShelves'), where('eventId', '==', eventId)), (snap) => {
+            allEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDesk();
+        }, err => console.error('eventShelves onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(query(collection(db, 'eventGames'), where('eventId', '==', eventId)), (snap) => {
+            allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDesk();
+        }, err => console.error('eventGames onSnapshot Fehler:', err)));
+    }
+
+    function renderDesk() {
+        const total = allEventGames.reduce((sum, g) => sum + (g.quantity ?? 1), 0);
+        const available = allEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
+        const borrowedTotal = total - available;
+        const distinctBorrowed = allEventGames.filter(g => (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1)).length;
+        document.getElementById('desk-stats').innerHTML = `
+            <div class="td-stat-box"><div class="td-stat-box__num">${total}</div><div class="td-stat-box__label">Spiele gesamt</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${available}</div><div class="td-stat-box__label">Verfügbar</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${borrowedTotal}</div><div class="td-stat-box__label">Exemplare draußen</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${distinctBorrowed}</div><div class="td-stat-box__label">Verschiedene Spiele draußen</div></div>`;
+
+        const borrowed = allEventGames.filter(g => (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1))
+            .sort((a, b) => (b.lastActivityAt?.seconds || 0) - (a.lastActivityAt?.seconds || 0));
+        const body = document.getElementById('desk-borrowed-body');
+        document.getElementById('desk-borrowed-empty').classList.toggle('cl-hidden', borrowed.length > 0);
+        body.innerHTML = borrowed.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
+            return `<tr>
+                <td>${escapeHTML(g.gameName)}</td>
+                <td>${escapeHTML(shelfName(g.shelfId))}</td>
+                <td>${out} von ${qty}</td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button></td>
+            </tr>`;
+        }).join('');
+    }
+    document.getElementById('desk-borrowed-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.td-return-btn');
+        if (!btn) return;
+        const eg = allEventGames.find(g => g.id === btn.dataset.id);
+        if (eg) returnOne(eg);
+    });
+
+    // --- Scannen ---
+    const scanInput = document.getElementById('desk-scan-input');
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = scanInput.value.trim();
+            scanInput.value = '';
+            if (value) handleScan(value);
+        }
+    });
+
+    function handleScan(ean) {
+        const eg = allEventGames.find(g => g.ean === ean);
+        if (eg) { borrowOrReturn(eg); return; }
+        showReturnOverlay({
+            icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', shelf: '', borrowMode: true
+        });
+        scanInput.focus();
+    }
+
+    async function borrowOrReturn(eg) {
+        const avail = eg.availableQuantity ?? 1;
+        if (avail > 0) await borrowOne(eg); else await returnOne(eg);
+        scanInput.focus();
+    }
+
+    async function borrowOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        try {
+            await addDoc(collection(db, 'loans'), {
+                ean: eg.ean, gameName: eg.gameName, eventId: eg.eventId, eventName: currentEvent ? currentEvent.name : '',
+                shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+            });
+            await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
+            showReturnOverlay({ icon: '📖', title: `${eg.gameName} ausgeliehen`, sub: 'Viel Spaß!', shelf: '', borrowMode: true });
+            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> ausgeliehen.`);
+        } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
+    }
+
+    async function returnOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        try {
+            const q = query(collection(db, 'loans'), where('eventId', '==', eg.eventId), where('ean', '==', eg.ean), where('returnedAt', '==', null));
+            const snap = await getDocs(q);
+            if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
+            await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
+            showReturnOverlay({ icon: '✅', title: `${eg.gameName} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
+            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> zurückgelegt.`);
+        } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
+    }
+
+    // --- Manuelle Suche ---
+    const manualSearch = document.getElementById('desk-manual-search');
+    const manualResults = document.getElementById('desk-manual-results');
+    manualSearch.addEventListener('input', () => {
+        const term = manualSearch.value.trim().toLowerCase();
+        if (!term) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
+        const matches = allEventGames.filter(g => (g.gameName || '').toLowerCase().includes(term)).slice(0, 15);
+        manualResults.innerHTML = matches.length ? matches.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            return `<div class="td-manual-result-item" data-id="${g.id}">
+                <span>${escapeHTML(g.gameName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfName(g.shelfId))})</span></span>
+                <span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${avail}/${qty} verfügbar</span>
+            </div>`;
+        }).join('') : '<div class="cl-muted" style="padding:.6rem;">Keine Treffer.</div>';
+        manualResults.classList.remove('cl-hidden');
+    });
+    manualResults.addEventListener('click', (e) => {
+        const item = e.target.closest('.td-manual-result-item');
+        if (!item) return;
+        const eg = allEventGames.find(g => g.id === item.dataset.id);
+        if (eg) { borrowOrReturn(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
+    });
+
+    // --- Rückgabe-/Ausleihe-Meldung (konfigurierbar pro Event) ---
+    const returnOverlay = document.getElementById('return-overlay');
+    const returnCard = document.getElementById('return-card');
+    function showReturnOverlay({ icon, title, sub, shelf, borrowMode }) {
+        if (returnTimerHandle) { clearTimeout(returnTimerHandle); returnTimerHandle = null; }
+        document.getElementById('return-icon').textContent = icon;
+        document.getElementById('return-title').textContent = title;
+        document.getElementById('return-sub').textContent = sub;
+        document.getElementById('return-shelf').textContent = shelf;
+        document.getElementById('return-shelf').style.display = shelf ? '' : 'none';
+        returnCard.classList.toggle('td-return-card--borrow', !!borrowMode);
+        returnOverlay.classList.add('is-visible');
+
+        const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
+        const seconds = currentEvent?.returnMessageSeconds ?? 5;
+        const okBtn = document.getElementById('return-ok-btn');
+        const timerText = document.getElementById('return-timer-text');
+        if (mode === 'timer') {
+            okBtn.classList.add('cl-hidden');
+            let remaining = seconds;
+            timerText.textContent = `Schließt automatisch in ${remaining} Sek. …`;
+            const tick = () => {
+                remaining--;
+                if (remaining <= 0) { hideReturnOverlay(); return; }
+                timerText.textContent = `Schließt automatisch in ${remaining} Sek. …`;
+                returnTimerHandle = setTimeout(tick, 1000);
+            };
+            returnTimerHandle = setTimeout(tick, 1000);
+        } else {
+            okBtn.classList.remove('cl-hidden');
+            timerText.textContent = '';
+        }
+    }
+    function hideReturnOverlay() {
+        if (returnTimerHandle) { clearTimeout(returnTimerHandle); returnTimerHandle = null; }
+        returnOverlay.classList.remove('is-visible');
+        scanInput.focus();
+    }
+    document.getElementById('return-ok-btn').addEventListener('click', hideReturnOverlay);
+    returnOverlay.addEventListener('click', (e) => { if (e.target === returnOverlay && currentEvent?.returnMessageMode !== 'timer') hideReturnOverlay(); });
+});
+</script>
+</body>
+</html>
