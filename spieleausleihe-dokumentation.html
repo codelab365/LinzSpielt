@@ -150,12 +150,14 @@
                 <p>Tab <strong>Spieledatenbank</strong>. Hier werden neue Barcodes roh erfasst, bevor sie einen Titel haben.</p>
                 <ul class="doc-step-list">
                     <li>EANs nacheinander scannen (Scanner tippt automatisch in das Textfeld, eine Zeile pro Code) oder als Liste einfügen.</li>
-                    <li>Auf <strong>"Erfassen"</strong> klicken.</li>
-                    <li>Das Tool gleicht jede neue EAN automatisch gegen die hinterlegte <strong>GTNM-Referenzliste</strong> ab (eine statische Titel-Datenbank mit ca. 18.500 Einträgen, Datei <code>ean-referenz.json</code> neben den Hauptseiten). Bei Treffer wird der Titel sofort übernommen und mit <span class="doc-badge">Quelle: GTNM-Referenz</span> markiert.</li>
-                    <li>Werden Titel gefunden, fragt das Tool nach, ob diese sofort automatisch bei BoardGameGeek (BGG) angereichert werden sollen (Bild, Beschreibung, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität). Das läuft mit Fortschrittsbalken, ca. 5 Sekunden pro Spiel (BGG-Rate-Limit).</li>
+                    <li>Auf <strong>"Erfassen"</strong> klicken — die EANs werden sofort angelegt (zunächst ohne Titel).</li>
+                    <li>Das Tool gleicht jede neue EAN automatisch gegen die hinterlegte <strong>GTNM-Referenzliste</strong> ab (eine statische Titel-Datenbank mit ca. 18.500 Einträgen, Datei <code>ean-referenz.json</code> neben den Hauptseiten).</li>
+                    <li>Bei Treffern erscheint darunter ein <strong>Review-Panel</strong>: eine Zeile pro gefundenem Titel, jeweils in einem editierbaren Textfeld. Titel bei Bedarf korrigieren.</li>
+                    <li>Erst mit Klick auf <strong>"Übernehmen &amp; bei BGG anreichern"</strong> werden die (ggf. korrigierten) Titel tatsächlich gespeichert (mit <span class="doc-badge">Quelle: GTNM-Referenz</span> markiert) und automatisch bei BoardGameGeek (BGG) angereichert (Bild, Beschreibung, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität). Das läuft mit Fortschrittsbalken, ca. 5 Sekunden pro Spiel (BGG-Rate-Limit).</li>
+                    <li>Alternativ <strong>"Schließen ohne Übernahme"</strong> — dann bleiben die betroffenen EANs einfach ohne Titel als "Offen" stehen, zur späteren Bearbeitung.</li>
                 </ul>
                 <div class="doc-callout doc-callout--warn">
-                    <p>Ein Treffer in der GTNM-Referenz ist <strong>kein Besitznachweis</strong> — er liefert nur einen wahrscheinlichen Titel. Bei Karteileichen oder falsch zugeordneten EANs (z.B. Erweiterung statt Grundspiel) im Zweifel manuell nachschärfen (siehe <a href="#datenbank-tabelle">Datenbank bearbeiten</a>).</p>
+                    <p>Ein Treffer in der GTNM-Referenz ist <strong>kein Besitznachweis</strong> — er liefert nur einen wahrscheinlichen Titel-Vorschlag. Genau deshalb lässt er sich im Review-Panel vor dem Speichern noch korrigieren.</p>
                 </div>
             </section>
 
@@ -175,17 +177,19 @@
 
             <section id="deutsche-titel">
                 <h2>Deutsche Titel</h2>
-                <p>BGG selbst markiert seine Namenseinträge nicht zuverlässig nach Sprache — es gibt keinen sauberen "gib mir den deutschen Titel"-Aufruf. Das System löst das so: Der Titel, mit dem gesucht wird (aus GTNM-Referenz, Recherche-Liste oder eurer eigenen Eingabe — also praktisch immer schon Deutsch), bleibt <strong>immer</strong> als gespeicherter Titel bestehen. BGG liefert ausschließlich die Zusatzdaten (Bild, Beschreibung, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität), nie den Titel selbst.</p>
+                <p>BGG selbst markiert seine Namenseinträge nicht zuverlässig nach Sprache — es gibt keinen sauberen "gib mir den deutschen Titel"-Aufruf, und teils liegt bei BGG ohnehin nur eine Sprachversion der Beschreibung vor (z.B. rein zufällig auf Deutsch, wenn ein Spiel ursprünglich in Deutschland populär wurde). Das System löst das für den <strong>Titel</strong> so: Der Titel, mit dem gesucht wird (aus GTNM-Referenz, Recherche-Liste oder eurer eigenen Eingabe — also praktisch immer schon Deutsch), bleibt <strong>immer</strong> als gespeicherter Titel bestehen. BGG liefert ausschließlich die Zusatzdaten (Bild, Beschreibung, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität), nie den Titel selbst. Bei welcher Sprache die Beschreibung landet, entscheidet allein BGG — nicht steuerbar, aber im Formular jederzeit von Hand nachbearbeitbar (siehe unten).</p>
             </section>
 
             <section id="datenbank-tabelle">
                 <h2>Datenbank durchsuchen &amp; bearbeiten</h2>
                 <ul class="doc-step-list">
                     <li>Suchfeld filtert nach Name oder EAN, Status-Filter zeigt nur Offene / Fertige / Fehlerhafte Einträge.</li>
+                    <li>Die <strong>ganze Tabellenzeile</strong> ist anklickbar und öffnet die Spiel-Infos — nicht nur der "Bearbeiten"-Button.</li>
                     <li><strong>"(+) Spiel manuell anlegen"</strong> öffnet die Eingabemaske für Einzelfälle, inkl. eigener BGG-Suche mit Trefferauswahl.</li>
-                    <li><strong>"Bearbeiten"</strong> in einer Zeile öffnet dasselbe Formular zum Korrigieren oder Löschen.</li>
+                    <li>Im Formular gibt es ein eigenes, editierbares Feld <strong>"Beschreibung"</strong> — zeigt den von BGG übernommenen Text und lässt sich jederzeit von Hand anpassen oder ergänzen.</li>
                     <li>Status-Badges: <span class="doc-badge">Offen</span> (Stufe 1, noch kein Titel/BGG-Daten), <span class="doc-badge">Fertig</span> (BGG-Daten vorhanden), <span class="doc-badge">Kein Treffer</span> (Titel bekannt, aber BGG fand nichts), <span class="doc-badge">Fehler</span> (technisches Problem beim Abgleich).</li>
                     <li>Unter dem Namen steht klein die <strong>Titelquelle</strong> (GTNM-Referenz / manuell / Recherche-Import), damit immer nachvollziehbar bleibt, woher ein Titel kam.</li>
+                    <li>Button <strong>"🔄 Fehlende Beschreibungen nachholen"</strong>: findet alle bereits "Fertig" angereicherten Spiele ohne Beschreibung (weil sie vor Einführung dieses Felds enzeichert wurden) und holt sie in einem Rutsch nach — gleicher 5-Sek.-Takt, Fortschrittsbalken.</li>
                 </ul>
             </section>
 
@@ -195,12 +199,13 @@
                 <ul class="doc-step-list">
                     <li>Einmal einstellen: Häkchen bei den Ziel-<strong>Sammlungen</strong> setzen, optional ein <strong>Regal</strong> des aktiven Events wählen.</li>
                     <li>Danach nur noch scannen — jeder Scan trägt <strong>sofort ohne Rückfrage</strong> ein: neu in die Datenbank (mit automatischem GTNM-Titel-Vorschlag), in die angehakten Sammlungen, und falls ein Regal gewählt ist, direkt ins aktive Event.</li>
+                    <li>Nach jedem Scan blendet sich kurz eine <strong>grüne Bestätigung</strong> ein ("✅ [Spielname] erfasst") und verschwindet nach ca. 1,5 Sekunden von selbst — ideal beim zügigen Durchscannen einer ganzen Sammlung.</li>
                     <li>BGG-Anreicherung läuft dabei <strong>im Hintergrund</strong> (5-Sek.-Takt, eigene Warteschlangen-Anzeige), damit das Scan-Tempo nicht ausgebremst wird.</li>
-                    <li>Scannst du eine EAN, die in der Sammlung/im Event schon existiert, wird einfach die <strong>Stückzahl um 1 erhöht</strong> — genau der Mehrfach-Exemplare-Fall.</li>
-                    <li>Ein Protokoll unten zeigt jeden Scan mit Ergebnis.</li>
+                    <li>Scannst du eine EAN, die in der Sammlung/im Event schon existiert, wird der bestehende Datenbank-Eintrag <strong>nicht verändert</strong> — es wird lediglich die <strong>Stückzahl um 1 erhöht</strong>, genau der Mehrfach-Exemplare-Fall.</li>
+                    <li>Ein Protokoll unten zeigt zusätzlich jeden Scan mit Ergebnis im Verlauf.</li>
                 </ul>
                 <div class="doc-callout">
-                    <p>Diese globale Schnellerfassung bezieht sich immer auf das oben gewählte <strong>aktive Event</strong>. Willst du gezielt für ein bestimmtes, gerade nicht aktives Event scannen, nutze stattdessen den <a href="#events-schnellscan">Schnellscan direkt im Event-Fenster</a>.</p>
+                    <p>Diese globale Schnellerfassung bezieht sich immer auf das oben gewählte <strong>aktive Event</strong>. Willst du gezielt für ein bestimmtes, gerade nicht aktives Event scannen, nutze stattdessen den <a href="#events-schnellscan">Schnellscan direkt im Event-Fenster</a> (verhält sich beim erneuten Scannen identisch, inkl. grüner Bestätigung).</p>
                 </div>
             </section>
 
@@ -360,10 +365,10 @@
                 <ul class="doc-step-list">
                     <li>Aufruf mit <code>?event=EVENT_ID</code> in der URL zeigt direkt dieses Event (so ist auch der Einbett-Code aufgebaut).</li>
                     <li>Ohne Event-Parameter zeigt die Seite ein Dropdown zur Auswahl unter allen vorhandenen Events.</li>
-                    <li>Suchfeld, Regal-Filter, Spielerzahl-Filter und Status-Filter helfen Besuchern, ein passendes verfügbares Spiel zu finden.</li>
-                    <li>Zusätzliche, bewusst einfach gehaltene Filter: <strong>Komplexität</strong> ("Leicht", "Mittel", "Anspruchsvoll") und <strong>Bewertung</strong> ("Gut bewertet ab 7", "Sehr gut bewertet ab 8") statt roher BGG-Zahlenskalen.</li>
-                    <li>Sortierung nach Name, Beliebtheit (BGG-Bewertung) oder Komplexität (auf- oder absteigend).</li>
-                    <li>Jede Zeile ist anklickbar und öffnet eine Detailkarte mit größerem Bild, Beschreibung, Kategorie und einem direkten Link zur BGG-Seite des Spiels.</li>
+                    <li>Standardmäßig sichtbar ist nur das <strong>Suchfeld</strong> plus ein Button <strong>"🔍 Filter &amp; Sortierung"</strong> — Platz sparend, besonders wichtig, wenn die Seite schmal eingebettet ist.</li>
+                    <li>Klick auf den Button öffnet ein kompaktes, mehrspaltiges Panel mit: Regal-Filter, Spielerzahl-Filter, Status-Filter, <strong>Komplexität</strong> ("Leicht", "Mittel", "Anspruchsvoll") und <strong>Bewertung</strong> ("Gut bewertet ab 7", "Sehr gut bewertet ab 8") statt roher BGG-Zahlenskalen, sowie Sortierung nach Name, Beliebtheit (BGG-Bewertung) oder Komplexität (auf- oder absteigend).</li>
+                    <li>Der Button zeigt eine kleine Zahl, sobald Filter aktiv sind, auch wenn das Panel gerade eingeklappt ist. Ein "Filter zurücksetzen"-Button im Panel setzt alles auf Standard zurück.</li>
+                    <li>Jede Zeile der Ergebnistabelle ist anklickbar und öffnet eine Detailkarte mit größerem Bild, Beschreibung, Kategorie und einem direkten Link zur BGG-Seite des Spiels.</li>
                     <li>Bei Mehrfach-Exemplaren zeigt der Status z.B. "verfügbar (2/3)".</li>
                     <li>Kein Login nötig, keine Bearbeitung möglich — reine Live-Ansicht.</li>
                 </ul>
