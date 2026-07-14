@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v2</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v3</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -486,8 +486,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v2 — aktuelle Version, siehe auch Anzeige im Header.
+// VERSION: v3 — aktuelle Version, siehe auch Anzeige im Header.
 // Änderungsprotokoll:
+//   v3 — Bugfix: Stückzahl-Änderungen (+/−) bei Sammlungen und Events werden
+//        jetzt sofort sichtbar aktualisiert (Live-Refresh der offenen
+//        Detail-Tabelle war vergessen worden). Untergrenze für Stückzahlen
+//        ist jetzt korrekt 0 (nicht negativ), mit serverseitiger Absicherung.
 //   v2 — Sammlungen: Name/Beschreibung nachträglich editierbar, Stückzahl pro
 //        Spiel in einer Sammlung (statt nur Hinzufügen/Entfernen).
 //   v1 — Versionsnummer eingeführt (Schnellerfassung, Mengen-Modell,
@@ -754,6 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
         unsubs.push(onSnapshot(collection(db, 'collectionItems'), (snap) => {
             allCollectionItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderCollectionsTab();
+            if (currentCollectionId) renderCollectionItemsTable();
         }, err => console.error('collectionItems onSnapshot Fehler:', err)));
 
         unsubs.push(onSnapshot(collection(db, 'events'), (snap) => {
@@ -767,12 +772,14 @@ document.addEventListener('DOMContentLoaded', () => {
             allEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderEventsTab();
             renderQuickTab();
+            if (currentEventId) renderEventShelfGrid();
         }, err => console.error('eventShelves onSnapshot Fehler:', err)));
 
         unsubs.push(onSnapshot(collection(db, 'eventGames'), (snap) => {
             allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderAusleiheTab();
             renderEventsTab();
+            if (currentEventId) { renderEventGamesTable(); renderEventShelfGrid(); }
         }, err => console.error('eventGames onSnapshot Fehler:', err)));
     }
 
@@ -1397,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:.4rem;">
-                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-minus" data-id="${ci.id}" ${qty <= 1 ? 'disabled' : ''}>−</button>
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-minus" data-id="${ci.id}" ${qty <= 0 ? 'disabled' : ''}>−</button>
                         <span>${qty}</span>
                         <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-plus" data-id="${ci.id}">+</button>
                     </div>
@@ -1419,6 +1426,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const minusBtn = e.target.closest('.sv-ci-qty-minus');
         if (minusBtn) {
+            const ci = allCollectionItems.find(x => x.id === minusBtn.dataset.id);
+            if (!ci || (ci.quantity ?? 1) <= 0) return; // nie unter 0
+            minusBtn.disabled = true; // sofort sperren, verhindert Doppelklick vor dem Live-Update
             updateDoc(doc(db, 'collectionItems', minusBtn.dataset.id), { quantity: increment(-1) }).catch(err => { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); });
             return;
         }
@@ -1687,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td>
                     <div style="display:flex; align-items:center; gap:.4rem;">
-                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-minus" data-id="${g.id}" ${qty <= 1 || avail < 1 ? 'disabled' : ''}>−</button>
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-minus" data-id="${g.id}" ${avail <= 0 ? 'disabled' : ''}>−</button>
                         <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${qty} verfügbar</span>
                         <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-plus" data-id="${g.id}">+</button>
                     </div>
@@ -1705,6 +1715,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (minusBtn) {
+            const eg = allEventGames.find(x => x.id === minusBtn.dataset.id);
+            if (!eg || (eg.availableQuantity ?? 1) <= 0) return; // nie unter 0, und nie ein verliehenes Exemplar "wegzaubern"
+            minusBtn.disabled = true; // sofort sperren, verhindert Doppelklick vor dem Live-Update
             try { await updateDoc(doc(db, 'eventGames', minusBtn.dataset.id), { quantity: increment(-1), availableQuantity: increment(-1) }); }
             catch (err) { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); }
             return;
