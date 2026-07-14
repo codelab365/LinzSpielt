@@ -80,6 +80,8 @@
     table.sv-table th, table.sv-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
     table.sv-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
     table.sv-table tbody tr:last-child td { border-bottom: none; }
+    table.sv-table tbody tr.sv-clickable-row { cursor: pointer; }
+    table.sv-table tbody tr.sv-clickable-row:hover { background: var(--cl-surface-2); }
     table.sv-table img.sv-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
     .sv-row-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
     .sv-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); align-items: center; justify-content: space-between; margin-bottom: var(--cl-space-3); }
@@ -150,7 +152,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v12</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v13</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -543,8 +545,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v12 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v13 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v13 — Spieledatenbank: ganze Tabellenzeile ist jetzt klickbar und öffnet
+//        die Spiel-Infos, nicht mehr nur der "Bearbeiten"-Button.
 //   v12 — Bugfix: BGG-Beschreibung wurde zwar seit v8 gespeichert, aber
 //        nirgends im Verwaltungstool angezeigt. Jetzt sichtbares und
 //        editierbares Beschreibungsfeld im Spiel-Formular. Neuer Button
@@ -1246,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gamesEmpty.classList.toggle('cl-hidden', filtered.length > 0);
         gamesTableBody.innerHTML = filtered.map(g => `
-            <tr>
+            <tr data-id="${g.id}" class="sv-clickable-row">
                 <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
                 <td>${escapeHTML(g.name || '(ohne Titel)')}${titleSourceLabel(g.titleSource) ? `<br><span class="cl-muted" style="font-size:.75rem;">Quelle: ${escapeHTML(titleSourceLabel(g.titleSource))}</span>` : ''}</td>
                 <td style="font-family: monospace; font-size:.8rem;">${escapeHTML(g.id)}</td>
@@ -1258,9 +1262,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>`).join('');
     }
     gamesTableBody.addEventListener('click', (e) => {
-        const btn = e.target.closest('.sv-edit-game-btn');
-        if (!btn) return;
-        const game = allGames.find(g => g.id === btn.dataset.id);
+        const row = e.target.closest('tr[data-id]');
+        if (!row) return;
+        const game = allGames.find(g => g.id === row.dataset.id);
         if (game) openGameModal(game);
     });
     document.getElementById('open-add-game-btn').addEventListener('click', () => openGameModal(null));
