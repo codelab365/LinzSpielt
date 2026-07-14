@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v7</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v8</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -511,8 +511,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v7 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v8 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v8 — BGG-Beschreibung wird jetzt mit erfasst (games + eventGames), für
+//        die Detailansicht in der öffentlichen Übersicht. Öffentliche Seite:
+//        Spiele anklickbar (Detailkarte mit Bild, Beschreibung, BGG-Link),
+//        Sortierung nach Beliebtheit/Komplexität, Filter nach Komplexität
+//        (Leicht/Mittel/Anspruchsvoll) und Bewertung (ab 7 / ab 8).
 //   v7 — Ausleihe-Tresen: eindeutiger Modus-Schalter "Ausleihen"/"Rückgabe"
 //        statt automatischem Raten (löst Mehrdeutigkeit bei Mehrfach-
 //        Exemplaren, wenn schon eines draußen ist). Optionale Vorab-
@@ -582,6 +587,13 @@ async function callBggApi(endpoint, params = {}) {
     return xmlDoc;
 }
 
+function decodeHTML(html) {
+    if (!html) return null;
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
+}
+
 function parseBggDetails(xmlDoc) {
     const item = xmlDoc.querySelector('item');
     if (!item) return null;
@@ -601,12 +613,14 @@ function parseBggDetails(xmlDoc) {
     const playTimeNode = item.querySelector('playingtime');
     const ratingNode = item.querySelector('statistics ratings average');
     const weightNode = item.querySelector('statistics ratings averageweight');
+    const descNode = item.querySelector('description');
     return {
         bggId: parseInt(item.getAttribute('id')) || null,
         bggName: getPrimaryName(),
         bggYear: yearNode ? yearNode.getAttribute('value') : null,
         bggImageUrl: item.querySelector('image')?.textContent || item.querySelector('thumbnail')?.textContent || null,
         bggCategory: getFirstCategory(),
+        bggDescription: descNode ? decodeHTML(descNode.textContent).trim() : null,
         minPlayers: minPlayersNode ? parseInt(minPlayersNode.getAttribute('value')) || null : null,
         maxPlayers: maxPlayersNode ? parseInt(maxPlayersNode.getAttribute('value')) || null : null,
         minAge: minAgeNode ? parseInt(minAgeNode.getAttribute('value')) || null : null,
@@ -959,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         name: titleGuess || match.bggName, bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
                         minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
                         Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
-                        category: match.bggCategory, enrichStatus: 'done', updatedAt: serverTimestamp()
+                        category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
                     });
                 } else {
                     await updateDoc(gameRef, { enrichStatus: 'not_found', updatedAt: serverTimestamp() });
@@ -1069,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
                             minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
                             Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
-                            category: match.bggCategory, enrichStatus: 'done', updatedAt: serverTimestamp()
+                            category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
                         });
                         logLine(`${ean}: ${titleGuess || match.bggName}`, true);
                     } else {
@@ -1334,6 +1348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bggYear: selectedBggMatch?.bggYear ?? null,
             rating: selectedBggMatch?.bggRating ?? null,
             complexity: selectedBggMatch?.bggComplexity ?? null,
+            description: selectedBggMatch?.bggDescription ?? null,
             enrichStatus: selectedBggMatch ? 'done' : 'pending',
             updatedAt: serverTimestamp()
         };
@@ -1732,9 +1747,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         await setDoc(doc(db, 'eventGames', egId), {
             eventId, ean, collectionId: collectionId || null, gameName: name || gameMeta?.name || ean,
-            bggImageUrl: gameMeta?.bggImageUrl ?? null, minPlayers: gameMeta?.minPlayers ?? null, maxPlayers: gameMeta?.maxPlayers ?? null,
+            bggId: gameMeta?.bggId ?? null, bggImageUrl: gameMeta?.bggImageUrl ?? null, minPlayers: gameMeta?.minPlayers ?? null, maxPlayers: gameMeta?.maxPlayers ?? null,
             minAge: gameMeta?.minAge ?? null, Duration: gameMeta?.Duration ?? null, rating: gameMeta?.rating ?? null,
-            complexity: gameMeta?.complexity ?? null, category: gameMeta?.category ?? null,
+            complexity: gameMeta?.complexity ?? null, category: gameMeta?.category ?? null, description: gameMeta?.description ?? null,
             shelfId: shelfId || null, quantity: 1, availableQuantity: 1, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
         });
         return 'added';
