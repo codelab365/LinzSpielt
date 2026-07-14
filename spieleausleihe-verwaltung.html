@@ -152,7 +152,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v13</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v14</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -242,6 +242,21 @@
                 <textarea id="stage1-textarea" rows="5" class="cl-input" placeholder="4001504xxxxxx&#10;4001504yyyyyy"></textarea>
                 <button type="button" id="stage1-add-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Erfassen</button>
                 <p id="stage1-feedback" class="qb-feedback"></p>
+
+                <div id="stage1-review-panel" class="sv-detail-panel cl-hidden">
+                    <h4 style="margin-top:0;">In der GTNM-Referenz gefundene Titel — prüfen und bei Bedarf korrigieren</h4>
+                    <p class="cl-muted" style="font-size:.85rem;">Titel sind vorausgefüllt, aber noch <strong>nicht</strong> gespeichert. Bei Bedarf ändern, dann übernehmen.</p>
+                    <div class="sv-table-wrap">
+                        <table class="sv-table">
+                            <thead><tr><th>EAN</th><th>Gefundener Titel</th></tr></thead>
+                            <tbody id="stage1-review-body"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap;">
+                        <button type="button" id="stage1-review-apply-btn" class="cl-btn cl-btn--signal">Übernehmen &amp; bei BGG anreichern</button>
+                        <button type="button" id="stage1-review-cancel-btn" class="cl-btn cl-btn--ghost">Schließen ohne Übernahme</button>
+                    </div>
+                </div>
             </div>
 
             <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
@@ -545,8 +560,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v13 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v14 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v14 — Stufe 1: GTNM-Treffer werden nicht mehr sofort automatisch
+//        gespeichert. Stattdessen erscheint ein Review-Panel mit den
+//        gefundenen Titeln in editierbaren Feldern — erst nach "Übernehmen
+//        & bei BGG anreichern" werden sie tatsächlich gespeichert und bei
+//        BGG gesucht.
 //   v13 — Spieledatenbank: ganze Tabellenzeile ist jetzt klickbar und öffnet
 //        die Spiel-Infos, nicht mehr nur der "Bearbeiten"-Button.
 //   v12 — Bugfix: BGG-Beschreibung wurde zwar seit v8 gespeichert, aber
@@ -1186,30 +1206,57 @@ document.addEventListener('DOMContentLoaded', () => {
             if (allGames.some(g => g.id === ean)) { skipped++; continue; }
             const refTitle = eanReference[ean] || null;
             try {
+                // Titel wird bewusst NICHT sofort gesetzt — erst nach Prüfung im
+                // Review-Panel unten (bei Treffer in der GTNM-Referenz).
                 await setDoc(doc(db, 'games', ean), {
-                    ean, name: refTitle, titleSource: refTitle ? 'gtnm' : null,
+                    ean, name: null, titleSource: null,
                     enrichStatus: 'pending', addedAt: serverTimestamp()
                 });
                 added++;
-                if (refTitle) matchedForEnrich.push({ ean, title: refTitle, source: 'gtnm' });
+                if (refTitle) matchedForEnrich.push({ ean, title: refTitle });
             } catch (err) { console.error('EAN erfassen fehlgeschlagen:', ean, err); }
         }
         feedback.textContent = `${added} neu erfasst.` + (skipped > 0 ? ` ${skipped} bereits vorhanden.` : '')
-            + (matchedForEnrich.length > 0 ? ` ${matchedForEnrich.length} Titel aus der GTNM-Referenzliste erkannt.` : '');
+            + (matchedForEnrich.length > 0 ? ` ${matchedForEnrich.length} Titel aus der GTNM-Referenzliste erkannt — bitte unten prüfen.` : '');
         feedback.style.color = 'var(--cl-ok)';
         textarea.value = '';
 
+        const reviewPanel = document.getElementById('stage1-review-panel');
+        const reviewBody = document.getElementById('stage1-review-body');
         if (matchedForEnrich.length > 0) {
-            const okBtn = document.getElementById('confirm-modal-ok');
-            okBtn.textContent = 'Ja, anreichern';
-            okBtn.style.background = '';
-            okBtn.style.borderColor = '';
-            showConfirm(
-                'Titel automatisch anreichern?',
-                `Für ${matchedForEnrich.length} der neu erfassten EAN(s) wurde ein Titel in der GTNM-Referenzliste gefunden (kein Besitznachweis, nur ein Titel-Vorschlag). Jetzt automatisch bei BGG abgleichen (Bild, Spieleranzahl, Alter, Dauer, Bewertung)? Das dauert bei vielen Treffern etwas (5 Sek. je Spiel).`,
-                () => { runBggEnrichQueue(matchedForEnrich, 'gtnm'); resetConfirmModalStyle(); }
-            );
+            reviewBody.innerHTML = matchedForEnrich.map(m => `
+                <tr>
+                    <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(m.ean)}</td>
+                    <td><input type="text" class="cl-input stage1-review-title-input" data-ean="${escapeHTML(m.ean)}" value="${escapeHTML(m.title)}"></td>
+                </tr>`).join('');
+            reviewPanel.classList.remove('cl-hidden');
+        } else {
+            reviewBody.innerHTML = '';
+            reviewPanel.classList.add('cl-hidden');
         }
+    });
+
+    document.getElementById('stage1-review-apply-btn').addEventListener('click', async () => {
+        const inputs = Array.from(document.querySelectorAll('.stage1-review-title-input'));
+        const items = [];
+        for (const input of inputs) {
+            const ean = input.dataset.ean;
+            const title = input.value.trim();
+            if (!title) continue; // leer gelassen -> bleibt "Offen", keine Anreicherung
+            try { await updateDoc(doc(db, 'games', ean), { name: title, titleSource: 'gtnm' }); }
+            catch (err) { console.error('Titel übernehmen fehlgeschlagen für', ean, err); continue; }
+            items.push({ ean, title, source: 'gtnm' });
+        }
+        document.getElementById('stage1-review-panel').classList.add('cl-hidden');
+        document.getElementById('stage1-review-body').innerHTML = '';
+        if (items.length > 0) await runBggEnrichQueue(items);
+        else showToast('Keine Titel übernommen.');
+    });
+
+    document.getElementById('stage1-review-cancel-btn').addEventListener('click', () => {
+        document.getElementById('stage1-review-panel').classList.add('cl-hidden');
+        document.getElementById('stage1-review-body').innerHTML = '';
+        showToast('Titel wurden nicht übernommen. Die EANs bleiben als "Offen" erhalten.');
     });
 
     document.getElementById('stage2-import-btn').addEventListener('click', async () => {
