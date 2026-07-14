@@ -15,9 +15,14 @@
     .ov-stats { display: flex; flex-wrap: wrap; gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
     .ov-stat { font-size: .9rem; color: var(--cl-muted); }
     .ov-stat strong { color: var(--cl-text); font-size: 1.1rem; }
-    .ov-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
-    .ov-toolbar .cl-input { flex: 1; min-width: 200px; }
-    .ov-toolbar .cl-select { min-width: 160px; }
+    .ov-searchbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-2); }
+    .ov-searchbar .cl-input { flex: 1; min-width: 160px; }
+    .ov-searchbar .cl-btn { white-space: nowrap; position: relative; }
+    .ov-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
+        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
+    .ov-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2);
+        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
+    .ov-filter-panel .cl-select { width: 100%; }
     .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
     table.ov-table { width: 100%; border-collapse: collapse; min-width: 620px; }
     table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
@@ -53,7 +58,7 @@
     .ov-modal-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
 
     @media (max-width: 640px) {
-        .ov-toolbar .cl-select { min-width: 140px; }
+        .ov-filter-panel { grid-template-columns: 1fr 1fr; }
         .ov-modal-head { flex-direction: column; align-items: center; text-align: center; }
         .ov-modal-meta-grid { grid-template-columns: 1fr 1fr; }
     }
@@ -72,8 +77,12 @@
     <div id="ov-main" class="cl-hidden">
         <div class="ov-stats" id="ov-stats"></div>
 
-        <div class="ov-toolbar">
+        <div class="ov-searchbar">
             <input type="text" id="ov-search" class="cl-input" placeholder="Spiel suchen…" autocomplete="off">
+            <button type="button" id="ov-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="ov-filter-count" class="ov-filter-count cl-hidden">0</span></button>
+        </div>
+
+        <div id="ov-filter-panel" class="ov-filter-panel cl-hidden">
             <select id="ov-shelf-filter" class="cl-select"><option value="all">Alle Regale</option></select>
             <select id="ov-players-filter" class="cl-select">
                 <option value="0">Jede Spielerzahl</option>
@@ -102,6 +111,7 @@
                 <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
                 <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
             </select>
+            <button type="button" id="ov-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
         </div>
 
         <div class="ov-table-wrap">
@@ -197,6 +207,30 @@ document.addEventListener('DOMContentLoaded', () => {
     [searchInput, shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('input', render));
     [shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('change', render));
 
+    // --- Kompaktes Filter-Panel: eingeklappt per Default, zeigt Anzahl aktiver Filter ---
+    const filterToggle = document.getElementById('ov-filter-toggle');
+    const filterPanel = document.getElementById('ov-filter-panel');
+    const filterCount = document.getElementById('ov-filter-count');
+    filterToggle.addEventListener('click', () => {
+        filterPanel.classList.toggle('cl-hidden');
+    });
+    document.getElementById('ov-filter-reset').addEventListener('click', () => {
+        shelfFilter.value = 'all'; playersFilter.value = '0'; statusFilter.value = 'all';
+        complexityFilter.value = 'all'; ratingFilter.value = 'all'; sortSelect.value = 'name';
+        render();
+    });
+    function updateFilterCount() {
+        let n = 0;
+        if (shelfFilter.value !== 'all') n++;
+        if (playersFilter.value !== '0') n++;
+        if (statusFilter.value !== 'all') n++;
+        if (complexityFilter.value !== 'all') n++;
+        if (ratingFilter.value !== 'all') n++;
+        if (sortSelect.value !== 'name') n++;
+        filterCount.textContent = n;
+        filterCount.classList.toggle('cl-hidden', n === 0);
+    }
+
     onSnapshot(collection(db, 'events'), (snap) => {
         allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         loadingEl.classList.add('cl-hidden');
@@ -261,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function render() {
+        updateFilterCount();
         const term = searchInput.value.trim().toLowerCase();
         const shelfVal = shelfFilter.value;
         const playersVal = parseInt(playersFilter.value, 10);
