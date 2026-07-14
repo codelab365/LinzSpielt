@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v1</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v2</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -391,15 +391,25 @@
 <div id="collection-modal-overlay" class="qb-modal-overlay cl-hidden">
     <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
         <button type="button" id="collection-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
-        <h2 id="collection-modal-title" style="margin-top:0;">Sammlung</h2>
-        <p id="collection-modal-desc" class="cl-muted"></p>
-        <label class="cl-label" for="collection-add-search">Spiel aus Datenbank hinzufügen</label>
+        <h2 style="margin-top:0;">Sammlung bearbeiten</h2>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:160px;">
+                <label class="cl-label" for="collection-edit-name">Name</label>
+                <input type="text" id="collection-edit-name" class="cl-input">
+            </div>
+            <div style="flex:1; min-width:160px;">
+                <label class="cl-label" for="collection-edit-desc">Beschreibung</label>
+                <input type="text" id="collection-edit-desc" class="cl-input" placeholder="optional">
+            </div>
+            <button type="button" id="collection-save-meta-btn" class="cl-btn cl-btn--signal">Speichern</button>
+        </div>
+        <label class="cl-label" for="collection-add-search" style="margin-top: var(--cl-space-3);">Spiel aus Datenbank hinzufügen</label>
         <input type="text" id="collection-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
         <div id="collection-add-results" class="sv-manual-results cl-hidden"></div>
         <h3 style="margin-top: var(--cl-space-3);">Spiele in dieser Sammlung</h3>
         <div class="sv-table-wrap">
             <table class="sv-table">
-                <thead><tr><th></th><th>Name</th><th>EAN</th><th></th></tr></thead>
+                <thead><tr><th></th><th>Name</th><th>EAN</th><th>Stückzahl</th><th></th></tr></thead>
                 <tbody id="collection-items-body"></tbody>
             </table>
             <p id="collection-items-empty" class="sv-empty cl-hidden">Noch keine Spiele in dieser Sammlung.</p>
@@ -476,8 +486,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v1 — aktuelle Version, siehe auch Anzeige im Header.
+// VERSION: v2 — aktuelle Version, siehe auch Anzeige im Header.
 // Änderungsprotokoll:
+//   v2 — Sammlungen: Name/Beschreibung nachträglich editierbar, Stückzahl pro
+//        Spiel in einer Sammlung (statt nur Hinzufügen/Entfernen).
 //   v1 — Versionsnummer eingeführt (Schnellerfassung, Mengen-Modell,
 //        GTNM-Referenz und deutsche Titel waren bereits vorher enthalten).
 // =============================================================
@@ -918,15 +930,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const displayName = game.name || `(unbekannt: ${ean})`;
 
         const checkedCollections = Array.from(document.querySelectorAll('#quick-collections input:checked')).map(cb => cb.value);
-        let addedToCollections = 0;
+        let addedToCollections = 0, incrementedInCollections = 0;
         for (const cid of checkedCollections) {
             const citemId = `${cid}_${ean}`;
-            if (!allCollectionItems.some(ci => ci.id === citemId)) {
-                try {
-                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, addedAt: serverTimestamp() });
+            try {
+                if (allCollectionItems.some(ci => ci.id === citemId)) {
+                    await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                    incrementedInCollections++;
+                } else {
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
                     addedToCollections++;
-                } catch (err) { console.error(err); }
-            }
+                }
+            } catch (err) { console.error(err); }
         }
 
         let eventResult = null;
@@ -941,6 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         quickScanCounter.textContent = `${quickScanCount} Spiele in dieser Sitzung erfasst.`;
         const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden'];
         if (addedToCollections > 0) parts.push(`zu ${addedToCollections} Sammlung(en) hinzugefügt`);
+        if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
@@ -1344,8 +1360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentCollectionId = id;
         const c = allCollections.find(x => x.id === id);
         if (!c) return;
-        document.getElementById('collection-modal-title').textContent = c.name;
-        document.getElementById('collection-modal-desc').textContent = c.description || '';
+        document.getElementById('collection-edit-name').value = c.name || '';
+        document.getElementById('collection-edit-desc').value = c.description || '';
         document.getElementById('collection-add-search').value = '';
         document.getElementById('collection-add-results').classList.add('cl-hidden');
         renderCollectionItemsTable();
@@ -1356,6 +1372,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('collection-modal-close2').addEventListener('click', closeCollectionModal);
     collectionModalOverlay.addEventListener('click', (e) => { if (e.target === collectionModalOverlay) closeCollectionModal(); });
 
+    document.getElementById('collection-save-meta-btn').addEventListener('click', async () => {
+        if (!currentCollectionId) return;
+        const name = document.getElementById('collection-edit-name').value.trim();
+        const description = document.getElementById('collection-edit-desc').value.trim() || null;
+        if (!name) { showToast('Bitte einen Namen eingeben.', true); return; }
+        try {
+            await updateDoc(doc(db, 'collections', currentCollectionId), { name, description });
+            showToast('Sammlung aktualisiert.');
+        } catch (err) { console.error(err); showToast('Speichern fehlgeschlagen.', true); }
+    });
+
     function renderCollectionItemsTable() {
         const body = document.getElementById('collection-items-body');
         const empty = document.getElementById('collection-items-empty');
@@ -1363,18 +1390,38 @@ document.addEventListener('DOMContentLoaded', () => {
         empty.classList.toggle('cl-hidden', items.length > 0);
         body.innerHTML = items.map(ci => {
             const g = allGames.find(g => g.id === ci.ean);
+            const qty = ci.quantity ?? 1;
             return `<tr>
                 <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
                 <td>${escapeHTML(ci.gameName || g?.name || ci.ean)}</td>
                 <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:.4rem;">
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-minus" data-id="${ci.id}" ${qty <= 1 ? 'disabled' : ''}>−</button>
+                        <span>${qty}</span>
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-plus" data-id="${ci.id}">+</button>
+                    </div>
+                </td>
                 <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-collection-item" data-id="${ci.id}">Entfernen</button></td>
             </tr>`;
         }).join('');
     }
     document.getElementById('collection-items-body').addEventListener('click', (e) => {
-        const btn = e.target.closest('.sv-remove-collection-item');
-        if (!btn) return;
-        deleteDoc(doc(db, 'collectionItems', btn.dataset.id)).catch(err => { console.error(err); showToast('Entfernen fehlgeschlagen.', true); });
+        const removeBtn = e.target.closest('.sv-remove-collection-item');
+        if (removeBtn) {
+            deleteDoc(doc(db, 'collectionItems', removeBtn.dataset.id)).catch(err => { console.error(err); showToast('Entfernen fehlgeschlagen.', true); });
+            return;
+        }
+        const plusBtn = e.target.closest('.sv-ci-qty-plus');
+        if (plusBtn) {
+            updateDoc(doc(db, 'collectionItems', plusBtn.dataset.id), { quantity: increment(1) }).catch(err => { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); });
+            return;
+        }
+        const minusBtn = e.target.closest('.sv-ci-qty-minus');
+        if (minusBtn) {
+            updateDoc(doc(db, 'collectionItems', minusBtn.dataset.id), { quantity: increment(-1) }).catch(err => { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); });
+            return;
+        }
     });
 
     const collectionAddSearch = document.getElementById('collection-add-search');
@@ -1383,11 +1430,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const term = collectionAddSearch.value.trim().toLowerCase();
         if (!term) { collectionAddResults.classList.add('cl-hidden'); return; }
         const already = new Set(allCollectionItems.filter(ci => ci.collectionId === currentCollectionId).map(ci => ci.ean));
-        const matches = allGames.filter(g => !already.has(g.id) && ((g.name || '').toLowerCase().includes(term) || g.id.includes(term))).slice(0, 15);
+        const matches = allGames.filter(g => (g.name || '').toLowerCase().includes(term) || g.id.includes(term)).slice(0, 15);
         collectionAddResults.innerHTML = matches.length ? matches.map(g => `
             <div class="sv-manual-result-item" data-ean="${g.id}" data-name="${escapeHTML(g.name || g.id)}">
                 <span>${escapeHTML(g.name || '(ohne Titel)')} <span class="cl-muted" style="font-size:.8rem;">${escapeHTML(g.id)}</span></span>
-                <span class="cl-btn cl-btn--ghost cl-btn--sm">+ hinzufügen</span>
+                <span class="cl-btn cl-btn--ghost cl-btn--sm">${already.has(g.id) ? '+1 Exemplar' : '+ hinzufügen'}</span>
             </div>`).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
         collectionAddResults.classList.remove('cl-hidden');
     });
@@ -1395,11 +1442,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = e.target.closest('.sv-manual-result-item');
         if (!item || !currentCollectionId) return;
         const ean = item.dataset.ean, name = item.dataset.name;
+        const citemId = `${currentCollectionId}_${ean}`;
         try {
-            await setDoc(doc(db, 'collectionItems', `${currentCollectionId}_${ean}`), { collectionId: currentCollectionId, ean, gameName: name, addedAt: serverTimestamp() });
+            if (allCollectionItems.some(ci => ci.id === citemId)) {
+                await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
+            } else {
+                await setDoc(doc(db, 'collectionItems', citemId), { collectionId: currentCollectionId, ean, gameName: name, quantity: 1, addedAt: serverTimestamp() });
+                showToast(`"${name}" zur Sammlung hinzugefügt.`);
+            }
             collectionAddSearch.value = '';
             collectionAddResults.classList.add('cl-hidden');
-            showToast(`"${name}" zur Sammlung hinzugefügt.`);
         } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
     });
 
