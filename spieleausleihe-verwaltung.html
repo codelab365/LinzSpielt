@@ -145,7 +145,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v6</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v7</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -511,8 +511,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v6 — aktuelle Version, siehe auch Anzeige im Header.
+// VERSION: v7 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v7 — Ausleihe-Tresen: eindeutiger Modus-Schalter "Ausleihen"/"Rückgabe"
+//        statt automatischem Raten (löst Mehrdeutigkeit bei Mehrfach-
+//        Exemplaren, wenn schon eines draußen ist). Optionale Vorab-
+//        Bestätigung pro Scan ein-/ausschaltbar (Standard: aus, für Tempo).
 //   v6 — Neue eigenständige Seite "spieleausleihe-tresen.html" pro Event:
 //        Live-Statistik, Live-Liste der ausgeliehenen Spiele, Schnellscan,
 //        Rückgabemeldung mit Regal-Hinweis. Pro Event einstellbar, ob die
