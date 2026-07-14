@@ -150,7 +150,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v11</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v12</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -264,6 +264,7 @@
                     <option value="error">Fehler</option>
                 </select>
                 <button type="button" id="open-add-game-btn" class="cl-btn cl-btn--signal">(+) Spiel manuell anlegen</button>
+                <button type="button" id="backfill-desc-btn" class="cl-btn cl-btn--ghost">🔄 Fehlende Beschreibungen nachholen</button>
             </div>
             <div class="sv-table-wrap">
                 <table class="sv-table">
@@ -405,6 +406,10 @@
                     <label class="cl-label" for="game-category">Kategorie (frei, optional)</label>
                     <input type="text" id="game-category" class="cl-input" placeholder="z.B. Familienspiel">
                 </div>
+                <div>
+                    <label class="cl-label" for="game-description">Beschreibung (von BGG, editierbar)</label>
+                    <textarea id="game-description" class="cl-input" rows="5" placeholder="Wird beim BGG-Abgleich automatisch befüllt, falls BGG eine hat."></textarea>
+                </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top: var(--cl-space-3); gap: 1rem; flex-wrap: wrap;">
                 <button type="button" id="delete-game-btn" class="cl-btn cl-btn--ghost cl-hidden" style="color: var(--cl-err);">Spiel löschen</button>
@@ -538,8 +543,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v11 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v12 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v12 — Bugfix: BGG-Beschreibung wurde zwar seit v8 gespeichert, aber
+//        nirgends im Verwaltungstool angezeigt. Jetzt sichtbares und
+//        editierbares Beschreibungsfeld im Spiel-Formular. Neuer Button
+//        "Fehlende Beschreibungen nachholen" reichert bereits fertige,
+//        ältere Einträge nachträglich mit Beschreibung an.
 //   v11 — Ausleihe-Tresen: Mode-Buttons entfernt, Popup-Auswahl erscheint
 //        nur noch bei echter Mehrdeutigkeit (Mehrfach-Exemplar mit
 //        gemischtem Status); neues, immer sichtbares Ergebnis-Feld unter
@@ -1255,6 +1265,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('open-add-game-btn').addEventListener('click', () => openGameModal(null));
 
+    document.getElementById('backfill-desc-btn').addEventListener('click', () => {
+        const missing = allGames.filter(g => g.enrichStatus === 'done' && !g.description && g.name);
+        if (missing.length === 0) { showToast('Alle fertig angereicherten Spiele haben bereits eine Beschreibung.'); return; }
+        const items = missing.map(g => ({ ean: g.id, title: g.name, source: g.titleSource || 'backfill' }));
+        const okBtn = document.getElementById('confirm-modal-ok');
+        okBtn.textContent = 'Ja, nachholen';
+        okBtn.style.background = '';
+        okBtn.style.borderColor = '';
+        showConfirm(
+            'Beschreibungen nachholen?',
+            `${missing.length} bereits fertige Spiele haben noch keine BGG-Beschreibung (weil sie vor dieser Funktion angereichert wurden). Jetzt für alle nachholen? Das läuft mit Fortschrittsbalken, ca. 5 Sek. je Spiel — bei vielen Einträgen kann das dauern.`,
+            () => { runBggEnrichQueue(items); resetConfirmModalStyle(); }
+        );
+    });
+
     // --- Game Modal (Master-Datenbank) ---
     const gameModalOverlay = document.getElementById('game-modal-overlay');
     const gameModalTitle = document.getElementById('game-modal-title');
@@ -1266,6 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameMinAge = document.getElementById('game-minage');
     const gameDuration = document.getElementById('game-duration');
     const gameCategory = document.getElementById('game-category');
+    const gameDescription = document.getElementById('game-description');
     const deleteGameBtn = document.getElementById('delete-game-btn');
     let editingGameId = null;
 
@@ -1291,6 +1317,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameMinAge.value = game.minAge ?? '';
             gameDuration.value = game.Duration ?? '';
             gameCategory.value = game.category || '';
+            gameDescription.value = game.description || '';
             deleteGameBtn.classList.remove('cl-hidden');
             if (game.bggImageUrl || game.bggId) {
                 selectedBggMatch = { bggId: game.bggId, bggImageUrl: game.bggImageUrl, bggName: game.name, bggRating: game.rating, bggComplexity: game.complexity };
@@ -1353,6 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match.minAge) gameMinAge.value = match.minAge;
             if (match.duration) gameDuration.value = match.duration;
             if (match.bggCategory) gameCategory.value = match.bggCategory;
+            if (match.bggDescription) gameDescription.value = match.bggDescription;
             renderBggMatchPreview(match, false);
         } catch (err) {
             console.error('BGG-Details fehlgeschlagen:', err);
@@ -1388,6 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
             minAge: gameMinAge.value ? parseInt(gameMinAge.value) : null,
             Duration: gameDuration.value ? parseInt(gameDuration.value) : null,
             category: gameCategory.value.trim() || null,
+            description: gameDescription.value.trim() || null,
             bggId: selectedBggMatch?.bggId ?? null,
             bggImageUrl: selectedBggMatch?.bggImageUrl ?? null,
             bggYear: selectedBggMatch?.bggYear ?? null,
