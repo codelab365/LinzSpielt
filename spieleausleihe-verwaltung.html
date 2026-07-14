@@ -31,6 +31,7 @@
     .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: .75rem 1.4rem;
         border-radius: var(--cl-radius-pill); box-shadow: var(--cl-shadow-lg); font-size: .9rem; max-width: 90vw; text-align: center; }
     .qb-toast--err { background: var(--cl-err); }
+    .qb-toast--ok { background: var(--cl-ok); }
     .toast-enter { animation: qbFadeIn .25s ease-out; }
 
     .sv-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
@@ -152,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v14</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v15</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -560,8 +561,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v14 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v15 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v15 — Schnellerfassung (global und im Event-Fenster): kurze grüne
+//        Bestätigung nach jedem einzelnen Scan (ca. 1,5 Sek., verschwindet
+//        von selbst), zusätzlich zum Protokoll unten.
 //   v14 — Stufe 1: GTNM-Treffer werden nicht mehr sofort automatisch
 //        gespeichert. Stattdessen erscheint ein Review-Panel mit den
 //        gefundenen Titeln in editierbaren Feldern — erst nach "Übernehmen
@@ -724,13 +728,16 @@ function escapeHTML(str) {
 }
 
 // --- Toast ---
-function showToast(message, isError = false) {
+function showToast(message, isError = false, opts = {}) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
-    toast.className = 'qb-toast toast-enter' + (isError ? ' qb-toast--err' : '');
+    let cls = 'qb-toast toast-enter';
+    if (isError) cls += ' qb-toast--err';
+    else if (opts.variant === 'ok') cls += ' qb-toast--ok';
+    toast.className = cls;
     toast.innerHTML = message;
     container.appendChild(toast);
-    setTimeout(() => { toast.remove(); }, 4500);
+    setTimeout(() => { toast.remove(); }, opts.duration || 4500);
 }
 
 function showModal(el) { el.classList.remove('cl-hidden'); }
@@ -1112,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
         quickScanInput.focus();
     }
 
@@ -2030,6 +2038,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const counterEl = document.getElementById('event-quick-scan-counter');
         const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
         counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
         eventQuickScanInput.focus();
     }
 
