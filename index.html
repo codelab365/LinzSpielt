@@ -195,9 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusVal = statusFilter.value;
 
         const filtered = currentEventGames.filter(g => {
+            const avail = g.availableQuantity ?? (g.quantity ?? 1);
             const nameMatch = !term || (g.gameName || '').toLowerCase().includes(term);
             const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
-            const statusMatch = statusVal === 'all' || g.ausleihstatus === statusVal;
+            const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
             let playersMatch = true;
             if (playersVal > 0) {
                 if (g.minPlayers != null && g.maxPlayers != null) {
@@ -208,19 +209,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }).sort((a, b) => (a.gameName || '').localeCompare(b.gameName || '', 'de'));
 
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
-        tableBody.innerHTML = filtered.map(g => `
-            <tr>
+        tableBody.innerHTML = filtered.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
+            return `<tr>
                 <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
                 <td>${escapeHTML(g.gameName)}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
                 <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
-                <td><span class="ov-badge ${g.ausleihstatus === 'ausgeliehen' ? 'ov-badge--aus' : 'ov-badge--frei'}">${g.ausleihstatus === 'ausgeliehen' ? 'ausgeliehen' : 'verfügbar'}</span></td>
-            </tr>`).join('');
+                <td><span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span></td>
+            </tr>`;
+        }).join('');
 
-        const total = currentEventGames.length;
-        const available = currentEventGames.filter(g => g.ausleihstatus !== 'ausgeliehen').length;
+        const total = currentEventGames.reduce((sum, g) => sum + (g.quantity ?? 1), 0);
+        const available = currentEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
         const borrowed = total - available;
         statsEl.innerHTML = `
             <span class="ov-stat"><strong>${total}</strong> Spiele gesamt</span>
