@@ -23,6 +23,13 @@
     .td-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
 
     .td-scan-card { text-align: center; }
+    .td-mode-toggle { display: flex; gap: .5rem; justify-content: center; }
+    .td-mode-btn { flex: 1; max-width: 220px; border: 2px solid var(--cl-line); font-weight: 600; }
+    .td-mode-btn.is-active-borrow { background: var(--cl-signal); border-color: var(--cl-signal); color: var(--cl-on-signal, #fff); }
+    .td-mode-btn.is-active-return { background: var(--cl-ok); border-color: var(--cl-ok); color: #fff; }
+    .td-confirm-toggle { display: flex; align-items: center; justify-content: center; gap: .4rem; margin-top: .75rem;
+        font-size: .82rem; color: var(--cl-muted); cursor: pointer; }
+    .td-confirm-toggle input { margin: 0; }
     .td-scan-input { font-size: 1.4rem; text-align: center; letter-spacing: .05em; padding: 1.1rem !important; }
     .td-manual-search { position: relative; margin-top: var(--cl-space-3); }
     .td-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
@@ -105,8 +112,16 @@
         <div class="td-stats" id="desk-stats"></div>
 
         <div class="cl-card cl-card--pad td-scan-card">
-            <label class="cl-label" for="desk-scan-input">EAN scannen</label>
+            <label class="cl-label">Modus für den nächsten Scan</label>
+            <div class="td-mode-toggle">
+                <button type="button" id="mode-borrow-btn" class="cl-btn td-mode-btn">📖 Ausleihen</button>
+                <button type="button" id="mode-return-btn" class="cl-btn td-mode-btn">↩️ Rückgabe</button>
+            </div>
+            <label class="cl-label" for="desk-scan-input" style="margin-top:.75rem;">EAN scannen</label>
             <input type="text" id="desk-scan-input" class="cl-input td-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+            <label class="td-confirm-toggle">
+                <input type="checkbox" id="require-confirm-toggle"> Vor jeder Aktion bestätigen (langsamer, aber sicherer)
+            </label>
         </div>
 
         <div class="cl-card cl-card--pad td-manual-search">
@@ -142,6 +157,18 @@
         <p class="cl-muted" id="return-sub"></p>
         <button type="button" id="return-ok-btn" class="cl-btn cl-btn--signal" style="margin-top:1rem;">OK</button>
         <p class="td-return-card__timer" id="return-timer-text"></p>
+    </div>
+</div>
+
+<!-- Optionale Vorab-Bestätigung (nur wenn "Vor jeder Aktion bestätigen" aktiv ist) -->
+<div id="confirm-action-overlay" class="td-return-overlay">
+    <div class="td-return-card" id="confirm-action-card">
+        <div class="td-return-card__icon" id="confirm-action-icon">📖</div>
+        <p class="td-return-card__title" id="confirm-action-title"></p>
+        <div style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
+            <button type="button" id="confirm-action-cancel-btn" class="cl-btn cl-btn--ghost">Abbrechen</button>
+            <button type="button" id="confirm-action-ok-btn" class="cl-btn cl-btn--signal">Bestätigen</button>
+        </div>
     </div>
 </div>
 
@@ -320,6 +347,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eg) returnOne(eg);
     });
 
+    // --- Modus (Ausleihen/Rückgabe) und optionale Bestätigung ---
+    let scanMode = localStorage.getItem('td_scan_mode') || 'borrow';
+    let requireConfirm = localStorage.getItem('td_require_confirm') === '1';
+
+    function updateModeButtons() {
+        document.getElementById('mode-borrow-btn').classList.toggle('is-active-borrow', scanMode === 'borrow');
+        document.getElementById('mode-return-btn').classList.toggle('is-active-return', scanMode === 'return');
+    }
+    document.getElementById('mode-borrow-btn').addEventListener('click', () => {
+        scanMode = 'borrow'; localStorage.setItem('td_scan_mode', scanMode); updateModeButtons(); scanInput.focus();
+    });
+    document.getElementById('mode-return-btn').addEventListener('click', () => {
+        scanMode = 'return'; localStorage.setItem('td_scan_mode', scanMode); updateModeButtons(); scanInput.focus();
+    });
+    updateModeButtons();
+
+    const confirmToggle = document.getElementById('require-confirm-toggle');
+    confirmToggle.checked = requireConfirm;
+    confirmToggle.addEventListener('change', () => {
+        requireConfirm = confirmToggle.checked;
+        localStorage.setItem('td_require_confirm', requireConfirm ? '1' : '0');
+    });
+
     // --- Scannen ---
     const scanInput = document.getElementById('desk-scan-input');
     scanInput.addEventListener('keydown', (e) => {
@@ -333,16 +383,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleScan(ean) {
         const eg = allEventGames.find(g => g.ean === ean);
-        if (eg) { borrowOrReturn(eg); return; }
-        showReturnOverlay({
-            icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', shelf: '', borrowMode: true
-        });
-        scanInput.focus();
+        if (!eg) {
+            showReturnOverlay({
+                icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', shelf: '', borrowMode: true
+            });
+            scanInput.focus();
+            return;
+        }
+        processEventGameAction(eg);
     }
 
-    async function borrowOrReturn(eg) {
-        const avail = eg.availableQuantity ?? 1;
-        if (avail > 0) await borrowOne(eg); else await returnOne(eg);
+    function processEventGameAction(eg) {
+        const qty = eg.quantity ?? 1, avail = eg.availableQuantity ?? qty;
+        if (scanMode === 'borrow' && avail <= 0) {
+            showReturnOverlay({ icon: '⚠️', title: `${eg.gameName}`, sub: 'Alle Exemplare sind bereits ausgeliehen — nichts zum Verleihen übrig.', shelf: '', borrowMode: true });
+            scanInput.focus();
+            return;
+        }
+        if (scanMode === 'return' && avail >= qty) {
+            showReturnOverlay({ icon: '⚠️', title: `${eg.gameName}`, sub: 'Es ist gerade nichts von diesem Spiel ausgeliehen.', shelf: '', borrowMode: false });
+            scanInput.focus();
+            return;
+        }
+        performOrConfirm(eg);
+    }
+
+    function performOrConfirm(eg) {
+        if (!requireConfirm) { commitAction(eg); return; }
+        const isReturn = scanMode === 'return';
+        document.getElementById('confirm-action-icon').textContent = isReturn ? '↩️' : '📖';
+        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${eg.gameName}?`;
+        document.getElementById('confirm-action-overlay').classList.add('is-visible');
+        pendingAction = eg;
+    }
+    let pendingAction = null;
+    document.getElementById('confirm-action-ok-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        if (pendingAction) commitAction(pendingAction);
+        pendingAction = null;
+    });
+    document.getElementById('confirm-action-cancel-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        pendingAction = null;
+        scanInput.focus();
+    });
+
+    async function commitAction(eg) {
+        if (scanMode === 'borrow') await borrowOne(eg); else await returnOne(eg);
         scanInput.focus();
     }
 
@@ -391,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = e.target.closest('.td-manual-result-item');
         if (!item) return;
         const eg = allEventGames.find(g => g.id === item.dataset.id);
-        if (eg) { borrowOrReturn(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
+        if (eg) { processEventGameAction(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
     });
 
     // --- Rückgabe-/Ausleihe-Meldung (konfigurierbar pro Event) ---
