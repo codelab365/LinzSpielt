@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v15</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v16</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -304,8 +304,57 @@
                 </div>
                 <p id="collection-feedback" class="qb-feedback"></p>
             </div>
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">📥 Sammlung aus BGStats importieren</h3>
+                <p class="cl-muted" style="font-size:.85rem;">Für Spieler:innen, die ihre Sammlung schon in der App <strong>BGStats</strong> pflegen. Der Export enthält keine EAN-Codes — daher werden Spiele automatisch per BGG-ID zugeordnet, wo möglich; alles andere muss beim Import einmal gescannt werden.</p>
+                <button type="button" id="open-bgstats-import-btn" class="cl-btn cl-btn--ghost">BGStats-JSON importieren</button>
+            </div>
             <div id="collections-grid" class="sv-card-grid"></div>
         </section>
+
+        <!-- MODAL: BGSTATS-IMPORT -->
+        <div id="bgstats-modal-overlay" class="qb-modal-overlay cl-hidden">
+            <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+                <button type="button" id="bgstats-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+                <h2 style="margin-top:0;">Sammlung aus BGStats importieren</h2>
+                <div id="bgstats-step-setup">
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:160px;">
+                            <label class="cl-label" for="bgstats-collection-name">Name der neuen Sammlung</label>
+                            <input type="text" id="bgstats-collection-name" class="cl-input" placeholder="z.B. Andreas privat">
+                        </div>
+                        <div style="flex:1; min-width:160px;">
+                            <label class="cl-label" for="bgstats-collection-desc">Beschreibung (optional)</label>
+                            <input type="text" id="bgstats-collection-desc" class="cl-input">
+                        </div>
+                    </div>
+                    <label class="cl-label" for="bgstats-file-input" style="margin-top: var(--cl-space-3);">BGStats-Export (.json)</label>
+                    <input type="file" id="bgstats-file-input" class="cl-input" accept="application/json,.json">
+                    <p class="cl-muted" style="font-size:.8rem; margin-top:.4rem;">Export in BGStats über: Einstellungen → Backup &amp; Export → Export als JSON. Die Datei wird nur lokal im Browser gelesen, nie hochgeladen. Spielpartien (Plays) werden komplett ignoriert — es zählt ausschließlich, welche Spiele als "besessen" markiert sind.</p>
+                    <button type="button" id="bgstats-analyze-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Datei analysieren</button>
+                    <p id="bgstats-analyze-feedback" class="qb-feedback"></p>
+                </div>
+
+                <div id="bgstats-step-review" class="cl-hidden">
+                    <div class="doc-callout" style="border-left:4px solid var(--cl-ok); background:color-mix(in srgb, var(--cl-ok) 10%, transparent); padding:.75rem 1rem; border-radius:0 8px 8px 0; margin-bottom:1rem;">
+                        <p id="bgstats-matched-summary" style="margin:0;"></p>
+                    </div>
+                    <div id="bgstats-unmatched-wrap">
+                        <h3>Nicht automatisch zugeordnet — bitte EAN scannen</h3>
+                        <p class="cl-muted" style="font-size:.85rem;">Diese Spiele wurden in eurer Datenbank noch nie gescannt, BGStats liefert keine EAN. Ein Exemplar physisch nehmen, EAN ins jeweilige Feld scannen (Enter springt automatisch zum nächsten offenen Feld). Ohne EAN wird das Spiel beim Import übersprungen.</p>
+                        <div class="sv-table-wrap">
+                            <table class="sv-table">
+                                <thead><tr><th></th><th>Titel (BGStats)</th><th>Spieler</th><th>Menge</th><th>EAN scannen</th></tr></thead>
+                                <tbody id="bgstats-unmatched-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <button type="button" id="bgstats-import-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Sammlung erstellen &amp; importieren</button>
+                    <button type="button" id="bgstats-cancel-btn" class="cl-btn cl-btn--ghost" style="margin-top: var(--cl-space-3);">Abbrechen</button>
+                    <p id="bgstats-import-feedback" class="qb-feedback"></p>
+                </div>
+            </div>
+        </div>
 
         <!-- TAB: EVENTS -->
         <section id="tab-events" class="sv-tab-panel cl-hidden">
@@ -456,6 +505,11 @@
             </div>
             <button type="button" id="collection-save-meta-btn" class="cl-btn cl-btn--signal">Speichern</button>
         </div>
+        <label class="cl-label" for="collection-public-link" style="margin-top: var(--cl-space-3);">Öffentlicher Link zu dieser Sammlung</label>
+        <div style="display:flex; gap:.5rem;">
+            <input type="text" id="collection-public-link" class="cl-input" readonly style="flex:1;">
+            <button type="button" id="collection-copy-link-btn" class="cl-btn cl-btn--ghost">Kopieren</button>
+        </div>
         <label class="cl-label" for="collection-add-search" style="margin-top: var(--cl-space-3);">Spiel aus Datenbank hinzufügen</label>
         <input type="text" id="collection-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
         <div id="collection-add-results" class="sv-manual-results cl-hidden"></div>
@@ -495,6 +549,15 @@
             <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
         </div>
         <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
+
+        <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung auf einmal in ein Regal dieses Events — mit der jeweiligen Stückzahl aus der Sammlung. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
+        <div class="sv-toolbar">
+            <select id="event-bulk-collection-select" class="cl-select"></select>
+            <select id="event-bulk-shelf-select" class="cl-select"></select>
+            <button type="button" id="event-bulk-load-btn" class="cl-btn cl-btn--signal">Sammlung laden</button>
+        </div>
+        <p id="event-bulk-load-status" class="cl-muted" style="font-size:.85rem;"></p>
 
         <h3 style="margin-top: var(--cl-space-3);">Spiele manuell aus den gewählten Sammlungen suchen</h3>
         <label class="cl-label" for="event-add-search">Name oder EAN</label>
@@ -561,8 +624,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v15 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v16 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v16 — Neue eigenständige Datei sammlung-uebersicht.html: öffentliche
+//        Übersicht für einzelne Spielesammlungen (analog zu index.html für
+//        Events), mit Dropdown-Auswahl und direktem Link per
+//        ?collection=ID. Im Sammlungsfenster gibt's dafür einen "Link
+//        kopieren"-Button. WICHTIG: Firestore-Regeln für collections/
+//        collectionItems müssen auf öffentliches Lesen umgestellt werden
+//        (siehe Chat-Antwort). Event-Fenster: neuer Bereich "Ganze
+//        Sammlung ins Event laden" — überträgt alle Spiele einer
+//        verknüpften Sammlung inkl. Stückzahl auf einen Schlag in ein
+//        Regal. Sammlungen-Tab: neuer BGStats-Import — JSON-Export der App
+//        BGStats wird lokal im Browser gelesen (nie hochgeladen), besessene
+//        Spiele werden per BGG-ID mit der eigenen Datenbank abgeglichen;
+//        unbekannte Titel (BGStats liefert keine EAN) müssen einmalig
+//        gescannt werden, danach automatischer Sprung zum nächsten offenen
+//        Feld.
 //   v15 — Schnellerfassung (global und im Event-Fenster): kurze grüne
 //        Bestätigung nach jedem einzelnen Scan (ca. 1,5 Sek., verschwindet
 //        von selbst), zusätzlich zum Protokoll unten.
@@ -1537,6 +1615,181 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ======================================================
+    // BGStats-Import
+    // ======================================================
+    const bgstatsModal = document.getElementById('bgstats-modal-overlay');
+    let bgstatsUnmatched = []; // [{ bggId, name, minPlayers, maxPlayers, minAge, duration, bggImageUrl, quantity, ean }]
+    let bgstatsMatched = [];   // [{ ean, gameName, quantity }]
+
+    function resetBgstatsModal() {
+        document.getElementById('bgstats-step-setup').classList.remove('cl-hidden');
+        document.getElementById('bgstats-step-review').classList.add('cl-hidden');
+        document.getElementById('bgstats-collection-name').value = '';
+        document.getElementById('bgstats-collection-desc').value = '';
+        document.getElementById('bgstats-file-input').value = '';
+        document.getElementById('bgstats-analyze-feedback').textContent = '';
+        document.getElementById('bgstats-import-feedback').textContent = '';
+        bgstatsUnmatched = []; bgstatsMatched = [];
+    }
+    document.getElementById('open-bgstats-import-btn').addEventListener('click', () => {
+        resetBgstatsModal();
+        showModal(bgstatsModal);
+    });
+    document.getElementById('bgstats-modal-close').addEventListener('click', () => hideModal(bgstatsModal));
+    document.getElementById('bgstats-cancel-btn').addEventListener('click', () => hideModal(bgstatsModal));
+    bgstatsModal.addEventListener('click', (e) => { if (e.target === bgstatsModal) hideModal(bgstatsModal); });
+
+    document.getElementById('bgstats-analyze-btn').addEventListener('click', async () => {
+        const feedback = document.getElementById('bgstats-analyze-feedback');
+        const nameInput = document.getElementById('bgstats-collection-name');
+        const fileInput = document.getElementById('bgstats-file-input');
+        if (!nameInput.value.trim()) { feedback.textContent = 'Bitte zuerst einen Sammlungsnamen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        const file = fileInput.files?.[0];
+        if (!file) { feedback.textContent = 'Bitte eine BGStats-JSON-Datei auswählen.'; feedback.style.color = 'var(--cl-err)'; return; }
+
+        feedback.textContent = 'Analysiere Datei…';
+        feedback.style.color = 'var(--cl-muted)';
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const games = Array.isArray(data.games) ? data.games : [];
+
+            const owned = [];
+            for (const g of games) {
+                const ownedCopies = (g.copies || []).filter(c => c && c.statusOwned);
+                if (ownedCopies.length === 0) continue;
+                owned.push({
+                    bggId: g.bggId || null,
+                    name: g.bggName || g.name || 'Unbenanntes Spiel',
+                    minPlayers: g.minPlayerCount ?? null,
+                    maxPlayers: g.maxPlayerCount ?? null,
+                    minAge: g.minAge ?? null,
+                    duration: g.maxPlayTime ?? g.minPlayTime ?? null,
+                    bggImageUrl: g.urlImage || g.urlThumb || null,
+                    quantity: ownedCopies.length
+                });
+            }
+
+            if (owned.length === 0) {
+                feedback.textContent = 'In dieser Datei wurden keine als "besessen" markierten Spiele gefunden.';
+                feedback.style.color = 'var(--cl-err)';
+                return;
+            }
+
+            bgstatsMatched = [];
+            bgstatsUnmatched = [];
+            for (const bg of owned) {
+                const existing = bg.bggId ? allGames.find(g => g.bggId === bg.bggId) : null;
+                if (existing) {
+                    bgstatsMatched.push({ ean: existing.id, gameName: existing.name || bg.name, quantity: bg.quantity });
+                } else {
+                    bgstatsUnmatched.push({ ...bg, ean: '' });
+                }
+            }
+
+            document.getElementById('bgstats-matched-summary').innerHTML =
+                `<strong>${owned.length}</strong> besessene Spiele in der Datei gefunden — <strong>${bgstatsMatched.length}</strong> davon automatisch per BGG-ID eurer Datenbank zugeordnet (werden direkt übernommen).` +
+                (bgstatsUnmatched.length > 0 ? ` <strong>${bgstatsUnmatched.length}</strong> unbekannte Spiele brauchen unten eine gescannte EAN.` : ' Alle Spiele konnten zugeordnet werden — einfach unten importieren.');
+
+            renderBgstatsUnmatchedTable();
+            document.getElementById('bgstats-step-setup').classList.add('cl-hidden');
+            document.getElementById('bgstats-step-review').classList.remove('cl-hidden');
+        } catch (err) {
+            console.error('BGStats-Analyse fehlgeschlagen:', err);
+            feedback.textContent = 'Datei konnte nicht gelesen werden — ist es eine gültige BGStats-JSON-Exportdatei?';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderBgstatsUnmatchedTable() {
+        const body = document.getElementById('bgstats-unmatched-body');
+        const wrap = document.getElementById('bgstats-unmatched-wrap');
+        if (bgstatsUnmatched.length === 0) { wrap.classList.add('cl-hidden'); return; }
+        wrap.classList.remove('cl-hidden');
+        body.innerHTML = bgstatsUnmatched.map((bg, i) => `
+            <tr>
+                <td>${bg.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(bg.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(bg.name)}</td>
+                <td>${bg.minPlayers && bg.maxPlayers ? `${bg.minPlayers}–${bg.maxPlayers}` : '—'}</td>
+                <td>${bg.quantity}×</td>
+                <td><input type="text" class="cl-input bgstats-ean-input" data-index="${i}" placeholder="EAN scannen…" autocomplete="off"></td>
+            </tr>`).join('');
+    }
+    // Enter im EAN-Feld übernimmt den Wert und springt automatisch zum
+    // nächsten noch leeren Feld — so lässt sich der ganze Stapel am Stück
+    // durchscannen, ohne jedes Mal mit der Maus klicken zu müssen.
+    document.getElementById('bgstats-unmatched-body').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const input = e.target;
+        if (!input.classList.contains('bgstats-ean-input')) return;
+        e.preventDefault();
+        const idx = parseInt(input.dataset.index, 10);
+        bgstatsUnmatched[idx].ean = input.value.trim();
+        const allInputs = Array.from(document.querySelectorAll('.bgstats-ean-input'));
+        const next = allInputs.find(inp => inp !== input && !inp.value.trim());
+        if (next) next.focus();
+    });
+
+    document.getElementById('bgstats-import-btn').addEventListener('click', async () => {
+        const feedback = document.getElementById('bgstats-import-feedback');
+        const name = document.getElementById('bgstats-collection-name').value.trim();
+        if (!name) { feedback.textContent = 'Bitte einen Sammlungsnamen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+
+        // Letzten Stand der EAN-Felder einsammeln (auch ohne Enter-Bestätigung).
+        document.querySelectorAll('.bgstats-ean-input').forEach(inp => {
+            const idx = parseInt(inp.dataset.index, 10);
+            bgstatsUnmatched[idx].ean = inp.value.trim();
+        });
+
+        feedback.textContent = 'Importiere…';
+        feedback.style.color = 'var(--cl-muted)';
+        try {
+            const colRef = await addDoc(collection(db, 'collections'), {
+                name, description: document.getElementById('bgstats-collection-desc').value.trim() || null, createdAt: serverTimestamp()
+            });
+            const colId = colRef.id;
+
+            let imported = 0, skipped = 0, newGamesCreated = 0;
+
+            for (const m of bgstatsMatched) {
+                await setDoc(doc(db, 'collectionItems', `${colId}_${m.ean}`), {
+                    collectionId: colId, ean: m.ean, gameName: m.gameName, quantity: m.quantity, addedAt: serverTimestamp()
+                });
+                imported++;
+            }
+
+            for (const u of bgstatsUnmatched) {
+                if (!u.ean) { skipped++; continue; }
+                const existingGame = allGames.find(g => g.id === u.ean);
+                if (!existingGame) {
+                    await setDoc(doc(db, 'games', u.ean), {
+                        ean: u.ean, name: u.name, titleSource: 'bgstats-import',
+                        bggId: u.bggId, bggImageUrl: u.bggImageUrl,
+                        minPlayers: u.minPlayers, maxPlayers: u.maxPlayers, minAge: u.minAge, Duration: u.duration,
+                        rating: null, complexity: null, category: null, description: null,
+                        enrichStatus: 'pending', addedAt: serverTimestamp()
+                    });
+                    newGamesCreated++;
+                }
+                const gameName = existingGame ? (existingGame.name || u.name) : u.name;
+                await setDoc(doc(db, 'collectionItems', `${colId}_${u.ean}`), {
+                    collectionId: colId, ean: u.ean, gameName, quantity: u.quantity, addedAt: serverTimestamp()
+                });
+                imported++;
+            }
+
+            feedback.textContent = `Fertig! ${imported} Spiel(e) in "${name}" importiert${newGamesCreated > 0 ? ` (${newGamesCreated} davon neu in der Datenbank angelegt — Titel stammt von BGStats, BGG-Anreicherung fehlt noch)` : ''}${skipped > 0 ? `. ${skipped} Spiel(e) ohne EAN übersprungen.` : '.'}`;
+            feedback.style.color = 'var(--cl-ok)';
+            showToast(`✅ Sammlung "${name}" importiert (${imported} Spiele)`, false, { variant: 'ok', duration: 3000 });
+            setTimeout(() => hideModal(bgstatsModal), 2000);
+        } catch (err) {
+            console.error('BGStats-Import fehlgeschlagen:', err);
+            feedback.textContent = 'Import fehlgeschlagen — bitte erneut versuchen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
     function renderCollectionsTab() {
         const grid = document.getElementById('collections-grid');
         if (allCollections.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Sammlungen angelegt.</p>'; return; }
@@ -1571,6 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('collection-edit-desc').value = c.description || '';
         document.getElementById('collection-add-search').value = '';
         document.getElementById('collection-add-results').classList.add('cl-hidden');
+        const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
+        document.getElementById('collection-public-link').value = basePath + `sammlung-uebersicht.html?collection=${id}`;
         renderCollectionItemsTable();
         showModal(collectionModalOverlay);
     }
@@ -1578,6 +1833,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('collection-modal-close').addEventListener('click', closeCollectionModal);
     document.getElementById('collection-modal-close2').addEventListener('click', closeCollectionModal);
     collectionModalOverlay.addEventListener('click', (e) => { if (e.target === collectionModalOverlay) closeCollectionModal(); });
+    document.getElementById('collection-copy-link-btn').addEventListener('click', () => {
+        const input = document.getElementById('collection-public-link');
+        input.select();
+        navigator.clipboard?.writeText(input.value).then(
+            () => showToast('Link kopiert!', false, { variant: 'ok', duration: 1800 }),
+            () => showToast('Kopieren fehlgeschlagen — bitte manuell markieren.', true)
+        );
+    });
 
     document.getElementById('collection-save-meta-btn').addEventListener('click', async () => {
         if (!currentCollectionId) return;
@@ -1749,6 +2012,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-quick-scan-input').value = '';
         eventQuickScanCount = 0;
         document.getElementById('event-quick-scan-counter').textContent = '';
+        document.getElementById('event-bulk-load-status').textContent = '';
+        const bulkColSelect = document.getElementById('event-bulk-collection-select');
+        const linkedCollections = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
+        bulkColSelect.innerHTML = linkedCollections.length > 0
+            ? linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')
+            : '<option value="">— keine Sammlung für dieses Event ausgewählt —</option>';
+        bulkColSelect.disabled = linkedCollections.length === 0;
         const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
         const embedUrl = basePath + `index.html?event=${id}`;
         document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
@@ -1830,11 +2100,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('event-shelf-grid');
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
         const quickSelect = document.getElementById('event-quick-shelf-select');
+        const bulkSelect = document.getElementById('event-bulk-shelf-select');
         const prevQuick = quickSelect.value;
+        const prevBulk = bulkSelect.value;
         if (shelves.length === 0) {
             grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>';
             quickSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
             quickSelect.disabled = true;
+            bulkSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
+            bulkSelect.disabled = true;
             return;
         }
         grid.innerHTML = shelves.map(s => {
@@ -1847,6 +2121,9 @@ document.addEventListener('DOMContentLoaded', () => {
         quickSelect.disabled = false;
         quickSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
         if ([...quickSelect.options].some(o => o.value === prevQuick)) quickSelect.value = prevQuick;
+        bulkSelect.disabled = false;
+        bulkSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...bulkSelect.options].some(o => o.value === prevBulk)) bulkSelect.value = prevBulk;
     }
     document.getElementById('add-event-shelf-btn').addEventListener('click', async () => {
         if (!currentEventId) return;
@@ -1866,6 +2143,35 @@ document.addEventListener('DOMContentLoaded', () => {
         showConfirm('Regal löschen', `Regal "${btn.dataset.name}" wirklich löschen?`, async () => {
             try { await deleteDoc(doc(db, 'eventShelves', btn.dataset.id)); } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
         });
+    });
+
+    document.getElementById('event-bulk-load-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const colId = document.getElementById('event-bulk-collection-select').value;
+        const shelfId = document.getElementById('event-bulk-shelf-select').value;
+        const statusEl = document.getElementById('event-bulk-load-status');
+        if (!colId) { statusEl.textContent = 'Bitte eine Sammlung auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        if (!shelfId) { statusEl.textContent = 'Bitte zuerst ein Regal anlegen und auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        const items = allCollectionItems.filter(i => i.collectionId === colId);
+        if (items.length === 0) { statusEl.textContent = 'Diese Sammlung enthält keine Spiele.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        statusEl.textContent = `Lade ${items.length} Spiel(e)…`;
+        statusEl.style.color = 'var(--cl-muted)';
+        let added = 0, incremented = 0, failed = 0;
+        for (const item of items) {
+            const game = allGames.find(g => g.id === item.ean);
+            const qty = Math.max(1, item.quantity || 1);
+            try {
+                const result = await addOrIncrementEventGame(currentEventId, item.ean, shelfId, colId, game || {}, item.gameName);
+                if (result === 'added') added++; else if (result === 'incremented') incremented++;
+                if (qty > 1) {
+                    const egId = `${currentEventId}_${item.ean}`;
+                    await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(qty - 1), availableQuantity: increment(qty - 1), lastActivityAt: serverTimestamp() });
+                }
+            } catch (err) { console.error(err); failed++; }
+        }
+        statusEl.textContent = `Fertig: ${added} neu eingeräumt, ${incremented} in Stückzahl erhöht${failed > 0 ? `, ${failed} fehlgeschlagen` : ''}.`;
+        statusEl.style.color = 'var(--cl-ok)';
+        showToast(`✅ Sammlung geladen: ${added + incremented} Spiel(e) verarbeitet`, false, { variant: 'ok', duration: 2500 });
     });
 
     // Fügt ein Spiel neu zum Event hinzu (Menge 1) oder erhöht die Stückzahl
