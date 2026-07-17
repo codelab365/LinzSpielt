@@ -75,12 +75,16 @@
             <ul>
                 <li><a href="#sammlungen">Sammlungen verwalten</a></li>
                 <li><a href="#mengen">Mengen &amp; Mehrfach-Exemplare</a></li>
+                <li><a href="#sammlung-link">Öffentlicher Link zur Sammlung</a></li>
+                <li><a href="#bgstats-import">BGStats-Import</a></li>
             </ul>
             <h4>Events</h4>
             <ul>
                 <li><a href="#events-anlegen">Event anlegen</a></li>
                 <li><a href="#events-regale">Regale je Event</a></li>
                 <li><a href="#events-spiele">Spiele zum Event hinzufügen</a></li>
+                <li><a href="#events-sammlungen-bearbeiten">Verknüpfte Sammlungen nachträglich ändern</a></li>
+                <li><a href="#events-bulk-laden">Ganze Sammlung / Datenbank ins Event laden</a></li>
                 <li><a href="#events-schnellscan">Schnellscan im Event-Fenster</a></li>
                 <li><a href="#events-embed">Einbett-Code &amp; Tresen-Link</a></li>
                 <li><a href="#events-rueckgabemeldung">Rückgabemeldung einstellen</a></li>
@@ -92,7 +96,12 @@
                 <li><a href="#ausleihe-logik">Ausleihe/Rückgabe-Logik</a></li>
                 <li><a href="#ausleihe-tool">Ausleihe im Verwaltungstool</a></li>
                 <li><a href="#statistik">Statistik, CSV-Export &amp; Diagramm</a></li>
-                <li><a href="#oeffentlich">Öffentliche Übersicht</a></li>
+                <li><a href="#oeffentlich">Öffentliche Übersicht (Events)</a></li>
+                <li><a href="#oeffentlich-sammlung">Öffentliche Übersicht (Sammlungen)</a></li>
+            </ul>
+            <h4>Firestore</h4>
+            <ul>
+                <li><a href="#firestore-regeln">Sicherheitsregeln</a></li>
             </ul>
             <h4>Sonstiges</h4>
             <ul>
@@ -234,9 +243,31 @@
                 </ul>
             </section>
 
+            <section id="sammlung-link">
+                <h2>Öffentlicher Link zur Sammlung</h2>
+                <p>Im geöffneten Sammlungsfenster steht unter "Öffentlicher Link zu dieser Sammlung" eine fertige URL zur eigenständigen Seite <code>sammlung-uebersicht.html?collection=SAMMLUNG_ID</code> — Button "Kopieren" reicht. Diese Seite zeigt nur genau diese eine Sammlung, direkt einbettbar oder verschickbar, ganz ohne Login. Wird die Seite ohne <code>?collection=</code>-Parameter aufgerufen, zeigt sie stattdessen ein Dropdown zur Auswahl unter allen vorhandenen Sammlungen.</p>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Damit diese Seite überhaupt Daten anzeigen kann, müssen die Firestore-Sicherheitsregeln für <code>collections</code>, <code>collectionItems</code> und <code>games</code> öffentliches Lesen erlauben (siehe <a href="#firestore-regeln">Sicherheitsregeln</a>). Ohne diese Freigabe bleibt die Seite leer oder unvollständig.</p>
+                </div>
+            </section>
+
+            <section id="bgstats-import">
+                <h2>BGStats-Import</h2>
+                <p>Für Spieler:innen, die ihre eigene Sammlung bereits in der App <strong>BGStats</strong> pflegen. Im Sammlungen-Tab über "BGStats-JSON importieren".</p>
+                <ul class="doc-step-list">
+                    <li>Export in BGStats: Einstellungen → Backup &amp; Export → Export als JSON.</li>
+                    <li>Name für die neue Sammlung eingeben, JSON-Datei auswählen, "Datei analysieren" klicken. Die Datei wird ausschließlich lokal im Browser gelesen, nie irgendwohin hochgeladen — und Spielpartien (Plays) werden komplett ignoriert, es zählt nur, welche Spiele als "besessen" markiert sind.</li>
+                    <li><strong>Wichtige Einschränkung:</strong> BGStats speichert grundsätzlich keine EAN-Codes. Der Abgleich läuft daher über die BoardGameGeek-ID (BGG-ID): Spiele, die in eurer Datenbank bereits mit derselben BGG-ID bekannt sind, werden automatisch der neuen Sammlung zugeordnet (mit BGStats-Stückzahl).</li>
+                    <li>Alle übrigen Spiele (in eurer Datenbank bisher unbekannt) erscheinen in einer Review-Tabelle mit einem leeren EAN-Feld pro Zeile — hier muss einmal das physische Exemplar gescannt werden. Enter im Feld übernimmt den Wert und springt automatisch zum nächsten noch leeren Feld, sodass sich der ganze Stapel am Stück durchscannen lässt.</li>
+                    <li>Zeilen ohne eingetragene EAN werden beim Import einfach übersprungen (kein Abbruch der übrigen Zeilen).</li>
+                    <li>Neu angelegte Spiele bekommen dabei bereits Titel, Bild und Spieleranzahl aus BGStats mit, sind aber als <span class="doc-badge">Offen</span> markiert (kein vollständiger BGG-Abgleich mit Beschreibung/Bewertung/Komplexität) — anschließend ganz normal über die Spieledatenbank nachbearbeiten oder per BGG-Suche anreichern.</li>
+                </ul>
+            </section>
+
             <section id="events-anlegen">
                 <h2>Event anlegen</h2>
-                <p>Tab <strong>Events</strong>. Name, Datum, und Häkchen bei den Sammlungen setzen, aus denen bei diesem Event Spiele ausgewählt werden dürfen.</p>
+                <p>Tab <strong>Events</strong>. Name, Datum, und Häkchen bei den Sammlungen setzen, aus denen bei diesem Event Spiele ausgewählt werden dürfen. Ein Event ganz ohne Sammlung ist ebenfalls möglich — dann werden Spiele stattdessen direkt aus der gesamten Spieledatenbank hinzugefügt (siehe <a href="#events-spiele">Spiele zum Event hinzufügen</a>).</p>
+                <p>Zusätzliche Checkbox <strong>"Alle Spiele der ausgewählten Sammlung(en) sofort bereitstellen"</strong>: direkt beim Anlegen wird automatisch ein Regal namens "Hauptregal" erstellt und mit sämtlichen Spielen der angehakten Sammlung(en) inkl. korrekter Stückzahl befüllt — praktisch, wenn beim Event ohnehin die komplette Sammlung zur Verfügung steht und keine feinere Regal-Aufteilung nötig ist.</p>
                 <div class="doc-callout">
                     <p>Ohne mindestens eine ausgewählte Sammlung lassen sich später keine Spiele zum Event hinzufügen — die Auswahl-Liste bliebe leer.</p>
                 </div>
@@ -254,9 +285,27 @@
             <section id="events-spiele">
                 <h2>Spiele zum Event hinzufügen (manuelle Suche)</h2>
                 <ul class="doc-step-list">
-                    <li>Im Event-Fenster unter "Spiele manuell aus den gewählten Sammlungen suchen" nach Name oder EAN suchen — es werden nur Spiele aus den für dieses Event gewählten Sammlungen vorgeschlagen.</li>
+                    <li>Im Event-Fenster unter "Spiele manuell suchen" nach Name oder EAN suchen.</li>
+                    <li>Die Suche prüft zuerst die für dieses Event verknüpften Sammlungen (Treffer zeigen den Sammlungsnamen dazu), <strong>und zusätzlich immer auch die gesamte Spieledatenbank</strong> (Treffer sind mit "aus Gesamtdatenbank, keine Sammlung" gekennzeichnet) — praktisch für Events ganz ohne verknüpfte Sammlung, oder um gezielt ein einzelnes Spiel zu ergänzen, das in keiner verknüpften Sammlung steckt.</li>
                     <li>Klick auf einen Treffer fügt das Spiel dem Event hinzu, automatisch im zuerst angelegten Regal (danach über die Dropdown-Auswahl in der Tabelle jederzeit änderbar). Ist das Spiel schon dabei, zeigt der Button "+1 Exemplar" und erhöht nur die Stückzahl.</li>
                     <li>Ein Spiel entfernen ist nur möglich, solange kein Exemplar davon gerade ausgeliehen ist.</li>
+                </ul>
+            </section>
+
+            <section id="events-sammlungen-bearbeiten">
+                <h2>Verknüpfte Sammlungen nachträglich ändern</h2>
+                <p>Die Sammlungen eines Events müssen nicht mehr bei der Erstellung endgültig feststehen. Im Event-Fenster ganz oben unter "Verknüpfte Sammlungen" lassen sich die Häkchen jederzeit anpassen — Button "Sammlungen speichern" übernimmt die Änderung sofort, ohne das Fenster neu öffnen zu müssen. Praktisch, wenn beim Anlegen versehentlich keine oder die falsche Sammlung gewählt wurde.</p>
+            </section>
+
+            <section id="events-bulk-laden">
+                <h2>Ganze Sammlung / Datenbank ins Event laden</h2>
+                <p>Im Event-Fenster unter "📦 Ganze Sammlung ins Event laden" — überträgt auf einen Schlag viele Spiele in ein Regal, statt sie einzeln zu suchen.</p>
+                <ul class="doc-step-list">
+                    <li>Dropdown zeigt alle mit dem Event verknüpften Sammlungen, <strong>plus immer zusätzlich die Option "🗄️ Gesamte Spieledatenbank (alle Spiele)"</strong> — unabhängig davon, ob überhaupt eine Sammlung verknüpft ist.</li>
+                    <li>Regal wählen, "Sammlung laden" klicken.</li>
+                    <li>Bei einer echten Sammlung wird die jeweilige Stückzahl aus der Sammlung übernommen; bei der gesamten Datenbank bekommt jedes Spiel 1 Exemplar.</li>
+                    <li>Bereits im Event vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl passend erhöht.</li>
+                    <li>Bei der "Gesamte Spieledatenbank"-Option erscheint ab 30 Spielen eine Sicherheitsabfrage, damit das nicht versehentlich ausgelöst wird.</li>
                 </ul>
             </section>
 
@@ -350,6 +399,7 @@
                     <li>Spalten: <code>Datum</code>, <code>Uhrzeit</code>, <code>Spiel</code>, <code>Regal</code>, <code>Aktion</code>, <code>Wert</code>.</li>
                     <li>Jede Ausleihe erzeugt eine Zeile mit Wert <code>1</code> zum tatsächlichen Ausleihzeitpunkt; jede bereits erfolgte Rückgabe erzeugt zusätzlich eine eigene Zeile mit Wert <code>-1</code> zum echten Rückgabezeitpunkt.</li>
                     <li>Dadurch lässt sich in Excel/Numbers jederzeit nachvollziehen, wann genau was ausgeliehen und zurückgegeben wurde, und durch Aufsummieren der Werte über die Zeit der Verlauf der Auslastung rekonstruieren.</li>
+                    <li>Am Ende der Datei folgt ein eigener Abschnitt <strong>"Zusammenfassung — Gesamtausleihen je Spiel"</strong> mit der Gesamtzahl an Ausleihen pro Spiel, absteigend sortiert. Spiele, die nie ausgeliehen wurden, tauchen dort naturgemäß nicht auf.</li>
                 </ul>
                 <h3>Zeitverlaufs-Diagramm</h3>
                 <ul class="doc-step-list">
@@ -374,6 +424,41 @@
                 </ul>
             </section>
 
+            <section id="oeffentlich-sammlung">
+                <h2>Öffentliche Übersicht für Sammlungen (sammlung-uebersicht.html)</h2>
+                <p>Eigenständige Seite nach demselben Prinzip wie die Event-Übersicht, aber für einzelne Spielesammlungen statt Events — z.B. um die private Sammlung eines Mitglieds oder eine Vereinssammlung als Ganzes zu präsentieren.</p>
+                <ul class="doc-step-list">
+                    <li>Aufruf mit <code>?collection=SAMMLUNG_ID</code> zeigt direkt diese eine Sammlung (Link dazu im Sammlungsfenster, siehe <a href="#sammlung-link">Öffentlicher Link zur Sammlung</a>).</li>
+                    <li>Ohne Parameter: Dropdown zur Auswahl unter allen vorhandenen Sammlungen.</li>
+                    <li>Gleiches Suchfeld, gleiches einklappbare Filter-&amp;-Sortierungs-Panel wie bei der Event-Übersicht (Spielerzahl, Komplexität, Bewertung, Sortierung inkl. "Stückzahl, meiste zuerst") — bewusst dieselbe Bedienung wie gewohnt.</li>
+                    <li>Kein Regal- und kein Status-Filter, da Sammlungen keine Verfügbarkeit im Ausleihsinn kennen — stattdessen zeigt die Tabelle je Spiel die <strong>Stückzahl</strong> ("2×" usw.).</li>
+                    <li>Zeile anklicken öffnet dieselbe Detailkarte wie bei der Event-Übersicht (Bild, Beschreibung, BGG-Link).</li>
+                    <li>Bild, Bewertung, Komplexität usw. werden live aus der zentralen Spieledatenbank nachgeladen — steht ein Spiel dort noch ohne Titel/BGG-Daten ("Offen"), zeigt die Sammlung-Übersicht entsprechend weniger an.</li>
+                    <li>Kein Login nötig, keine Bearbeitung möglich.</li>
+                </ul>
+            </section>
+
+            <section id="firestore-regeln">
+                <h2>Firestore-Sicherheitsregeln</h2>
+                <p>Damit die öffentlichen Übersichtsseiten (Events <em>und</em> Sammlungen) ohne Login Daten anzeigen können, müssen in der Firebase-Konsole unter Firestore → Regeln alle dafür nötigen Collections auf <code>allow read: if true</code> stehen, Schreibzugriff bleibt weiterhin ausschließlich angemeldeten Nutzern vorbehalten:</p>
+                <table class="doc-table">
+                    <thead><tr><th>Collection</th><th>Lesen</th><th>Schreiben</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>games</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>collections</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>collectionItems</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>events</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>eventShelves</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>eventGames</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>loans</code></td><td>nur angemeldet</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>config</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
+                    </tbody>
+                </table>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Fehlt bei einer dieser Collections die öffentliche Leseberechtigung, bleibt die jeweils betroffene öffentliche Seite leer oder zeigt nur unvollständige Daten (z.B. Mengen ohne Bilder/Bewertungen), obwohl im Verwaltungstool selbst alles korrekt aussieht — dort ist man ja immer angemeldet.</p>
+                </div>
+            </section>
+
             <section id="glossar">
                 <h2>Glossar</h2>
                 <table class="doc-table">
@@ -387,6 +472,8 @@
                         <tr><td>Enrich-Status</td><td>Zeigt, ob ein Datenbankeintrag vollständige BGG-Daten hat (Offen / Fertig / Kein Treffer / Fehler).</td></tr>
                         <tr><td>Titelquelle</td><td>Woher der gespeicherte Titel stammt: GTNM-Referenz, manuell eingegeben, oder Recherche-Import.</td></tr>
                         <tr><td>Stückzahl</td><td>Wie viele Exemplare eines Spiels eine Sammlung besitzt bzw. bei einem Event im Regal stehen.</td></tr>
+                        <tr><td>BGG-ID</td><td>Eindeutige Kennung eines Spiels bei BoardGameGeek — Grundlage für den automatischen BGStats-Import-Abgleich, da BGStats keine EAN kennt.</td></tr>
+                        <tr><td>BGStats</td><td>Externe App zur Sammlungs- und Partieverwaltung; ihr JSON-Export lässt sich als neue Sammlung importieren (nur Besitz, keine Partien).</td></tr>
                     </tbody>
                 </table>
             </section>
