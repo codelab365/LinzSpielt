@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v18</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v20</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -369,6 +369,10 @@
                         <label class="cl-label">Sammlungen, aus denen Spiele gewählt werden können</label>
                         <div id="new-event-collections" class="sv-checkbox-list"></div>
                     </div>
+                    <label style="display:flex; align-items:center; gap:.5rem; font-size:.9rem;">
+                        <input type="checkbox" id="new-event-load-all">
+                        Alle Spiele der ausgewählten Sammlung(en) sofort bereitstellen (legt automatisch ein "Hauptregal" an)
+                    </label>
                     <button type="button" id="add-event-btn" class="cl-btn cl-btn--signal">Event anlegen</button>
                 </div>
                 <p id="event-feedback" class="qb-feedback"></p>
@@ -565,7 +569,8 @@
         </div>
         <p id="event-bulk-load-status" class="cl-muted" style="font-size:.85rem;"></p>
 
-        <h3 style="margin-top: var(--cl-space-3);">Spiele manuell aus den gewählten Sammlungen suchen</h3>
+        <h3 style="margin-top: var(--cl-space-3);">Spiele manuell suchen</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung.</p>
         <label class="cl-label" for="event-add-search">Name oder EAN</label>
         <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
         <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
@@ -630,8 +635,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v18 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v20 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v20 — Event anlegen: neue Checkbox "Alle Spiele der ausgewählten
+//        Sammlung(en) sofort bereitstellen" — legt automatisch ein
+//        "Hauptregal" an und befüllt es in einem Schritt. Manuelle Spiele-
+//        Suche im Event-Fenster durchsucht jetzt zusätzlich zu den
+//        verknüpften Sammlungen auch die gesamte Spieledatenbank — wichtig
+//        für Events ganz ohne verknüpfte Sammlung.
+//   v19 — Bugfix: Nach dem Speichern neu verknüpfter Sammlungen (v18)
+//        blieb das "Ganze Sammlung ins Event laden"-Dropdown leer, bis das
+//        Event-Fenster neu geöffnet wurde. Aktualisiert sich jetzt sofort.
 //   v18 — Bugfix: Verknüpfte Sammlungen eines Events waren nur bei der
 //        Erstellung wählbar. Jetzt im Event-Fenster jederzeit über
 //        "Verknüpfte Sammlungen" nachträglich änderbar (Checkboxen +
@@ -1972,13 +1986,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const feedback = document.getElementById('event-feedback');
         const name = nameInput.value.trim();
         const selectedCollections = Array.from(document.querySelectorAll('#new-event-collections input:checked')).map(cb => cb.value);
+        const loadAll = document.getElementById('new-event-load-all').checked;
         if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
         try {
-            await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp() });
+            const evRef = await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp() });
             nameInput.value = ''; dateInput.value = '';
             document.querySelectorAll('#new-event-collections input:checked').forEach(cb => cb.checked = false);
-            feedback.textContent = `Event "${name}" angelegt.`;
-            feedback.style.color = 'var(--cl-ok)';
+            document.getElementById('new-event-load-all').checked = false;
+
+            if (loadAll && selectedCollections.length > 0) {
+                feedback.textContent = `Event "${name}" angelegt. Lade alle Spiele der ausgewählten Sammlung(en)…`;
+                feedback.style.color = 'var(--cl-muted)';
+                const shelfRef = await addDoc(collection(db, 'eventShelves'), { eventId: evRef.id, name: 'Hauptregal', createdAt: serverTimestamp() });
+                const items = allCollectionItems.filter(i => selectedCollections.includes(i.collectionId));
+                let added = 0;
+                for (const item of items) {
+                    const game = allGames.find(g => g.id === item.ean);
+                    const qty = Math.max(1, item.quantity || 1);
+                    try {
+                        const result = await addOrIncrementEventGame(evRef.id, item.ean, shelfRef.id, item.collectionId, game || {}, item.gameName);
+                        if (qty > 1) {
+                            const egId = `${evRef.id}_${item.ean}`;
+                            await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(qty - 1), availableQuantity: increment(qty - 1), lastActivityAt: serverTimestamp() });
+                        }
+                        if (result) added++;
+                    } catch (err) { console.error(err); }
+                }
+                feedback.textContent = `Event "${name}" angelegt, ${added} Spiel(e) im "Hauptregal" bereitgestellt.`;
+                feedback.style.color = 'var(--cl-ok)';
+            } else {
+                feedback.textContent = `Event "${name}" angelegt.`;
+                feedback.style.color = 'var(--cl-ok)';
+            }
         } catch (err) {
             console.error('Event anlegen fehlgeschlagen:', err);
             feedback.textContent = 'Anlegen fehlgeschlagen.';
@@ -2015,6 +2054,20 @@ document.addEventListener('DOMContentLoaded', () => {
             feedback.textContent = 'Gespeichert.';
             feedback.style.color = 'var(--cl-ok)';
             showToast('✅ Sammlungen aktualisiert', false, { variant: 'ok', duration: 1800 });
+
+            // Lokalen Cache-Eintrag sofort nachziehen, damit alles, was von
+            // sourceCollectionIds abhängt (Bulk-Laden-Dropdown, Kopfzeile),
+            // ohne Schließen/Neuöffnen des Fensters sofort aktuell ist.
+            const ev = allEvents.find(e => e.id === currentEventId);
+            if (ev) ev.sourceCollectionIds = selected;
+            const colNames = selected.map(cid => allCollections.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+            document.getElementById('event-modal-meta').textContent = (ev?.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
+            const bulkColSelect = document.getElementById('event-bulk-collection-select');
+            const linkedCollections = selected.map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
+            bulkColSelect.innerHTML = linkedCollections.length > 0
+                ? linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')
+                : '<option value="">— keine Sammlung für dieses Event ausgewählt —</option>';
+            bulkColSelect.disabled = linkedCollections.length === 0;
         } catch (err) {
             console.error('Sammlungen speichern fehlgeschlagen:', err);
             feedback.textContent = 'Speichern fehlgeschlagen.';
@@ -2241,23 +2294,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!term || !currentEventId) return;
         const ev = allEvents.find(e => e.id === currentEventId);
         const sourceIds = ev?.sourceCollectionIds || [];
-        const candidates = allCollectionItems.filter(ci => sourceIds.includes(ci.collectionId) &&
+
+        // 1) Treffer aus den verknüpften Sammlungen (mit Sammlungsname, wie bisher).
+        const fromCollections = allCollectionItems.filter(ci => sourceIds.includes(ci.collectionId) &&
             ((ci.gameName || '').toLowerCase().includes(term) || ci.ean.includes(term)));
-        eventAddResults.innerHTML = candidates.length ? candidates.slice(0, 15).map(ci => {
-            const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
-            const already = allEventGames.some(g => g.eventId === currentEventId && g.ean === ci.ean);
-            return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(ci.gameName || ci.ean)}">
-                <span>${escapeHTML(ci.gameName || ci.ean)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
-                <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
-            </div>`;
-        }).join('') : '<div class="qb-bgg-hint">Keine Treffer in den gewählten Sammlungen.</div>';
+        const eansAlreadyShown = new Set(fromCollections.map(ci => ci.ean));
+
+        // 2) Zusätzlich direkt aus der Gesamtdatenbank — wichtig für Events
+        // ganz ohne verknüpfte Sammlung, oder um gezielt ein einzelnes Spiel
+        // zu ergänzen, das in keiner der verknüpften Sammlungen steckt.
+        const fromDatabase = allGames.filter(g => !eansAlreadyShown.has(g.id) &&
+            ((g.name || '').toLowerCase().includes(term) || g.id.includes(term)));
+
+        const rows = [
+            ...fromCollections.slice(0, 15).map(ci => {
+                const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
+                const already = allEventGames.some(g => g.eventId === currentEventId && g.ean === ci.ean);
+                return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(ci.gameName || ci.ean)}">
+                    <span>${escapeHTML(ci.gameName || ci.ean)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                </div>`;
+            }),
+            ...fromDatabase.slice(0, 15).map(g => {
+                const already = allEventGames.some(eg => eg.eventId === currentEventId && eg.ean === g.id);
+                return `<div class="sv-manual-result-item" data-ean="${g.id}" data-collection="" data-name="${escapeHTML(g.name || g.id)}">
+                    <span>${escapeHTML(g.name || g.id)} <span class="cl-muted" style="font-size:.8rem;">(aus Gesamtdatenbank, keine Sammlung)</span></span>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                </div>`;
+            })
+        ];
+        eventAddResults.innerHTML = rows.length ? rows.join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
     });
     eventAddResults.addEventListener('click', async (e) => {
         const item = e.target.closest('.sv-manual-result-item');
         if (!item || !currentEventId) return;
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
         if (shelves.length === 0) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
-        const ean = item.dataset.ean, collectionId = item.dataset.collection, name = item.dataset.name;
+        const ean = item.dataset.ean, collectionId = item.dataset.collection || null, name = item.dataset.name;
         const g = allGames.find(g => g.id === ean);
         try {
             const existing = allEventGames.find(eg => eg.eventId === currentEventId && eg.ean === ean);
