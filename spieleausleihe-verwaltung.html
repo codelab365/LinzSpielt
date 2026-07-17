@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v20</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v21</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -561,7 +561,7 @@
         <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
 
         <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung auf einmal in ein Regal dieses Events — mit der jeweiligen Stückzahl aus der Sammlung. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
+        <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung — oder wahlweise die gesamte Spieledatenbank — auf einmal in ein Regal dieses Events, mit der jeweiligen Stückzahl. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
         <div class="sv-toolbar">
             <select id="event-bulk-collection-select" class="cl-select"></select>
             <select id="event-bulk-shelf-select" class="cl-select"></select>
@@ -635,8 +635,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v20 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v21 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v21 — "Ganze Sammlung ins Event laden" hat jetzt zusätzlich zur Auswahl
+//        immer die Option "🗄️ Gesamte Spieledatenbank (alle Spiele)" — auch
+//        nachträglich bei jedem bestehenden Event nutzbar, nicht nur bei
+//        verknüpften Sammlungen. Ab 30 Spielen erscheint eine
+//        Sicherheitsabfrage, bevor tatsächlich die ganze Datenbank geladen
+//        wird.
 //   v20 — Event anlegen: neue Checkbox "Alle Spiele der ausgewählten
 //        Sammlung(en) sofort bereitstellen" — legt automatisch ein
 //        "Hauptregal" an und befüllt es in einem Schritt. Manuelle Spiele-
@@ -2045,6 +2051,15 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         }).join('') + '</div>';
     }
+    // Baut die Optionsliste fürs "Ganze Sammlung laden"-Dropdown: die
+    // verknüpften Sammlungen des Events, plus immer zusätzlich die gesamte
+    // Spieledatenbank als eigene Option — unabhängig davon, ob Sammlungen
+    // verknüpft sind.
+    function buildBulkCollectionOptions(linkedCollections) {
+        const collectionOptions = linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+        return collectionOptions + `<option value="__all__">🗄️ Gesamte Spieledatenbank (alle Spiele)</option>`;
+    }
+
     document.getElementById('event-save-collections-btn').addEventListener('click', async () => {
         if (!currentEventId) return;
         const feedback = document.getElementById('event-collections-feedback');
@@ -2064,10 +2079,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('event-modal-meta').textContent = (ev?.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
             const bulkColSelect = document.getElementById('event-bulk-collection-select');
             const linkedCollections = selected.map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
-            bulkColSelect.innerHTML = linkedCollections.length > 0
-                ? linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')
-                : '<option value="">— keine Sammlung für dieses Event ausgewählt —</option>';
-            bulkColSelect.disabled = linkedCollections.length === 0;
+            bulkColSelect.innerHTML = buildBulkCollectionOptions(linkedCollections);
+            bulkColSelect.disabled = false;
         } catch (err) {
             console.error('Sammlungen speichern fehlgeschlagen:', err);
             feedback.textContent = 'Speichern fehlgeschlagen.';
@@ -2107,10 +2120,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-bulk-load-status').textContent = '';
         const bulkColSelect = document.getElementById('event-bulk-collection-select');
         const linkedCollections = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
-        bulkColSelect.innerHTML = linkedCollections.length > 0
-            ? linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')
-            : '<option value="">— keine Sammlung für dieses Event ausgewählt —</option>';
-        bulkColSelect.disabled = linkedCollections.length === 0;
+        bulkColSelect.innerHTML = buildBulkCollectionOptions(linkedCollections);
+        bulkColSelect.disabled = false;
         const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
         const embedUrl = basePath + `index.html?event=${id}`;
         document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
@@ -2244,8 +2255,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusEl = document.getElementById('event-bulk-load-status');
         if (!colId) { statusEl.textContent = 'Bitte eine Sammlung auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
         if (!shelfId) { statusEl.textContent = 'Bitte zuerst ein Regal anlegen und auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
-        const items = allCollectionItems.filter(i => i.collectionId === colId);
-        if (items.length === 0) { statusEl.textContent = 'Diese Sammlung enthält keine Spiele.'; statusEl.style.color = 'var(--cl-err)'; return; }
+
+        const isFullDb = colId === '__all__';
+        // Bei der Gesamtdatenbank gibt's keine Sammlungs-Stückzahl — jedes
+        // Spiel wird mit 1 Exemplar angelegt (gilt nicht für die Menge, mit
+        // der es evtl. schon in einer echten Sammlung erfasst ist).
+        const items = isFullDb
+            ? allGames.map(g => ({ ean: g.id, gameName: g.name || g.id, collectionId: null, quantity: 1 }))
+            : allCollectionItems.filter(i => i.collectionId === colId);
+        if (items.length === 0) { statusEl.textContent = isFullDb ? 'Die Spieledatenbank ist leer.' : 'Diese Sammlung enthält keine Spiele.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        if (isFullDb && items.length > 30 && !confirm(`Wirklich alle ${items.length} Spiele der gesamten Datenbank in dieses Event laden?`)) { return; }
         statusEl.textContent = `Lade ${items.length} Spiel(e)…`;
         statusEl.style.color = 'var(--cl-muted)';
         let added = 0, incremented = 0, failed = 0;
@@ -2253,7 +2272,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const game = allGames.find(g => g.id === item.ean);
             const qty = Math.max(1, item.quantity || 1);
             try {
-                const result = await addOrIncrementEventGame(currentEventId, item.ean, shelfId, colId, game || {}, item.gameName);
+                const result = await addOrIncrementEventGame(currentEventId, item.ean, shelfId, item.collectionId, game || {}, item.gameName);
                 if (result === 'added') added++; else if (result === 'incremented') incremented++;
                 if (qty > 1) {
                     const egId = `${currentEventId}_${item.ean}`;
