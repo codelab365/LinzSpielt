@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v17</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v18</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -535,7 +535,13 @@
         <h2 id="event-modal-title" style="margin-top:0;">Event</h2>
         <p id="event-modal-meta" class="cl-muted"></p>
 
-        <h3>Regale für dieses Event</h3>
+        <h3>Verknüpfte Sammlungen</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Nur Spiele aus den hier angehakten Sammlungen lassen sich diesem Event hinzufügen. Kann jederzeit nachträglich geändert werden.</p>
+        <div id="event-edit-collections" class="sv-checkbox-list"></div>
+        <button type="button" id="event-save-collections-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Sammlungen speichern</button>
+        <p id="event-collections-feedback" class="qb-feedback"></p>
+
+        <h3 style="margin-top: var(--cl-space-4);">Regale für dieses Event</h3>
         <div id="event-shelf-grid" class="sv-shelf-grid"></div>
         <div class="sv-toolbar" style="margin-bottom: var(--cl-space-3);">
             <input type="text" id="new-event-shelf-name" class="cl-input" placeholder="z.B. Regal A">
@@ -624,8 +630,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v17 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v18 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v18 — Bugfix: Verknüpfte Sammlungen eines Events waren nur bei der
+//        Erstellung wählbar. Jetzt im Event-Fenster jederzeit über
+//        "Verknüpfte Sammlungen" nachträglich änderbar (Checkboxen +
+//        "Sammlungen speichern").
 //   v17 — CSV-Statistik-Export: zusätzlicher Zusammenfassungs-Abschnitt am
 //        Ende mit Gesamtausleihen je Spiel, absteigend sortiert. Spiele
 //        ohne jede Ausleihe erscheinen dort naturgemäß nicht.
@@ -1996,6 +2006,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         }).join('') + '</div>';
     }
+    document.getElementById('event-save-collections-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const feedback = document.getElementById('event-collections-feedback');
+        const selected = Array.from(document.querySelectorAll('#event-edit-collections input:checked')).map(cb => cb.value);
+        try {
+            await updateDoc(doc(db, 'events', currentEventId), { sourceCollectionIds: selected });
+            feedback.textContent = 'Gespeichert.';
+            feedback.style.color = 'var(--cl-ok)';
+            showToast('✅ Sammlungen aktualisiert', false, { variant: 'ok', duration: 1800 });
+        } catch (err) {
+            console.error('Sammlungen speichern fehlgeschlagen:', err);
+            feedback.textContent = 'Speichern fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
     document.getElementById('events-grid').addEventListener('click', (e) => {
         const btn = e.target.closest('.sv-open-event-btn');
         if (btn) openEventModal(btn.dataset.id);
@@ -2010,6 +2036,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-modal-title').textContent = ev.name;
         const colNames = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
         document.getElementById('event-modal-meta').textContent = (ev.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
+        const editColWrap = document.getElementById('event-edit-collections');
+        const currentSourceIds = ev.sourceCollectionIds || [];
+        editColWrap.innerHTML = allCollections.length > 0
+            ? allCollections.map(c => `
+                <label class="sv-checkbox-chip">
+                    <input type="checkbox" value="${c.id}" ${currentSourceIds.includes(c.id) ? 'checked' : ''}>
+                    ${escapeHTML(c.name)}
+                </label>`).join('')
+            : '<p class="cl-muted" style="font-size:.85rem;">Noch keine Sammlungen vorhanden.</p>';
+        document.getElementById('event-collections-feedback').textContent = '';
         document.getElementById('event-add-search').value = '';
         document.getElementById('event-add-results').classList.add('cl-hidden');
         document.getElementById('event-quick-scan-input').value = '';
