@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v21</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v24</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <div class="qb-header-actions" id="header-actions"></div>
@@ -264,7 +264,10 @@
                 <h3 style="margin-top:0;">Stufe 2 — Titel-Liste importieren (JSON)</h3>
                 <p class="cl-muted" style="font-size:.85rem;">Füge die von Claude recherchierte Liste ein, Format: <code>[{"ean":"...","title":"..."}]</code>. Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand) und die Daten werden übernommen.</p>
                 <textarea id="stage2-textarea" rows="6" class="cl-input" placeholder='[{"ean":"4001504xxxxxx","title":"Catan"}]'></textarea>
-                <button type="button" id="stage2-import-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Import starten</button>
+                <div style="display:flex; gap:.5rem; margin-top:.5rem;">
+                    <button type="button" id="stage2-import-btn" class="cl-btn cl-btn--signal">Import starten</button>
+                    <button type="button" id="stage2-clear-btn" class="cl-btn cl-btn--ghost">Liste löschen</button>
+                </div>
                 <div id="stage2-progress-wrap" class="cl-hidden" style="margin-top:.75rem;">
                     <div class="sv-progress"><div class="sv-progress__bar" id="stage2-progress-bar"></div></div>
                     <p id="stage2-progress-text" class="cl-muted" style="font-size:.85rem;"></p>
@@ -635,8 +638,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v21 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v24 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v24 — Stufe 2: neuer Button "Liste löschen" neben "Import starten".
+//   v23 — Ausleihe-Tresen: "Aktuell ausgeliehen"-Liste ersetzt durch eine
+//        immer sichtbare vollständige Spieleliste des Events, mit Suchfeld
+//        und Status-Filter (Alle / Nur verfügbar / Nur ausgeliehen). Ein
+//        "1 zurückgeben"-Button erscheint weiterhin nur bei Spielen, von
+//        denen etwas draußen ist.
+//   v22 — Bugfix: In der Sammlungs-Tabelle, der Spielesuche im Event-
+//        Fenster und im Ausleihe/Rückgabe-Tab wurde teils die veraltete
+//        Namens-Momentaufnahme aus dem Scan-Zeitpunkt angezeigt statt des
+//        aktuellen Namens aus der Spieledatenbank (z.B. rohe EAN statt
+//        Titel). Zeigt jetzt überall den aktuellen Namen. Betrifft auch
+//        spieleausleihe-tresen.html, die dafür jetzt ebenfalls die
+//        Spieledatenbank live mitliest.
 //   v21 — "Ganze Sammlung ins Event laden" hat jetzt zusätzlich zur Auswahl
 //        immer die Option "🗄️ Gesamte Spieledatenbank (alle Spiele)" — auch
 //        nachträglich bei jedem bestehenden Event nutzbar, nicht nur bei
@@ -1378,6 +1394,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Titel wurden nicht übernommen. Die EANs bleiben als "Offen" erhalten.');
     });
 
+    document.getElementById('stage2-clear-btn').addEventListener('click', () => {
+        const textarea = document.getElementById('stage2-textarea');
+        textarea.value = '';
+        textarea.focus();
+    });
+
     document.getElementById('stage2-import-btn').addEventListener('click', async () => {
         const textarea = document.getElementById('stage2-textarea');
         let items;
@@ -1896,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const qty = ci.quantity ?? 1;
             return `<tr>
                 <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
-                <td>${escapeHTML(ci.gameName || g?.name || ci.ean)}</td>
+                <td>${escapeHTML(g?.name || ci.gameName || ci.ean)}</td>
                 <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:.4rem;">
@@ -2315,8 +2337,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const sourceIds = ev?.sourceCollectionIds || [];
 
         // 1) Treffer aus den verknüpften Sammlungen (mit Sammlungsname, wie bisher).
-        const fromCollections = allCollectionItems.filter(ci => sourceIds.includes(ci.collectionId) &&
-            ((ci.gameName || '').toLowerCase().includes(term) || ci.ean.includes(term)));
+        // Name kommt bevorzugt aus der zentralen Spieledatenbank (aktuell),
+        // die gespeicherte ci.gameName ist nur eine Momentaufnahme vom
+        // Scan-Zeitpunkt und kann veraltet sein (z.B. noch die rohe EAN).
+        const fromCollections = allCollectionItems.filter(ci => {
+            if (!sourceIds.includes(ci.collectionId)) return false;
+            const liveName = allGames.find(g => g.id === ci.ean)?.name || ci.gameName || '';
+            return liveName.toLowerCase().includes(term) || ci.ean.includes(term);
+        });
         const eansAlreadyShown = new Set(fromCollections.map(ci => ci.ean));
 
         // 2) Zusätzlich direkt aus der Gesamtdatenbank — wichtig für Events
@@ -2329,8 +2357,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ...fromCollections.slice(0, 15).map(ci => {
                 const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
                 const already = allEventGames.some(g => g.eventId === currentEventId && g.ean === ci.ean);
-                return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(ci.gameName || ci.ean)}">
-                    <span>${escapeHTML(ci.gameName || ci.ean)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
+                const liveName = allGames.find(g => g.id === ci.ean)?.name || ci.gameName || ci.ean;
+                return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(liveName)}">
+                    <span>${escapeHTML(liveName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
                     <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
                 </div>`;
             }),
@@ -2371,7 +2400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const canRemove = avail >= qty;
             return `<tr>
                 <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
-                <td>${escapeHTML(g.gameName)}</td>
+                <td>${escapeHTML(liveGameName(g))}</td>
                 <td>
                     <select class="cl-select sv-event-game-shelf-select" data-id="${g.id}" style="min-width:100px;">
                         ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
@@ -2518,6 +2547,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = allEventShelves.find(s => s.eventId === eventId && s.id === shelfId);
         return s ? s.name : '—';
     }
+    // Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank vor der
+    // ggf. veralteten Momentaufnahme im Event-Eintrag (eg.gameName, die beim
+    // Scannen entstand, bevor der Titel bekannt war).
+    function liveGameName(eg) {
+        return allGames.find(g => g.id === eg.ean)?.name || eg.gameName || eg.ean;
+    }
 
     async function handleScan(ean) {
         if (!activeEventId) {
@@ -2582,7 +2617,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ev = allEvents.find(e => e.id === eg.eventId);
         try {
             await addDoc(collection(db, 'loans'), {
-                ean: eg.ean, gameName: eg.gameName, eventId: eg.eventId, eventName: ev ? ev.name : '',
+                ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: ev ? ev.name : '',
                 shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
@@ -2591,10 +2626,10 @@ document.addEventListener('DOMContentLoaded', () => {
             scanResult.innerHTML = `
                 ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
                 <div class="sv-scan-result__body">
-                    <p class="sv-scan-result__title">${escapeHTML(eg.gameName)} ausgeliehen 📖</p>
+                    <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} ausgeliehen 📖</p>
                     <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
                 </div>`;
-            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> ausgeliehen.`);
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
         } catch (err) { console.error('Ausleih-Fehler:', err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
 
@@ -2609,21 +2644,21 @@ document.addEventListener('DOMContentLoaded', () => {
             scanResult.innerHTML = `
                 ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
                 <div class="sv-scan-result__body">
-                    <p class="sv-scan-result__title">${escapeHTML(eg.gameName)} zurückgelegt ✅</p>
+                    <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} zurückgelegt ✅</p>
                     <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
                 </div>`;
-            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`);
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`);
         } catch (err) { console.error('Rückgabe-Fehler:', err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
     manualSearchInput.addEventListener('input', () => {
         const term = manualSearchInput.value.trim().toLowerCase();
         if (!term || !activeEventId) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
-        const matches = allEventGames.filter(g => g.eventId === activeEventId && (g.gameName || '').toLowerCase().includes(term)).slice(0, 15);
+        const matches = allEventGames.filter(g => g.eventId === activeEventId && liveGameName(g).toLowerCase().includes(term)).slice(0, 15);
         manualResults.innerHTML = matches.length ? matches.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             return `<div class="sv-manual-result-item" data-id="${g.id}">
-                <span>${escapeHTML(g.gameName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfNameFor(g.eventId, g.shelfId))})</span></span>
+                <span>${escapeHTML(liveGameName(g))} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfNameFor(g.eventId, g.shelfId))})</span></span>
                 <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${qty} verfügbar</span>
             </div>`;
         }).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
@@ -2643,7 +2678,7 @@ document.addEventListener('DOMContentLoaded', () => {
         borrowedTableBody.innerHTML = borrowed.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
             return `<tr>
-                <td>${escapeHTML(g.gameName)}${qty > 1 ? ` <span class="cl-muted" style="font-size:.8rem;">(${out} von ${qty} draußen)</span>` : ''}</td>
+                <td>${escapeHTML(liveGameName(g))}${qty > 1 ? ` <span class="cl-muted" style="font-size:.8rem;">(${out} von ${qty} draußen)</span>` : ''}</td>
                 <td>${escapeHTML(shelfNameFor(g.eventId, g.shelfId))}</td>
                 <td>${g.lastActivityAt?.seconds ? new Date(g.lastActivityAt.seconds * 1000).toLocaleString('de-AT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
                 <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-return-btn" data-id="${g.id}">1 zurückgeben</button></td>
