@@ -172,15 +172,43 @@
 
             <section id="stufe2">
                 <h2>Spieledatenbank — Stufe 2: Titel-Liste importieren</h2>
-                <p>Für EANs, die weder Scanner-Team noch GTNM-Referenz kennen (z.B. seltene/regionale Ausgaben), kann eine von Claude recherchierte Titel-Liste importiert werden.</p>
+                <p>Für EANs, die weder Scanner-Team noch GTNM-Referenz kennen (z.B. seltene/regionale Ausgaben), kann eine per Websuche recherchierte Titel-Liste importiert werden — egal ob die Recherche von Claude im Chat oder einer anderen KI stammt.</p>
+
+                <h3>Erwartetes JSON-Format</h3>
+                <p>Eine JSON-Liste (Array) mit einem Objekt pro Spiel, jedes Objekt mit genau den Feldern <code>ean</code> und <code>title</code>, beide als Text in doppelten Anführungszeichen:</p>
+                <pre style="background:var(--cl-surface-2); padding:1rem; border-radius:var(--cl-radius-sm); overflow-x:auto; font-size:.85rem;"><code>[
+  {"ean":"4001504494445","title":"e-Mission"},
+  {"ean":"4002051684358","title":"Die Legenden von Andor - Die Bonus-Box"}
+]</code></pre>
                 <ul class="doc-step-list">
-                    <li>Format: <code>[{"ean":"4001504xxxxxx","title":"Catan"}]</code> — eine JSON-Liste mit EAN und vermutetem Titel.</li>
-                    <li>In das Textfeld einfügen, auf <strong>"Import starten"</strong> klicken.</li>
-                    <li>Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand), das Ergebnis wird übernommen und mit <span class="doc-badge">Quelle: Recherche-Import</span> markiert.</li>
+                    <li>Die EAN muss als <strong>Text in Anführungszeichen</strong> stehen (nicht als Zahl) — sonst gehen führende Nullen verloren.</li>
+                    <li>Nur die zwei Felder <code>ean</code> und <code>title</code> werden ausgewertet, weitere Felder stören nicht, sind aber unnötig.</li>
+                    <li>Liste einfügen, auf <strong>"Import starten"</strong> klicken. Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand), das Ergebnis wird übernommen und mit <span class="doc-badge">Quelle: Recherche-Import</span> markiert.</li>
                     <li>Der Fortschrittsbalken und das Protokoll darunter zeigen, welche Einträge erfolgreich waren (✅) und welche nicht (⚠️).</li>
+                    <li>Button <strong>"Liste löschen"</strong> leert das Textfeld wieder, z.B. um eine neue Liste einzufügen.</li>
                 </ul>
                 <div class="doc-callout">
                     <p>Ergebnisse aus Stufe 2 danach immer in der Tabelle stichprobenartig kontrollieren — automatischer BGG-Abgleich wählt bei Mehrdeutigkeit den ersten Suchtreffer, das kann gelegentlich die falsche Edition sein.</p>
+                </div>
+
+                <h3>Titel per KI recherchieren lassen</h3>
+                <p>Für die Recherche selbst reicht jede KI mit Websuche-Fähigkeit (Claude, ChatGPT, Gemini, …). Einfach folgenden Text kopieren, die eigenen EAN-Codes darunter einfügen, und das gesamte Ergebnis danach eins zu eins in das Textfeld oben einfügen:</p>
+                <pre style="background:var(--cl-surface-2); padding:1rem; border-radius:var(--cl-radius-sm); overflow-x:auto; font-size:.85rem; white-space:pre-wrap;"><code>Ich brauche zu folgenden EAN-Codes von Gesellschaftsspielen die jeweiligen Spieltitel
+(möglichst die deutsche Ausgabe, falls vorhanden). Bitte recherchiere jede EAN einzeln
+per Websuche und gib mir ausschließlich ein valides JSON-Array in genau diesem Format
+zurück, ohne jeglichen zusätzlichen Text davor oder danach:
+
+[{"ean":"EAN1","title":"Titel1"},{"ean":"EAN2","title":"Titel2"}]
+
+Wichtig:
+- Die EAN immer als Text in Anführungszeichen, führende Nullen nicht weglassen.
+- Findest du zu einer EAN keinen Titel, lass den Eintrag einfach weg, statt zu raten.
+- Keine Erklärungen, keine Markdown-Codeblöcke, nur das reine JSON-Array.
+
+Hier sind meine EAN-Codes:
+[eigene EAN-Codes hier einfügen, eine pro Zeile]</code></pre>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Egal welche KI verwendet wird: Ergebnisse danach genauso stichprobenartig prüfen wie bei Claude — Verwechslungen mit Erweiterungen, anderssprachigen Ausgaben oder ähnlich benannten Spielen kommen gelegentlich vor.</p>
                 </div>
             </section>
 
