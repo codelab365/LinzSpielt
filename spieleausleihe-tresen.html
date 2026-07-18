@@ -137,13 +137,21 @@
             <div id="desk-manual-results" class="td-manual-results cl-hidden"></div>
         </div>
 
-        <h3 style="margin-top: var(--cl-space-4);">Aktuell ausgeliehen</h3>
+        <h3 style="margin-top: var(--cl-space-4);">Spieleliste</h3>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+            <input type="text" id="desk-list-search" class="cl-input" placeholder="Spiel suchen…" style="flex:1; min-width:160px;" autocomplete="off">
+            <select id="desk-list-filter" class="cl-select" style="min-width:170px;">
+                <option value="all">Alle Spiele</option>
+                <option value="available">Nur verfügbar</option>
+                <option value="borrowed">Nur ausgeliehen</option>
+            </select>
+        </div>
         <div class="td-table-wrap">
             <table class="td-table">
-                <thead><tr><th>Spiel</th><th>Regal</th><th>Draußen</th><th></th></tr></thead>
-                <tbody id="desk-borrowed-body"></tbody>
+                <thead><tr><th>Spiel</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <tbody id="desk-list-body"></tbody>
             </table>
-            <p id="desk-borrowed-empty" class="td-empty cl-hidden">Aktuell ist kein Spiel ausgeliehen.</p>
+            <p id="desk-list-empty" class="td-empty cl-hidden">Keine Spiele gefunden.</p>
         </div>
     </div>
 
@@ -225,6 +233,7 @@ let currentEvent = null;
 let currentEventId = new URLSearchParams(location.search).get('event') || '';
 let allEventGames = [];
 let allEventShelves = [];
+let allGames = [];
 let allEvents = [];
 let unsubs = [];
 let returnTimerHandle = null;
@@ -280,6 +289,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startUp() {
+        // Einmaliger Live-Listener auf die zentrale Spieledatenbank, damit
+        // überall der aktuelle Titel angezeigt wird statt der ggf.
+        // veralteten Momentaufnahme in eventGames.gameName.
+        onSnapshot(collection(db, 'games'), (snap) => {
+            allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDesk();
+        }, err => console.error('games onSnapshot Fehler:', err));
+
         if (currentEventId) {
             openDesk(currentEventId);
         } else {
@@ -305,6 +322,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function shelfName(shelfId) {
         const s = allEventShelves.find(s => s.id === shelfId);
         return s ? s.name : '—';
+    }
+    // Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank vor der
+    // ggf. veralteten Momentaufnahme im Event-Eintrag (eg.gameName, die beim
+    // Scannen entstand, bevor der Titel bekannt war).
+    function liveGameName(eg) {
+        return allGames.find(g => g.id === eg.ean)?.name || eg.gameName || eg.ean;
     }
 
     function openDesk(eventId) {
@@ -343,21 +366,39 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="td-stat-box"><div class="td-stat-box__num">${borrowedTotal}</div><div class="td-stat-box__label">Exemplare draußen</div></div>
             <div class="td-stat-box"><div class="td-stat-box__num">${distinctBorrowed}</div><div class="td-stat-box__label">Verschiedene Spiele draußen</div></div>`;
 
-        const borrowed = allEventGames.filter(g => (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1))
-            .sort((a, b) => (b.lastActivityAt?.seconds || 0) - (a.lastActivityAt?.seconds || 0));
-        const body = document.getElementById('desk-borrowed-body');
-        document.getElementById('desk-borrowed-empty').classList.toggle('cl-hidden', borrowed.length > 0);
-        body.innerHTML = borrowed.map(g => {
+        renderDeskList();
+    }
+
+    // Spieleliste: immer alle Spiele des Events, mit Suche und Status-Filter
+    // (Alle / Nur verfügbar / Nur ausgeliehen) statt einer fest auf
+    // "ausgeliehen" beschränkten Ansicht.
+    function renderDeskList() {
+        const term = (document.getElementById('desk-list-search').value || '').trim().toLowerCase();
+        const filterVal = document.getElementById('desk-list-filter').value;
+        let list = allEventGames.filter(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            const nameMatch = !term || liveGameName(g).toLowerCase().includes(term);
+            const statusMatch = filterVal === 'all' || (filterVal === 'borrowed' ? avail < qty : avail > 0);
+            return nameMatch && statusMatch;
+        });
+        list.sort((a, b) => liveGameName(a).localeCompare(liveGameName(b), 'de'));
+
+        const body = document.getElementById('desk-list-body');
+        document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
+        body.innerHTML = list.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
+            const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
             return `<tr>
-                <td>${escapeHTML(g.gameName)}</td>
+                <td>${escapeHTML(liveGameName(g))}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
-                <td>${out} von ${qty}</td>
-                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button></td>
+                <td><span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${statusLabel}</span></td>
+                <td>${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}</td>
             </tr>`;
         }).join('');
     }
-    document.getElementById('desk-borrowed-body').addEventListener('click', (e) => {
+    document.getElementById('desk-list-search').addEventListener('input', renderDeskList);
+    document.getElementById('desk-list-filter').addEventListener('change', renderDeskList);
+    document.getElementById('desk-list-body').addEventListener('click', (e) => {
         const btn = e.target.closest('.td-return-btn');
         if (!btn) return;
         const eg = allEventGames.find(g => g.id === btn.dataset.id);
@@ -432,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showChoicePopup(eg) {
         document.getElementById('confirm-action-icon').textContent = '🤔';
-        document.getElementById('confirm-action-title').textContent = eg.gameName;
+        document.getElementById('confirm-action-title').textContent = liveGameName(eg);
         document.getElementById('confirm-action-sub').textContent = 'Manche Exemplare sind draußen, manche verfügbar — was ist das hier?';
         document.getElementById('confirm-action-choice-buttons').classList.remove('cl-hidden');
         document.getElementById('confirm-action-single-buttons').classList.add('cl-hidden');
@@ -460,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!requireConfirm) { commitAction(eg, action); return; }
         const isReturn = action === 'return';
         document.getElementById('confirm-action-icon').textContent = isReturn ? '↩️' : '📖';
-        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${eg.gameName}?`;
+        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${liveGameName(eg)}?`;
         document.getElementById('confirm-action-sub').textContent = '';
         document.getElementById('confirm-action-choice-buttons').classList.add('cl-hidden');
         document.getElementById('confirm-action-single-buttons').classList.remove('cl-hidden');
@@ -491,13 +532,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const egRef = doc(db, 'eventGames', eg.id);
         try {
             await addDoc(collection(db, 'loans'), {
-                ean: eg.ean, gameName: eg.gameName, eventId: eg.eventId, eventName: currentEvent ? currentEvent.name : '',
+                ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: currentEvent ? currentEvent.name : '',
                 shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
-            showScanResultBox({ icon: '📖', title: `${eg.gameName} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
-            showReturnOverlay({ icon: '📖', title: `${eg.gameName} ausgeliehen`, sub: 'Viel Spaß!', shelf: '', borrowMode: true });
-            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> ausgeliehen.`);
+            showScanResultBox({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
+            showReturnOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: '', borrowMode: true });
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
 
@@ -508,9 +549,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const snap = await getDocs(q);
             if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
-            showScanResultBox({ icon: '✅', title: `${eg.gameName} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
-            showReturnOverlay({ icon: '✅', title: `${eg.gameName} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
-            showToast(`<strong>${escapeHTML(eg.gameName)}</strong> zurückgelegt.`);
+            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
+            showReturnOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt.`);
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
@@ -520,11 +561,11 @@ document.addEventListener('DOMContentLoaded', () => {
     manualSearch.addEventListener('input', () => {
         const term = manualSearch.value.trim().toLowerCase();
         if (!term) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
-        const matches = allEventGames.filter(g => (g.gameName || '').toLowerCase().includes(term)).slice(0, 15);
+        const matches = allEventGames.filter(g => liveGameName(g).toLowerCase().includes(term)).slice(0, 15);
         manualResults.innerHTML = matches.length ? matches.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             return `<div class="td-manual-result-item" data-id="${g.id}">
-                <span>${escapeHTML(g.gameName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfName(g.shelfId))})</span></span>
+                <span>${escapeHTML(liveGameName(g))} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfName(g.shelfId))})</span></span>
                 <span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${avail}/${qty} verfügbar</span>
             </div>`;
         }).join('') : '<div class="cl-muted" style="padding:.6rem;">Keine Treffer.</div>';
