@@ -51,6 +51,11 @@
     .td-badge-status--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
 
     .td-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    .td-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
+        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
+    .td-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2);
+        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
+    .td-filter-panel .cl-select { width: 100%; }
     table.td-table { width: 100%; border-collapse: collapse; min-width: 520px; }
     table.td-table th, table.td-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
     table.td-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
@@ -139,17 +144,43 @@
         </div>
 
         <h3 style="margin-top: var(--cl-space-4);">Spieleliste</h3>
-        <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem;">
             <input type="text" id="desk-list-search" class="cl-input" placeholder="Spiel suchen…" style="flex:1; min-width:160px;" autocomplete="off">
-            <select id="desk-list-filter" class="cl-select" style="min-width:170px;">
+            <button type="button" id="desk-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="desk-filter-count" class="td-filter-count cl-hidden">0</span></button>
+        </div>
+        <div id="desk-filter-panel" class="td-filter-panel cl-hidden">
+            <select id="desk-status-filter" class="cl-select">
                 <option value="all">Alle Spiele</option>
                 <option value="available">Nur verfügbar</option>
                 <option value="borrowed">Nur ausgeliehen</option>
             </select>
+            <select id="desk-players-filter" class="cl-select">
+                <option value="0">Jede Spielerzahl</option>
+                <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
+                <option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option>
+            </select>
+            <select id="desk-complexity-filter" class="cl-select">
+                <option value="all">Jede Komplexität</option>
+                <option value="easy">Leicht (Einsteiger)</option>
+                <option value="medium">Mittel</option>
+                <option value="hard">Anspruchsvoll (Experten)</option>
+            </select>
+            <select id="desk-rating-filter" class="cl-select">
+                <option value="all">Jede Bewertung</option>
+                <option value="7">Gut bewertet (ab 7)</option>
+                <option value="8">Sehr gut bewertet (ab 8)</option>
+            </select>
+            <select id="desk-sort" class="cl-select">
+                <option value="name">Sortieren: Name (A–Z)</option>
+                <option value="rating">Sortieren: Beliebtheit (BGG-Bewertung)</option>
+                <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
+                <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
+            </select>
+            <button type="button" id="desk-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
         </div>
         <div class="td-table-wrap">
             <table class="td-table">
-                <thead><tr><th>Spiel</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Spiel</th><th>Spieler</th><th>Regal</th><th>Status</th><th></th></tr></thead>
                 <tbody id="desk-list-body"></tbody>
             </table>
             <p id="desk-list-empty" class="td-empty cl-hidden">Keine Spiele gefunden.</p>
@@ -373,32 +404,94 @@ document.addEventListener('DOMContentLoaded', () => {
     // Spieleliste: immer alle Spiele des Events, mit Suche und Status-Filter
     // (Alle / Nur verfügbar / Nur ausgeliehen) statt einer fest auf
     // "ausgeliehen" beschränkten Ansicht.
+    // Spieleliste: immer alle Spiele des Events, mit Suche und einem
+    // kompakten, einklappbaren Filter- & Sortierungs-Panel — dieselbe
+    // Bedienung wie in der öffentlichen Übersicht, damit man am Tresen auch
+    // Fragen wie "Spiel für 2 Personen?" schnell selbst beantworten kann.
+    function complexityBucketDesk(c) {
+        if (c == null) return null;
+        if (c <= 2) return 'easy';
+        if (c <= 3.5) return 'medium';
+        return 'hard';
+    }
     function renderDeskList() {
         const term = (document.getElementById('desk-list-search').value || '').trim().toLowerCase();
-        const filterVal = document.getElementById('desk-list-filter').value;
+        const statusVal = document.getElementById('desk-status-filter').value;
+        const playersVal = parseInt(document.getElementById('desk-players-filter').value, 10);
+        const complexityVal = document.getElementById('desk-complexity-filter').value;
+        const ratingVal = document.getElementById('desk-rating-filter').value === 'all' ? 0 : parseFloat(document.getElementById('desk-rating-filter').value);
+        const sortVal = document.getElementById('desk-sort').value;
+
         let list = allEventGames.filter(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            const game = allGames.find(x => x.id === g.ean);
             const nameMatch = !term || liveGameName(g).toLowerCase().includes(term);
-            const statusMatch = filterVal === 'all' || (filterVal === 'borrowed' ? avail < qty : avail > 0);
-            return nameMatch && statusMatch;
+            const statusMatch = statusVal === 'all' || (statusVal === 'borrowed' ? avail < qty : avail > 0);
+            const complexityMatch = complexityVal === 'all' || complexityBucketDesk(game?.complexity) === complexityVal;
+            const ratingMatch = ratingVal === 0 || (game?.rating != null && game.rating >= ratingVal);
+            let playersMatch = true;
+            if (playersVal > 0) {
+                if (game?.minPlayers != null && game?.maxPlayers != null) {
+                    playersMatch = playersVal < 7 ? (game.minPlayers <= playersVal && game.maxPlayers >= playersVal) : game.maxPlayers >= 7;
+                } else { playersMatch = false; }
+            }
+            return nameMatch && statusMatch && complexityMatch && ratingMatch && playersMatch;
         });
-        list.sort((a, b) => liveGameName(a).localeCompare(liveGameName(b), 'de'));
+
+        if (sortVal === 'rating') {
+            list.sort((a, b) => ((allGames.find(x => x.id === b.ean)?.rating) ?? -1) - ((allGames.find(x => x.id === a.ean)?.rating) ?? -1) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        } else if (sortVal === 'complexity-asc') {
+            list.sort((a, b) => ((allGames.find(x => x.id === a.ean)?.complexity) ?? Infinity) - ((allGames.find(x => x.id === b.ean)?.complexity) ?? Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        } else if (sortVal === 'complexity-desc') {
+            list.sort((a, b) => ((allGames.find(x => x.id === b.ean)?.complexity) ?? -Infinity) - ((allGames.find(x => x.id === a.ean)?.complexity) ?? -Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        } else {
+            list.sort((a, b) => liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        }
 
         const body = document.getElementById('desk-list-body');
         document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
         body.innerHTML = list.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
+            const game = allGames.find(x => x.id === g.ean);
             const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
             return `<tr>
                 <td>${escapeHTML(liveGameName(g))}</td>
+                <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
                 <td><span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${statusLabel}</span></td>
                 <td>${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}</td>
             </tr>`;
         }).join('');
+        updateDeskFilterCount();
     }
     document.getElementById('desk-list-search').addEventListener('input', renderDeskList);
-    document.getElementById('desk-list-filter').addEventListener('change', renderDeskList);
+    ['desk-status-filter', 'desk-players-filter', 'desk-complexity-filter', 'desk-rating-filter', 'desk-sort'].forEach(id => {
+        document.getElementById(id).addEventListener('change', renderDeskList);
+    });
+
+    const deskFilterToggle = document.getElementById('desk-filter-toggle');
+    const deskFilterPanel = document.getElementById('desk-filter-panel');
+    deskFilterToggle.addEventListener('click', () => deskFilterPanel.classList.toggle('cl-hidden'));
+    document.getElementById('desk-filter-reset').addEventListener('click', () => {
+        document.getElementById('desk-status-filter').value = 'all';
+        document.getElementById('desk-players-filter').value = '0';
+        document.getElementById('desk-complexity-filter').value = 'all';
+        document.getElementById('desk-rating-filter').value = 'all';
+        document.getElementById('desk-sort').value = 'name';
+        renderDeskList();
+    });
+    function updateDeskFilterCount() {
+        let n = 0;
+        if (document.getElementById('desk-status-filter').value !== 'all') n++;
+        if (document.getElementById('desk-players-filter').value !== '0') n++;
+        if (document.getElementById('desk-complexity-filter').value !== 'all') n++;
+        if (document.getElementById('desk-rating-filter').value !== 'all') n++;
+        if (document.getElementById('desk-sort').value !== 'name') n++;
+        const countEl = document.getElementById('desk-filter-count');
+        countEl.textContent = n;
+        countEl.classList.toggle('cl-hidden', n === 0);
+    }
+
     document.getElementById('desk-list-body').addEventListener('click', (e) => {
         const btn = e.target.closest('.td-return-btn');
         if (!btn) return;
