@@ -180,7 +180,7 @@
         </div>
         <div class="td-table-wrap">
             <table class="td-table">
-                <thead><tr><th>Spiel</th><th>Spieler</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Spiel</th><th>Spieler</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th>Status</th><th></th></tr></thead>
                 <tbody id="desk-list-body"></tbody>
             </table>
             <p id="desk-list-empty" class="td-empty cl-hidden">Keine Spiele gefunden.</p>
@@ -414,6 +414,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (c <= 3.5) return 'medium';
         return 'hard';
     }
+    function complexityLabelDesk(c) {
+        if (c == null) return null;
+        if (c <= 2) return 'Leicht';
+        if (c <= 3.5) return 'Mittel';
+        return 'Anspruchsvoll';
+    }
     function renderDeskList() {
         const term = (document.getElementById('desk-list-search').value || '').trim().toLowerCase();
         const statusVal = document.getElementById('desk-status-filter').value;
@@ -457,6 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<tr>
                 <td>${escapeHTML(liveGameName(g))}</td>
                 <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
+                <td>${game?.rating ? `⭐ ${game.rating.toFixed(1)}` : '—'}</td>
+                <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
                 <td><span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${statusLabel}</span></td>
                 <td>${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}</td>
