@@ -3,147 +3,755 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sammlung-Übersicht – Linz Spielt</title>
+<title>Spieleausleihe Verwaltung – Linz Spielt</title>
 <link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
-    /* Schlanke Ansicht — gedacht zum Einbetten per <iframe> auf der Vereins-Website. */
-    body { background: transparent; }
-    .ov-wrap { padding: var(--cl-space-3); max-width: 78rem; margin: 0 auto; }
-    .ov-title { margin: 0 0 .2rem 0; }
-    .ov-sub { margin: 0 0 var(--cl-space-3) 0; }
-    .ov-event-picker { margin-bottom: var(--cl-space-3); }
-    .ov-stats { display: flex; flex-wrap: wrap; gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
-    .ov-stat { font-size: .9rem; color: var(--cl-muted); }
-    .ov-stat strong { color: var(--cl-text); font-size: 1.1rem; }
-    .ov-searchbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-2); }
-    .ov-searchbar .cl-input { flex: 1; min-width: 160px; }
-    .ov-searchbar .cl-btn { white-space: nowrap; position: relative; }
-    .ov-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
-        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
-    .ov-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2);
-        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
-    .ov-filter-panel .cl-select { width: 100%; }
-    .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
-    table.ov-table { width: 100%; border-collapse: collapse; min-width: 560px; }
-    table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
-    table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
-    table.ov-table tbody tr:last-child td { border-bottom: none; }
-    table.ov-table tbody tr { cursor: pointer; }
-    table.ov-table tbody tr:hover { background: var(--cl-surface-2); }
-    table.ov-table img.ov-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
-    .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
-    .ov-badge--qty { background: color-mix(in srgb, var(--cl-signal) 16%, transparent); color: var(--cl-signal); }
-    .ov-rating { color: var(--cl-warn); font-weight: 600; white-space: nowrap; }
-    .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
-    .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
-
-    /* Detailansicht */
-    .ov-modal-overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
+    /* =========================================================
+       sv- : Spieleausleihe-Verwaltung — Ergänzungen zum
+       codeLAB365 Design-System. Nutzt ausschließlich cl-* Tokens.
+       ========================================================= */
+    .qb-brand-block { display: flex; flex-direction: column; gap: .1rem; }
+    .qb-brand-row { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+    .qb-tagline { margin: 0; font-size: .85rem; }
+    .qb-header-actions { display: flex; align-items: center; gap: var(--cl-space-2); flex-wrap: wrap; justify-content: flex-end; }
+    .qb-error { color: var(--cl-err); text-align: center; margin-top: var(--cl-space-2); min-height: 1.25rem; font-size: .9rem; }
+    .qb-feedback { color: var(--cl-ok); font-size: .9rem; min-height: 1.1rem; }
+    .qb-modal-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
         background: color-mix(in srgb, black 55%, transparent); padding: 1rem; }
-    .ov-modal-overlay.is-visible { display: flex; }
-    .ov-modal { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-4); max-width: 32rem; width: 100%;
-        max-height: 90vh; overflow-y: auto; position: relative; box-shadow: var(--cl-shadow-lg); }
-    .ov-modal-close { position: absolute; top: .8rem; right: .8rem; background: none; border: none; font-size: 1.6rem; line-height: 1;
-        color: var(--cl-muted); cursor: pointer; }
-    .ov-modal-close:hover { color: var(--cl-text); }
-    .ov-modal-head { display: flex; gap: var(--cl-space-3); align-items: flex-start; }
-    .ov-modal-head img { width: 96px; height: 96px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
-    .ov-modal-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .3rem 0; }
-    .ov-modal-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
-    .ov-modal-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: var(--cl-space-3) 0; font-size: .9rem; }
-    .ov-modal-meta-grid div span:first-child { color: var(--cl-muted); display: block; font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; }
-    .ov-modal-desc { font-size: .9rem; line-height: 1.5; white-space: pre-line; max-height: 220px; overflow-y: auto;
-        border-top: 1px solid var(--cl-line); padding-top: var(--cl-space-3); margin-top: var(--cl-space-3); }
-    .ov-modal-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
+    .qb-modal { width: 100%; max-width: 30rem; position: relative; max-height: 90vh; overflow-y: auto; }
+    .qb-modal--lg { max-width: 46rem; }
+    .qb-modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+        font-size: 1.6rem; line-height: 1; color: var(--cl-muted); cursor: pointer; z-index: 5; }
+    .qb-modal-close:hover { color: var(--cl-text); }
+    .modal-enter { animation: qbFadeIn .22s ease-out; }
+    @keyframes qbFadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    #toast-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 100;
+        display: flex; flex-direction: column; gap: .5rem; align-items: center; }
+    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: .75rem 1.4rem;
+        border-radius: var(--cl-radius-pill); box-shadow: var(--cl-shadow-lg); font-size: .9rem; max-width: 90vw; text-align: center; }
+    .qb-toast--err { background: var(--cl-err); }
+    .qb-toast--ok { background: var(--cl-ok); }
+    .toast-enter { animation: qbFadeIn .25s ease-out; }
+
+    .sv-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+    .sv-link-btn { background: none; border: none; color: var(--cl-signal); cursor: pointer; font-size: .85rem; text-decoration: underline; padding: 0; }
+
+    .sv-event-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+        gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
+    .sv-event-bar > div:first-child { min-width: 220px; }
+
+    .sv-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: var(--cl-space-4); }
+    .sv-tab-btn { cursor: pointer; border: 1px solid var(--cl-line); }
+    .sv-tab-btn.is-active { background: var(--cl-signal); color: var(--cl-on-signal, #fff); border-color: var(--cl-signal); }
+
+    .sv-scan-card { text-align: center; }
+    .sv-mode-toggle { display: flex; gap: .5rem; justify-content: center; }
+    .sv-mode-btn { flex: 1; max-width: 220px; border: 2px solid var(--cl-line); font-weight: 600; }
+    .sv-mode-btn.is-active-borrow { background: var(--cl-signal); border-color: var(--cl-signal); color: var(--cl-on-signal, #fff); }
+    .sv-mode-btn.is-active-return { background: var(--cl-ok); border-color: var(--cl-ok); color: #fff; }
+    .sv-scan-input { font-size: 1.3rem; text-align: center; letter-spacing: .05em; padding: 1rem !important; }
+    .sv-scan-result { margin-top: var(--cl-space-3); padding: var(--cl-space-3); border-radius: var(--cl-radius);
+        border: 1px solid var(--cl-line); display: none; }
+    .sv-scan-result.is-visible { display: flex; gap: var(--cl-space-3); align-items: center; text-align: left; }
+    .sv-scan-result.sv-result--out { background: color-mix(in srgb, var(--cl-err) 12%, transparent); border-color: color-mix(in srgb, var(--cl-err) 45%, transparent); }
+    .sv-scan-result.sv-result--in { background: color-mix(in srgb, var(--cl-ok) 12%, transparent); border-color: color-mix(in srgb, var(--cl-ok) 45%, transparent); }
+    .sv-scan-result.sv-result--unknown { background: color-mix(in srgb, var(--cl-warn) 14%, transparent); border-color: color-mix(in srgb, var(--cl-warn) 45%, transparent); }
+    .sv-scan-result img { width: 64px; height: 64px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .sv-scan-result__body { flex: 1; min-width: 0; }
+    .sv-scan-result__title { font-weight: 700; font-size: 1.1rem; margin: 0 0 .25rem 0; }
+    .sv-manual-search { position: relative; margin-top: var(--cl-space-4); }
+    .sv-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
+        margin-top: .3rem; max-height: 260px; overflow-y: auto; }
+    .sv-manual-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem .75rem;
+        cursor: pointer; border-bottom: 1px solid var(--cl-line); align-items: center; }
+    .sv-manual-result-item:last-child { border-bottom: none; }
+    .sv-manual-result-item:hover { background: var(--cl-surface-2); }
+    .sv-badge-status { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .sv-badge-status--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .sv-badge-status--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .sv-badge-enrich { font-size: .68rem; font-weight: 600; padding: .1rem .5rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .sv-badge-enrich--done { background: color-mix(in srgb, var(--cl-ok) 18%, transparent); color: var(--cl-ok); }
+    .sv-badge-enrich--pending { background: color-mix(in srgb, var(--cl-warn) 18%, transparent); color: var(--cl-warn); }
+    .sv-badge-enrich--not_found { background: color-mix(in srgb, var(--cl-muted) 20%, transparent); color: var(--cl-muted); }
+    .sv-badge-enrich--error { background: color-mix(in srgb, var(--cl-err) 18%, transparent); color: var(--cl-err); }
+
+    .sv-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    table.sv-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    table.sv-table th, table.sv-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.sv-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.sv-table tbody tr:last-child td { border-bottom: none; }
+    table.sv-table tbody tr.sv-clickable-row { cursor: pointer; }
+    table.sv-table tbody tr.sv-clickable-row:hover { background: var(--cl-surface-2); }
+    table.sv-table img.sv-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .sv-row-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .sv-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); align-items: center; justify-content: space-between; margin-bottom: var(--cl-space-3); }
+    .sv-toolbar .cl-input, .sv-toolbar .cl-select { min-width: 180px; }
+    .sv-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+
+    .qb-bgg-panel { margin-top: .5rem; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm);
+        background: var(--cl-surface-2); max-height: 220px; overflow-y: auto; }
+    .qb-bgg-results { padding: .35rem; }
+    .qb-bgg-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .45rem .6rem;
+        cursor: pointer; border-radius: var(--cl-radius-sm); }
+    .qb-bgg-result-item:hover { background: var(--cl-surface); }
+    .qb-bgg-result-item__year { color: var(--cl-muted); font-size: .8rem; flex-shrink: 0; }
+    .qb-bgg-hint { padding: .6rem; font-size: .85rem; color: var(--cl-muted); }
+    .qb-bgg-match { display: flex; gap: .75rem; margin-top: .6rem; padding: .6rem; border: 1px solid var(--cl-line);
+        border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); align-items: flex-start; }
+    .qb-bgg-match img { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; flex-shrink: 0; background: var(--cl-surface); }
+    .qb-bgg-match__body { min-width: 0; flex: 1; }
+    .qb-bgg-match__title { font-weight: 600; font-size: .9rem; }
+    .qb-bgg-match__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .3rem; }
+    .qb-bgg-badge { font-size: .72rem; font-weight: 600; padding: .1rem .5rem; border-radius: var(--cl-radius-pill);
+        background: color-mix(in srgb, var(--cl-warn) 20%, transparent); color: var(--cl-warn); }
+
+    .sv-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--cl-space-3); margin-bottom: var(--cl-space-4); }
+    .sv-entity-card { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); }
+    .sv-entity-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+    .sv-entity-card__title { font-weight: 700; margin: 0; }
+    .sv-entity-card__meta { color: var(--cl-muted); font-size: .82rem; margin: .2rem 0 .6rem 0; }
+    .sv-entity-card__actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
+
+    .sv-shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .sv-shelf-card { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-2) var(--cl-space-3);
+        display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+
+    .sv-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .sv-stat-box { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); text-align: center; }
+    .sv-stat-box__num { font-size: 1.8rem; font-weight: 700; font-family: var(--cl-font-display); }
+    .sv-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
+
+    .sv-progress { width: 100%; height: 10px; border-radius: var(--cl-radius-pill); background: var(--cl-surface-2); overflow: hidden; margin: .5rem 0; }
+    .sv-progress__bar { height: 100%; background: var(--cl-signal); transition: width .2s ease; width: 0%; }
+    .sv-progress-log { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); font-size: .85rem; }
+    .sv-progress-log-item { padding: .4rem .6rem; border-bottom: 1px solid var(--cl-line); display: flex; justify-content: space-between; gap: .5rem; }
+    .sv-progress-log-item:last-child { border-bottom: none; }
+
+    .sv-checkbox-list { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .sv-checkbox-chip { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--cl-line);
+        border-radius: var(--cl-radius-pill); padding: .3rem .7rem; font-size: .85rem; cursor: pointer; }
+    .sv-checkbox-chip input { margin: 0; }
+
+    .sv-embed-box textarea { font-family: monospace; font-size: .78rem; }
+
+    .sv-detail-panel { border-top: 1px dashed var(--cl-line); margin-top: var(--cl-space-3); padding-top: var(--cl-space-3); }
 
     @media (max-width: 640px) {
-        .ov-filter-panel { grid-template-columns: 1fr 1fr; }
-        .ov-modal-head { flex-direction: column; align-items: center; text-align: center; }
-        .ov-modal-meta-grid { grid-template-columns: 1fr 1fr; }
+        .cl-card--pad { padding: var(--cl-space-3); }
+        .qb-modal-overlay { padding: .6rem; align-items: flex-end; }
+        .qb-modal, .qb-modal--lg { max-width: 100%; }
+        .sv-event-bar { flex-direction: column; align-items: stretch; }
     }
 </style>
 </head>
 <body>
-<div class="ov-wrap">
-    <h2 class="ov-title">📚 Sammlung-Übersicht</h2>
-    <p class="ov-sub cl-muted" id="ov-collection-title">Alle Spiele einer Sammlung im Überblick.</p>
 
-    <div class="ov-event-picker cl-hidden" id="ov-collection-picker-wrap">
-        <label class="cl-label" for="ov-collection-picker">Sammlung auswählen</label>
-        <select id="ov-collection-picker" class="cl-select" style="width:100%; max-width:24rem;"></select>
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <div class="qb-brand-block">
+            <div class="qb-brand-row">
+                <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
+            </div>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v23</span></p>
+        </div>
+        <div class="cl-header__spacer"></div>
+        <div class="qb-header-actions" id="header-actions"></div>
+    </div>
+</header>
+
+<main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
+
+    <!-- LOGIN -->
+    <div id="login-view" class="sv-login-wrap">
+        <div class="cl-card cl-card--pad" style="max-width:26rem; width:100%;">
+            <h2 class="cl-center" id="auth-title">Anmelden</h2>
+            <p class="cl-muted cl-center">Nur für Team-Mitglieder von Linz Spielt.</p>
+
+            <form id="login-form" class="cl-stack">
+                <div><label class="cl-label" for="login-email">E-Mail</label><input class="cl-input" id="login-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="login-password">Passwort</label><input class="cl-input" id="login-password" type="password" required autocomplete="current-password"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Einloggen</button>
+            </form>
+
+            <form id="register-form" class="cl-stack cl-hidden">
+                <div><label class="cl-label" for="register-email">E-Mail</label><input class="cl-input" id="register-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="register-password">Passwort (mind. 6 Zeichen)</label><input class="cl-input" id="register-password" type="password" required minlength="6" autocomplete="new-password"></div>
+                <div><label class="cl-label" for="register-code">Zugangscode</label><input class="cl-input" id="register-code" type="text" required autocomplete="off"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Konto anlegen</button>
+            </form>
+
+            <p id="login-error" class="qb-error"></p>
+            <p class="cl-center" style="margin-top:.5rem;">
+                <button type="button" id="show-register-btn" class="sv-link-btn">Noch kein Konto? Registrieren</button>
+                <button type="button" id="show-login-btn" class="sv-link-btn cl-hidden">Zurück zum Login</button>
+            </p>
+        </div>
     </div>
 
-    <div id="ov-main" class="cl-hidden">
-        <div class="ov-stats" id="ov-stats"></div>
+    <!-- APP -->
+    <div id="app-view" class="cl-hidden">
 
-        <div class="ov-searchbar">
-            <input type="text" id="ov-search" class="cl-input" placeholder="Spiel suchen…" autocomplete="off">
-            <button type="button" id="ov-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="ov-filter-count" class="ov-filter-count cl-hidden">0</span></button>
-        </div>
-
-        <div id="ov-filter-panel" class="ov-filter-panel cl-hidden">
-            <select id="ov-players-filter" class="cl-select">
-                <option value="0">Jede Spielerzahl</option>
-                <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
-                <option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option>
-            </select>
-            <select id="ov-complexity-filter" class="cl-select">
-                <option value="all">Jede Komplexität</option>
-                <option value="easy">Leicht (Einsteiger)</option>
-                <option value="medium">Mittel</option>
-                <option value="hard">Anspruchsvoll (Experten)</option>
-            </select>
-            <select id="ov-rating-filter" class="cl-select">
-                <option value="all">Jede Bewertung</option>
-                <option value="7">Gut bewertet (ab 7)</option>
-                <option value="8">Sehr gut bewertet (ab 8)</option>
-            </select>
-            <select id="ov-sort" class="cl-select">
-                <option value="name">Sortieren: Name (A–Z)</option>
-                <option value="rating">Sortieren: Beliebtheit (BGG-Bewertung)</option>
-                <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
-                <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
-                <option value="quantity">Sortieren: Stückzahl, meiste zuerst</option>
-            </select>
-            <button type="button" id="ov-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
-        </div>
-
-        <div class="ov-table-wrap">
-            <table class="ov-table">
-                <thead>
-                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Stückzahl</th></tr>
-                </thead>
-                <tbody id="ov-table-body"></tbody>
-            </table>
-            <p id="ov-empty" class="ov-empty cl-hidden">Keine Spiele gefunden.</p>
-        </div>
-        <p class="ov-footer-note">Daten aktualisieren sich automatisch. Zeile anklicken für Details. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
-    </div>
-
-    <p id="ov-loading" class="ov-empty">Lade Sammlungen…</p>
-</div>
-
-<!-- Detailansicht -->
-<div id="ov-modal-overlay" class="ov-modal-overlay">
-    <div class="ov-modal">
-        <button type="button" id="ov-modal-close" class="ov-modal-close" aria-label="Schließen">&times;</button>
-        <div class="ov-modal-head">
-            <img id="ov-modal-img" src="" alt="" style="display:none;">
+        <div class="cl-card cl-card--pad sv-event-bar">
             <div>
-                <p class="ov-modal-title" id="ov-modal-title"></p>
-                <div class="ov-modal-badges" id="ov-modal-badges"></div>
+                <label class="cl-label" for="active-event-select">Aktives Event (für Ausleihe)</label>
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                    <select id="active-event-select" class="cl-select"></select>
+                    <button type="button" id="deactivate-event-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Deaktivieren</button>
+                </div>
+            </div>
+            <div id="active-event-info" class="cl-muted"></div>
+        </div>
+
+        <nav class="sv-tabs" role="tablist">
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="schnellerfassung">⚡ Schnellerfassung</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="datenbank">🎲 Spieledatenbank</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="sammlungen">📚 Sammlungen</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="events">🗓️ Events</button>
+            <button type="button" class="cl-chip sv-tab-btn is-active" data-tab="ausleihe">📖 Ausleihe / Rückgabe</button>
+            <button type="button" class="cl-chip sv-tab-btn" data-tab="statistik">📊 Statistik</button>
+        </nav>
+
+        <!-- TAB: SCHNELLERFASSUNG -->
+        <section id="tab-schnellerfassung" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Ziel für diese Scan-Sitzung</h3>
+                <p class="cl-muted" style="font-size:.85rem;">Einmal einstellen, dann durchgehend scannen — jedes gescannte Spiel wird sofort ohne Rückfrage in die Datenbank, die gewählten Sammlungen und (falls Regal gewählt) ins aktive Event eingetragen. Bei nochmaligem Scannen eines bereits erfassten Spiels wird einfach die Stückzahl erhöht.</p>
+                <label class="cl-label">Zu folgenden Sammlungen hinzufügen (optional)</label>
+                <div id="quick-collections" class="sv-checkbox-list"></div>
+                <label class="cl-label" for="quick-shelf-select" style="margin-top:.7rem;">Regal im aktiven Event (optional)</label>
+                <select id="quick-shelf-select" class="cl-select"><option value="">— nur Datenbank/Sammlung, kein Event-Regal —</option></select>
+                <p id="quick-no-event-hint" class="cl-muted" style="font-size:.82rem;"></p>
+            </div>
+
+            <div class="cl-card cl-card--pad sv-scan-card">
+                <label class="cl-label" for="quick-scan-input">EAN scannen</label>
+                <input type="text" id="quick-scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+                <p id="quick-scan-counter" class="cl-muted" style="margin-top:.5rem;">0 Spiele in dieser Sitzung erfasst.</p>
+                <p id="quick-bgg-queue-status" class="cl-muted" style="font-size:.82rem;"></p>
+            </div>
+
+            <h3 style="margin-top: var(--cl-space-4);">Protokoll dieser Sitzung</h3>
+            <div id="quick-scan-log" class="sv-progress-log"></div>
+        </section>
+
+        <!-- TAB: SPIELEDATENBANK -->
+        <section id="tab-datenbank" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Stufe 1 — EAN-Liste erfassen</h3>
+                <p class="cl-muted" style="font-size:.85rem;">EANs scannen oder einfügen (eine pro Zeile). Neue Codes werden als "offen" angelegt.</p>
+                <textarea id="stage1-textarea" rows="5" class="cl-input" placeholder="4001504xxxxxx&#10;4001504yyyyyy"></textarea>
+                <button type="button" id="stage1-add-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Erfassen</button>
+                <p id="stage1-feedback" class="qb-feedback"></p>
+
+                <div id="stage1-review-panel" class="sv-detail-panel cl-hidden">
+                    <h4 style="margin-top:0;">In der GTNM-Referenz gefundene Titel — prüfen und bei Bedarf korrigieren</h4>
+                    <p class="cl-muted" style="font-size:.85rem;">Titel sind vorausgefüllt, aber noch <strong>nicht</strong> gespeichert. Bei Bedarf ändern, dann übernehmen.</p>
+                    <div class="sv-table-wrap">
+                        <table class="sv-table">
+                            <thead><tr><th>EAN</th><th>Gefundener Titel</th></tr></thead>
+                            <tbody id="stage1-review-body"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap;">
+                        <button type="button" id="stage1-review-apply-btn" class="cl-btn cl-btn--signal">Übernehmen &amp; bei BGG anreichern</button>
+                        <button type="button" id="stage1-review-cancel-btn" class="cl-btn cl-btn--ghost">Schließen ohne Übernahme</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Stufe 2 — Titel-Liste importieren (JSON)</h3>
+                <p class="cl-muted" style="font-size:.85rem;">Füge die von Claude recherchierte Liste ein, Format: <code>[{"ean":"...","title":"..."}]</code>. Für jeden Eintrag wird automatisch bei BGG gesucht (5 Sek. Abstand) und die Daten werden übernommen.</p>
+                <textarea id="stage2-textarea" rows="6" class="cl-input" placeholder='[{"ean":"4001504xxxxxx","title":"Catan"}]'></textarea>
+                <button type="button" id="stage2-import-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Import starten</button>
+                <div id="stage2-progress-wrap" class="cl-hidden" style="margin-top:.75rem;">
+                    <div class="sv-progress"><div class="sv-progress__bar" id="stage2-progress-bar"></div></div>
+                    <p id="stage2-progress-text" class="cl-muted" style="font-size:.85rem;"></p>
+                    <div id="stage2-log" class="sv-progress-log"></div>
+                </div>
+            </div>
+
+            <div class="sv-toolbar">
+                <input type="text" id="db-search-input" class="cl-input" placeholder="Spiele durchsuchen…">
+                <select id="db-status-filter" class="cl-select">
+                    <option value="all">Alle Status</option>
+                    <option value="pending">Offen (Stufe 1)</option>
+                    <option value="done">Fertig angereichert</option>
+                    <option value="not_found">Kein BGG-Treffer</option>
+                    <option value="error">Fehler</option>
+                </select>
+                <button type="button" id="open-add-game-btn" class="cl-btn cl-btn--signal">(+) Spiel manuell anlegen</button>
+                <button type="button" id="backfill-desc-btn" class="cl-btn cl-btn--ghost">🔄 Fehlende Beschreibungen nachholen</button>
+            </div>
+            <div class="sv-table-wrap">
+                <table class="sv-table">
+                    <thead><tr><th></th><th>Name</th><th>EAN</th><th>Spieler</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="games-table-body"></tbody>
+                </table>
+                <p id="games-empty" class="sv-empty cl-hidden">Keine Spiele gefunden.</p>
+            </div>
+        </section>
+
+        <!-- TAB: SAMMLUNGEN -->
+        <section id="tab-sammlungen" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Neue Sammlung anlegen</h3>
+                <div class="sv-toolbar" style="margin-bottom:0;">
+                    <input type="text" id="new-collection-name" class="cl-input" placeholder="z.B. Spieleversum">
+                    <input type="text" id="new-collection-desc" class="cl-input" placeholder="Beschreibung (optional)">
+                    <button type="button" id="add-collection-btn" class="cl-btn cl-btn--signal">Anlegen</button>
+                </div>
+                <p id="collection-feedback" class="qb-feedback"></p>
+            </div>
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">📥 Sammlung aus BGStats importieren</h3>
+                <p class="cl-muted" style="font-size:.85rem;">Für Spieler:innen, die ihre Sammlung schon in der App <strong>BGStats</strong> pflegen. Der Export enthält keine EAN-Codes — daher werden Spiele automatisch per BGG-ID zugeordnet, wo möglich; alles andere muss beim Import einmal gescannt werden.</p>
+                <button type="button" id="open-bgstats-import-btn" class="cl-btn cl-btn--ghost">BGStats-JSON importieren</button>
+            </div>
+            <div id="collections-grid" class="sv-card-grid"></div>
+        </section>
+
+        <!-- MODAL: BGSTATS-IMPORT -->
+        <div id="bgstats-modal-overlay" class="qb-modal-overlay cl-hidden">
+            <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+                <button type="button" id="bgstats-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+                <h2 style="margin-top:0;">Sammlung aus BGStats importieren</h2>
+                <div id="bgstats-step-setup">
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:160px;">
+                            <label class="cl-label" for="bgstats-collection-name">Name der neuen Sammlung</label>
+                            <input type="text" id="bgstats-collection-name" class="cl-input" placeholder="z.B. Andreas privat">
+                        </div>
+                        <div style="flex:1; min-width:160px;">
+                            <label class="cl-label" for="bgstats-collection-desc">Beschreibung (optional)</label>
+                            <input type="text" id="bgstats-collection-desc" class="cl-input">
+                        </div>
+                    </div>
+                    <label class="cl-label" for="bgstats-file-input" style="margin-top: var(--cl-space-3);">BGStats-Export (.json)</label>
+                    <input type="file" id="bgstats-file-input" class="cl-input" accept="application/json,.json">
+                    <p class="cl-muted" style="font-size:.8rem; margin-top:.4rem;">Export in BGStats über: Einstellungen → Backup &amp; Export → Export als JSON. Die Datei wird nur lokal im Browser gelesen, nie hochgeladen. Spielpartien (Plays) werden komplett ignoriert — es zählt ausschließlich, welche Spiele als "besessen" markiert sind.</p>
+                    <button type="button" id="bgstats-analyze-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Datei analysieren</button>
+                    <p id="bgstats-analyze-feedback" class="qb-feedback"></p>
+                </div>
+
+                <div id="bgstats-step-review" class="cl-hidden">
+                    <div class="doc-callout" style="border-left:4px solid var(--cl-ok); background:color-mix(in srgb, var(--cl-ok) 10%, transparent); padding:.75rem 1rem; border-radius:0 8px 8px 0; margin-bottom:1rem;">
+                        <p id="bgstats-matched-summary" style="margin:0;"></p>
+                    </div>
+                    <div id="bgstats-unmatched-wrap">
+                        <h3>Nicht automatisch zugeordnet — bitte EAN scannen</h3>
+                        <p class="cl-muted" style="font-size:.85rem;">Diese Spiele wurden in eurer Datenbank noch nie gescannt, BGStats liefert keine EAN. Ein Exemplar physisch nehmen, EAN ins jeweilige Feld scannen (Enter springt automatisch zum nächsten offenen Feld). Ohne EAN wird das Spiel beim Import übersprungen.</p>
+                        <div class="sv-table-wrap">
+                            <table class="sv-table">
+                                <thead><tr><th></th><th>Titel (BGStats)</th><th>Spieler</th><th>Menge</th><th>EAN scannen</th></tr></thead>
+                                <tbody id="bgstats-unmatched-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <button type="button" id="bgstats-import-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Sammlung erstellen &amp; importieren</button>
+                    <button type="button" id="bgstats-cancel-btn" class="cl-btn cl-btn--ghost" style="margin-top: var(--cl-space-3);">Abbrechen</button>
+                    <p id="bgstats-import-feedback" class="qb-feedback"></p>
+                </div>
             </div>
         </div>
-        <div class="ov-modal-meta-grid" id="ov-modal-meta"></div>
-        <p id="ov-modal-desc" class="ov-modal-desc" style="display:none;"></p>
-        <a id="ov-modal-bgg-link" class="ov-modal-bgg-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Auf BoardGameGeek ansehen ↗</a>
+
+        <!-- TAB: EVENTS -->
+        <section id="tab-events" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+                <h3 style="margin-top:0;">Neues Event anlegen</h3>
+                <div class="cl-stack">
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                        <input type="text" id="new-event-name" class="cl-input" placeholder="z.B. Linz Spielt 2026" style="flex:1; min-width:180px;">
+                        <input type="date" id="new-event-date" class="cl-input">
+                    </div>
+                    <div>
+                        <label class="cl-label">Sammlungen, aus denen Spiele gewählt werden können</label>
+                        <div id="new-event-collections" class="sv-checkbox-list"></div>
+                    </div>
+                    <label style="display:flex; align-items:center; gap:.5rem; font-size:.9rem;">
+                        <input type="checkbox" id="new-event-load-all">
+                        Alle Spiele der ausgewählten Sammlung(en) sofort bereitstellen (legt automatisch ein "Hauptregal" an)
+                    </label>
+                    <button type="button" id="add-event-btn" class="cl-btn cl-btn--signal">Event anlegen</button>
+                </div>
+                <p id="event-feedback" class="qb-feedback"></p>
+            </div>
+            <div id="events-grid"></div>
+        </section>
+
+        <!-- TAB: AUSLEIHE -->
+        <section id="tab-ausleihe" class="sv-tab-panel">
+            <div class="cl-card cl-card--pad sv-scan-card">
+                <label class="cl-label">Modus (nur bei Mehrfach-Exemplaren nötig)</label>
+                <div class="sv-mode-toggle">
+                    <button type="button" id="ausleihe-mode-borrow-btn" class="cl-btn sv-mode-btn">📖 Ausleihen</button>
+                    <button type="button" id="ausleihe-mode-return-btn" class="cl-btn sv-mode-btn">↩️ Rückgabe</button>
+                </div>
+                <p class="cl-muted" style="font-size:.78rem; margin:.3rem 0 0 0;">Meistens automatisch erkannt — nur relevant, wenn von einem Spiel manche Exemplare draußen und manche noch da sind.</p>
+                <label class="cl-label" for="scan-input" style="margin-top:.75rem;">EAN scannen oder eingeben</label>
+                <input type="text" id="scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+                <div id="scan-result" class="sv-scan-result"></div>
+            </div>
+
+            <div class="cl-card cl-card--pad sv-manual-search">
+                <label class="cl-label" for="manual-search-input">Spiel manuell suchen (falls Scanner nicht verfügbar)</label>
+                <input type="text" id="manual-search-input" class="cl-input" placeholder="Spielname eingeben…" autocomplete="off">
+                <div id="manual-search-results" class="sv-manual-results cl-hidden"></div>
+            </div>
+
+            <h3 style="margin-top: var(--cl-space-4);">Aktuell ausgeliehen</h3>
+            <div class="sv-table-wrap">
+                <table class="sv-table">
+                    <thead><tr><th>Spiel</th><th>Regal</th><th>Seit</th><th></th></tr></thead>
+                    <tbody id="borrowed-table-body"></tbody>
+                </table>
+                <p id="borrowed-empty" class="sv-empty cl-hidden">Aktuell ist kein Spiel ausgeliehen.</p>
+            </div>
+        </section>
+
+        <!-- TAB: STATISTIK -->
+        <section id="tab-statistik" class="sv-tab-panel cl-hidden">
+            <div class="cl-card cl-card--pad">
+                <h3 style="margin-top:0;">Statistik pro Event</h3>
+                <label class="cl-label" for="stats-event-select">Event auswählen</label>
+                <div class="sv-toolbar" style="margin-bottom:0;">
+                    <select id="stats-event-select" class="cl-select" style="flex:1;"></select>
+                    <button type="button" id="stats-csv-export-btn" class="cl-btn cl-btn--ghost">⬇️ Als CSV exportieren</button>
+                </div>
+                <div id="stats-content" style="margin-top: var(--cl-space-3);"></div>
+
+                <button type="button" id="stats-chart-toggle-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top: var(--cl-space-3);">📈 Diagramm anzeigen</button>
+                <div id="stats-chart-wrap" class="cl-hidden" style="margin-top: var(--cl-space-3);">
+                    <label class="cl-label" for="stats-chart-bucket-select">Zeitraster</label>
+                    <select id="stats-chart-bucket-select" class="cl-select">
+                        <option value="5">5 Minuten</option>
+                        <option value="15" selected>15 Minuten</option>
+                        <option value="60">1 Stunde</option>
+                        <option value="240">4 Stunden</option>
+                    </select>
+                    <p class="cl-muted" style="font-size:.82rem; margin:.4rem 0;">Ausleihen als positiver, Retouren als negativer Balken — zeigt, wann am meisten los war.</p>
+                    <div id="stats-chart"></div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt – Interne Verwaltung</span></div>
+</footer>
+
+<div id="toast-container"></div>
+
+<!-- ADD/EDIT GAME MODAL (Master-Datenbank) -->
+<div id="game-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="game-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 id="game-modal-title" style="margin-top:0;">Neues Spiel anlegen</h2>
+        <form id="game-form">
+            <div class="cl-stack">
+                <div>
+                    <label class="cl-label" for="game-ean">EAN / Barcode</label>
+                    <input type="text" id="game-ean" class="cl-input" required autocomplete="off">
+                </div>
+                <div>
+                    <label class="cl-label" for="game-name-input">Spielname</label>
+                    <div style="display:flex; gap:.5rem;">
+                        <input type="text" id="game-name-input" class="cl-input" required style="flex:1;">
+                        <button type="button" id="bgg-search-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="white-space:nowrap;">🎲 BGG suchen</button>
+                    </div>
+                    <div id="bgg-search-panel" class="qb-bgg-panel cl-hidden">
+                        <div id="bgg-search-results" class="qb-bgg-results"></div>
+                    </div>
+                    <div id="bgg-match-preview" class="qb-bgg-match cl-hidden"></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--cl-space-2);">
+                    <div><label class="cl-label" for="game-minplayers">Min. Spieler</label><input type="number" id="game-minplayers" class="cl-input" min="1"></div>
+                    <div><label class="cl-label" for="game-maxplayers">Max. Spieler</label><input type="number" id="game-maxplayers" class="cl-input" min="1"></div>
+                    <div><label class="cl-label" for="game-minage">Alter ab</label><input type="number" id="game-minage" class="cl-input" min="0"></div>
+                    <div><label class="cl-label" for="game-duration">Dauer (Min.)</label><input type="number" id="game-duration" class="cl-input" min="0"></div>
+                </div>
+                <div>
+                    <label class="cl-label" for="game-category">Kategorie (frei, optional)</label>
+                    <input type="text" id="game-category" class="cl-input" placeholder="z.B. Familienspiel">
+                </div>
+                <div>
+                    <label class="cl-label" for="game-description">Beschreibung (von BGG, editierbar)</label>
+                    <textarea id="game-description" class="cl-input" rows="5" placeholder="Wird beim BGG-Abgleich automatisch befüllt, falls BGG eine hat."></textarea>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: var(--cl-space-3); gap: 1rem; flex-wrap: wrap;">
+                <button type="button" id="delete-game-btn" class="cl-btn cl-btn--ghost cl-hidden" style="color: var(--cl-err);">Spiel löschen</button>
+                <div style="margin-left:auto; display:flex; gap:.5rem;">
+                    <button type="button" id="game-modal-cancel" class="cl-btn cl-btn--ghost">Abbrechen</button>
+                    <button type="submit" class="cl-btn cl-btn--signal">Speichern</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- COLLECTION DETAIL MODAL -->
+<div id="collection-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="collection-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 style="margin-top:0;">Sammlung bearbeiten</h2>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:160px;">
+                <label class="cl-label" for="collection-edit-name">Name</label>
+                <input type="text" id="collection-edit-name" class="cl-input">
+            </div>
+            <div style="flex:1; min-width:160px;">
+                <label class="cl-label" for="collection-edit-desc">Beschreibung</label>
+                <input type="text" id="collection-edit-desc" class="cl-input" placeholder="optional">
+            </div>
+            <button type="button" id="collection-save-meta-btn" class="cl-btn cl-btn--signal">Speichern</button>
+        </div>
+        <label class="cl-label" for="collection-public-link" style="margin-top: var(--cl-space-3);">Öffentlicher Link zu dieser Sammlung</label>
+        <div style="display:flex; gap:.5rem;">
+            <input type="text" id="collection-public-link" class="cl-input" readonly style="flex:1;">
+            <button type="button" id="collection-copy-link-btn" class="cl-btn cl-btn--ghost">Kopieren</button>
+        </div>
+        <label class="cl-label" for="collection-add-search" style="margin-top: var(--cl-space-3);">Spiel aus Datenbank hinzufügen</label>
+        <input type="text" id="collection-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
+        <div id="collection-add-results" class="sv-manual-results cl-hidden"></div>
+        <h3 style="margin-top: var(--cl-space-3);">Spiele in dieser Sammlung</h3>
+        <div class="sv-table-wrap">
+            <table class="sv-table">
+                <thead><tr><th></th><th>Name</th><th>EAN</th><th>Stückzahl</th><th></th></tr></thead>
+                <tbody id="collection-items-body"></tbody>
+            </table>
+            <p id="collection-items-empty" class="sv-empty cl-hidden">Noch keine Spiele in dieser Sammlung.</p>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3);">
+            <button type="button" id="delete-collection-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Sammlung löschen</button>
+            <button type="button" id="collection-modal-close2" class="cl-btn cl-btn--ghost">Schließen</button>
+        </div>
+    </div>
+</div>
+
+<!-- EVENT DETAIL MODAL -->
+<div id="event-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
+        <button type="button" id="event-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 id="event-modal-title" style="margin-top:0;">Event</h2>
+        <p id="event-modal-meta" class="cl-muted"></p>
+
+        <h3>Verknüpfte Sammlungen</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Nur Spiele aus den hier angehakten Sammlungen lassen sich diesem Event hinzufügen. Kann jederzeit nachträglich geändert werden.</p>
+        <div id="event-edit-collections" class="sv-checkbox-list"></div>
+        <button type="button" id="event-save-collections-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Sammlungen speichern</button>
+        <p id="event-collections-feedback" class="qb-feedback"></p>
+
+        <h3 style="margin-top: var(--cl-space-4);">Regale für dieses Event</h3>
+        <div id="event-shelf-grid" class="sv-shelf-grid"></div>
+        <div class="sv-toolbar" style="margin-bottom: var(--cl-space-3);">
+            <input type="text" id="new-event-shelf-name" class="cl-input" placeholder="z.B. Regal A">
+            <button type="button" id="add-event-shelf-btn" class="cl-btn cl-btn--signal">Regal anlegen</button>
+        </div>
+
+        <h3>⚡ Schnellscan direkt ins Regal</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Regal wählen, dann scannen — jedes Spiel wird sofort ohne Rückfrage in Datenbank, Sammlung(en) dieses Events und dieses Regal eingetragen. Bereits vorhandenes Spiel wird per Scan einfach in der Stückzahl erhöht.</p>
+        <div class="sv-toolbar">
+            <select id="event-quick-shelf-select" class="cl-select"></select>
+            <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
+        </div>
+        <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
+
+        <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung — oder wahlweise die gesamte Spieledatenbank — auf einmal in ein Regal dieses Events, mit der jeweiligen Stückzahl. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
+        <div class="sv-toolbar">
+            <select id="event-bulk-collection-select" class="cl-select"></select>
+            <select id="event-bulk-shelf-select" class="cl-select"></select>
+            <button type="button" id="event-bulk-load-btn" class="cl-btn cl-btn--signal">Sammlung laden</button>
+        </div>
+        <p id="event-bulk-load-status" class="cl-muted" style="font-size:.85rem;"></p>
+
+        <h3 style="margin-top: var(--cl-space-3);">Spiele manuell suchen</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung.</p>
+        <label class="cl-label" for="event-add-search">Name oder EAN</label>
+        <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
+        <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
+
+        <h3 style="margin-top: var(--cl-space-3);">Spiele bei diesem Event</h3>
+        <div class="sv-table-wrap">
+            <table class="sv-table">
+                <thead><tr><th></th><th>Name</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <tbody id="event-games-body"></tbody>
+            </table>
+            <p id="event-games-empty" class="sv-empty cl-hidden">Noch keine Spiele bei diesem Event.</p>
+        </div>
+
+        <h3 style="margin-top: var(--cl-space-3);">Einbettungs-Code für die Website</h3>
+        <div class="sv-embed-box">
+            <textarea id="event-embed-code" class="cl-input" rows="3" readonly></textarea>
+            <button type="button" id="copy-embed-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Code kopieren</button>
+        </div>
+
+        <h3 style="margin-top: var(--cl-space-3);">Ausleihe-Tresen für dieses Event</h3>
+        <p class="cl-muted" style="font-size:.85rem;">Eigene, schlanke Seite für den Ausleihtresen — Live-Statistik, Live-Liste der ausgeliehenen Spiele, Scannen ohne Rückfrage.</p>
+        <div class="sv-embed-box" style="margin-bottom: var(--cl-space-3);">
+            <textarea id="event-desk-link" class="cl-input" rows="2" readonly></textarea>
+            <button type="button" id="copy-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Link kopieren</button>
+            <button type="button" id="open-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Öffnen</button>
+        </div>
+        <label class="cl-label">Rückgabe-Meldung am Tresen</label>
+        <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
+            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-confirm" value="confirm"> Manuell bestätigen</label>
+            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-timer" value="timer"> Automatisch ausblenden nach</label>
+            <input type="number" id="return-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
+            <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
+            <div style="display:flex; gap:.5rem;">
+                <button type="button" id="set-active-event-btn" class="cl-btn cl-btn--ghost">Als aktiv setzen</button>
+                <button type="button" id="event-modal-close2" class="cl-btn cl-btn--ghost">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal modal-enter">
+        <h2 id="confirm-modal-title" style="margin-top:0;">Bestätigen</h2>
+        <p id="confirm-modal-text" class="cl-muted"></p>
+        <div style="display:flex; justify-content:flex-end; gap:.5rem; margin-top: var(--cl-space-3);">
+            <button type="button" id="confirm-modal-cancel" class="cl-btn cl-btn--ghost">Abbrechen</button>
+            <button type="button" id="confirm-modal-ok" class="cl-btn cl-btn--signal" style="background: var(--cl-err); border-color: var(--cl-err);">Löschen</button>
+        </div>
     </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import {
+    getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc,
+    addDoc, getDoc, getDocs, query, where, serverTimestamp, increment
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+// =============================================================
+// VERSION: v23 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// Änderungsprotokoll:
+//   v23 — Ausleihe-Tresen: "Aktuell ausgeliehen"-Liste ersetzt durch eine
+//        immer sichtbare vollständige Spieleliste des Events, mit Suchfeld
+//        und Status-Filter (Alle / Nur verfügbar / Nur ausgeliehen). Ein
+//        "1 zurückgeben"-Button erscheint weiterhin nur bei Spielen, von
+//        denen etwas draußen ist.
+//   v22 — Bugfix: In der Sammlungs-Tabelle, der Spielesuche im Event-
+//        Fenster und im Ausleihe/Rückgabe-Tab wurde teils die veraltete
+//        Namens-Momentaufnahme aus dem Scan-Zeitpunkt angezeigt statt des
+//        aktuellen Namens aus der Spieledatenbank (z.B. rohe EAN statt
+//        Titel). Zeigt jetzt überall den aktuellen Namen. Betrifft auch
+//        spieleausleihe-tresen.html, die dafür jetzt ebenfalls die
+//        Spieledatenbank live mitliest.
+//   v21 — "Ganze Sammlung ins Event laden" hat jetzt zusätzlich zur Auswahl
+//        immer die Option "🗄️ Gesamte Spieledatenbank (alle Spiele)" — auch
+//        nachträglich bei jedem bestehenden Event nutzbar, nicht nur bei
+//        verknüpften Sammlungen. Ab 30 Spielen erscheint eine
+//        Sicherheitsabfrage, bevor tatsächlich die ganze Datenbank geladen
+//        wird.
+//   v20 — Event anlegen: neue Checkbox "Alle Spiele der ausgewählten
+//        Sammlung(en) sofort bereitstellen" — legt automatisch ein
+//        "Hauptregal" an und befüllt es in einem Schritt. Manuelle Spiele-
+//        Suche im Event-Fenster durchsucht jetzt zusätzlich zu den
+//        verknüpften Sammlungen auch die gesamte Spieledatenbank — wichtig
+//        für Events ganz ohne verknüpfte Sammlung.
+//   v19 — Bugfix: Nach dem Speichern neu verknüpfter Sammlungen (v18)
+//        blieb das "Ganze Sammlung ins Event laden"-Dropdown leer, bis das
+//        Event-Fenster neu geöffnet wurde. Aktualisiert sich jetzt sofort.
+//   v18 — Bugfix: Verknüpfte Sammlungen eines Events waren nur bei der
+//        Erstellung wählbar. Jetzt im Event-Fenster jederzeit über
+//        "Verknüpfte Sammlungen" nachträglich änderbar (Checkboxen +
+//        "Sammlungen speichern").
+//   v17 — CSV-Statistik-Export: zusätzlicher Zusammenfassungs-Abschnitt am
+//        Ende mit Gesamtausleihen je Spiel, absteigend sortiert. Spiele
+//        ohne jede Ausleihe erscheinen dort naturgemäß nicht.
+//   v16 — Neue eigenständige Datei sammlung-uebersicht.html: öffentliche
+//        Übersicht für einzelne Spielesammlungen (analog zu index.html für
+//        Events), mit Dropdown-Auswahl und direktem Link per
+//        ?collection=ID. Im Sammlungsfenster gibt's dafür einen "Link
+//        kopieren"-Button. WICHTIG: Firestore-Regeln für collections/
+//        collectionItems müssen auf öffentliches Lesen umgestellt werden
+//        (siehe Chat-Antwort). Event-Fenster: neuer Bereich "Ganze
+//        Sammlung ins Event laden" — überträgt alle Spiele einer
+//        verknüpften Sammlung inkl. Stückzahl auf einen Schlag in ein
+//        Regal. Sammlungen-Tab: neuer BGStats-Import — JSON-Export der App
+//        BGStats wird lokal im Browser gelesen (nie hochgeladen), besessene
+//        Spiele werden per BGG-ID mit der eigenen Datenbank abgeglichen;
+//        unbekannte Titel (BGStats liefert keine EAN) müssen einmalig
+//        gescannt werden, danach automatischer Sprung zum nächsten offenen
+//        Feld.
+//   v15 — Schnellerfassung (global und im Event-Fenster): kurze grüne
+//        Bestätigung nach jedem einzelnen Scan (ca. 1,5 Sek., verschwindet
+//        von selbst), zusätzlich zum Protokoll unten.
+//   v14 — Stufe 1: GTNM-Treffer werden nicht mehr sofort automatisch
+//        gespeichert. Stattdessen erscheint ein Review-Panel mit den
+//        gefundenen Titeln in editierbaren Feldern — erst nach "Übernehmen
+//        & bei BGG anreichern" werden sie tatsächlich gespeichert und bei
+//        BGG gesucht.
+//   v13 — Spieledatenbank: ganze Tabellenzeile ist jetzt klickbar und öffnet
+//        die Spiel-Infos, nicht mehr nur der "Bearbeiten"-Button.
+//   v12 — Bugfix: BGG-Beschreibung wurde zwar seit v8 gespeichert, aber
+//        nirgends im Verwaltungstool angezeigt. Jetzt sichtbares und
+//        editierbares Beschreibungsfeld im Spiel-Formular. Neuer Button
+//        "Fehlende Beschreibungen nachholen" reichert bereits fertige,
+//        ältere Einträge nachträglich mit Beschreibung an.
+//   v11 — Ausleihe-Tresen: Mode-Buttons entfernt, Popup-Auswahl erscheint
+//        nur noch bei echter Mehrdeutigkeit (Mehrfach-Exemplar mit
+//        gemischtem Status); neues, immer sichtbares Ergebnis-Feld unter
+//        dem Scan-Feld (wie im Verwaltungstool); Statistik-Dashboard am
+//        Tresen eingeklappt, nur "X Spiele gerade ausgeliehen" bleibt
+//        sichtbar. Statistik-Tab: CSV-Export (Datum, Uhrzeit, Aktion,
+//        +1/-1) und einklappbares Plotly-Diagramm mit wählbarem Zeitraster
+//        (5 Min / 15 Min / 1 Std / 4 Std), Retouren als negative Balken.
+//   v10 — Ausleihen/Rückgabe-Modus wird nur noch abgefragt, wenn es
+//        wirklich mehrdeutig ist (ein Spiel hat mehrere Exemplare, von
+//        denen einige draußen und einige noch da sind). In jedem anderen
+//        Fall (1 Exemplar, alle verfügbar, oder alle draußen) erkennt das
+//        System die richtige Aktion automatisch — kein Klicken nötig.
+//        Gilt für Verwaltungstool UND Ausleihe-Tresen.
+//   v9 — Bugfix: Derselbe Ausleihen/Rückgabe-Modus-Schalter wie am Tresen
+//        (seit v7) fehlte noch im Ausleihe/Rückgabe-Tab des Verwaltungs-
+//        tools selbst — dort war die Mehrdeutigkeit bei Mehrfach-
+//        Exemplaren noch nicht behoben. Jetzt nachgezogen.
+//   v8 — BGG-Beschreibung wird jetzt mit erfasst (games + eventGames), für
+//        die Detailansicht in der öffentlichen Übersicht. Öffentliche Seite:
+//        Spiele anklickbar (Detailkarte mit Bild, Beschreibung, BGG-Link),
+//        Sortierung nach Beliebtheit/Komplexität, Filter nach Komplexität
+//        (Leicht/Mittel/Anspruchsvoll) und Bewertung (ab 7 / ab 8).
+//   v7 — Ausleihe-Tresen: eindeutiger Modus-Schalter "Ausleihen"/"Rückgabe"
+//        statt automatischem Raten (löst Mehrdeutigkeit bei Mehrfach-
+//        Exemplaren, wenn schon eines draußen ist). Optionale Vorab-
+//        Bestätigung pro Scan ein-/ausschaltbar (Standard: aus, für Tempo).
+//   v6 — Neue eigenständige Seite "spieleausleihe-tresen.html" pro Event:
+//        Live-Statistik, Live-Liste der ausgeliehenen Spiele, Schnellscan,
+//        Rückgabemeldung mit Regal-Hinweis. Pro Event einstellbar, ob die
+//        Meldung manuell bestätigt werden muss oder nach X Sekunden
+//        automatisch verschwindet (Einstellung im Event-Fenster).
+//   v5 — Aktives Event lässt sich jetzt auch explizit deaktivieren: neuer
+//        "Deaktivieren"-Button oben in der Werkzeugleiste, und der Button im
+//        Event-Fenster wechselt automatisch zwischen "Als aktiv setzen" und
+//        "Deaktivieren", je nachdem ob das geöffnete Event gerade aktiv ist.
+//   v4 — Schnellscan jetzt auch direkt im Event-Fenster (Regal wählen,
+//        scannen, ohne Rückfrage — unabhängig vom global aktiven Event).
+//        Bugfix: Einbettungs-Code-URL war fehlerhaft, wenn die Seite ohne
+//        ".html" in der Adresszeile aufgerufen wurde.
+//   v3 — Bugfix: Stückzahl-Änderungen (+/−) bei Sammlungen und Events werden
+//        jetzt sofort sichtbar aktualisiert (Live-Refresh der offenen
+//        Detail-Tabelle war vergessen worden). Untergrenze für Stückzahlen
+//        ist jetzt korrekt 0 (nicht negativ), mit serverseitiger Absicherung.
+//   v2 — Sammlungen: Name/Beschreibung nachträglich editierbar, Stückzahl pro
+//        Spiel in einer Sammlung (statt nur Hinzufügen/Entfernen).
+//   v1 — Versionsnummer eingeführt (Schnellerfassung, Mengen-Modell,
+//        GTNM-Referenz und deutsche Titel waren bereits vorher enthalten).
+// =============================================================
+
+// --- FIREBASE KONFIGURATION (gleiche Datenbank wie linzspielt.at) ---
 const firebaseConfig = {
     apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
     authDomain: "linzspielt.firebaseapp.com",
@@ -155,242 +763,2079 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+// --- BoardGameGeek (BGG) Integration ---
+// Hinweis: Der Token liegt im Klartext im Quellcode (Ansicht -> Seitenquelltext).
+// Für ein internes Vereinstool unkritisch, aber nicht als Basis für ein
+// kommerzielles Angebot verwenden, ohne den Token serverseitig zu verstecken.
+const BGG_API_TOKEN = 'cb319383-f7f5-4e5b-bc40-78090627231e';
+let selectedBggMatch = null;
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function callBggApi(endpoint, params = {}) {
+    const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    const headers = new Headers();
+    if (BGG_API_TOKEN) headers.append('Authorization', `Bearer ${BGG_API_TOKEN}`);
+    let response = await fetch(url.toString(), { method: 'GET', headers });
+    let retries = 0;
+    while (response.status === 202 && retries < 5) {
+        retries++;
+        await sleep(1500);
+        response = await fetch(url.toString(), { method: 'GET', headers });
+    }
+    if (!response.ok) throw new Error(`BGG HTTP Fehler ${response.status}`);
+    const xmlText = await response.text();
+    const xmlDoc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (xmlDoc.querySelector("parsererror")) throw new Error("Fehler beim Parsen der BGG-Antwort.");
+    return xmlDoc;
+}
+
+function decodeHTML(html) {
+    if (!html) return null;
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
+}
+
+function parseBggDetails(xmlDoc) {
+    const item = xmlDoc.querySelector('item');
+    if (!item) return null;
+    const getPrimaryName = () => {
+        const names = item.querySelectorAll('name');
+        for (const n of names) if (n.getAttribute('type') === 'primary') return n.getAttribute('value');
+        return names.length > 0 ? names[0].getAttribute('value') : null;
+    };
+    const getFirstCategory = () => {
+        const link = item.querySelector('link[type="boardgamecategory"]');
+        return link ? link.getAttribute('value') : null;
+    };
+    const yearNode = item.querySelector('yearpublished');
+    const minPlayersNode = item.querySelector('minplayers');
+    const maxPlayersNode = item.querySelector('maxplayers');
+    const minAgeNode = item.querySelector('minage');
+    const playTimeNode = item.querySelector('playingtime');
+    const ratingNode = item.querySelector('statistics ratings average');
+    const weightNode = item.querySelector('statistics ratings averageweight');
+    const descNode = item.querySelector('description');
+    return {
+        bggId: parseInt(item.getAttribute('id')) || null,
+        bggName: getPrimaryName(),
+        bggYear: yearNode ? yearNode.getAttribute('value') : null,
+        bggImageUrl: item.querySelector('image')?.textContent || item.querySelector('thumbnail')?.textContent || null,
+        bggCategory: getFirstCategory(),
+        bggDescription: descNode ? decodeHTML(descNode.textContent).trim() : null,
+        minPlayers: minPlayersNode ? parseInt(minPlayersNode.getAttribute('value')) || null : null,
+        maxPlayers: maxPlayersNode ? parseInt(maxPlayersNode.getAttribute('value')) || null : null,
+        minAge: minAgeNode ? parseInt(minAgeNode.getAttribute('value')) || null : null,
+        duration: playTimeNode ? parseInt(playTimeNode.getAttribute('value')) || null : null,
+        bggRating: ratingNode ? parseFloat(ratingNode.getAttribute('value')) : null,
+        bggComplexity: weightNode ? parseFloat(weightNode.getAttribute('value')) : null
+    };
+}
+
+async function bggSearchAndFetchBest(title) {
+    const searchXml = await callBggApi('search', { query: title, type: 'boardgame' });
+    const firstItem = searchXml.querySelector('item');
+    if (!firstItem) return null;
+    const id = firstItem.getAttribute('id');
+    const detailXml = await callBggApi('thing', { id, stats: 1 });
+    return parseBggDetails(detailXml);
+}
 
 function escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
-function complexityLabel(c) {
-    if (c == null) return null;
-    if (c <= 2) return 'Leicht';
-    if (c <= 3.5) return 'Mittel';
-    return 'Anspruchsvoll';
-}
-function complexityBucket(c) {
-    if (c == null) return null;
-    if (c <= 2) return 'easy';
-    if (c <= 3.5) return 'medium';
-    return 'hard';
-}
-// Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank (g.name)
-// vor der ggf. veralteten Momentaufnahme im Sammlungseintrag (g.gameName,
-// die beim Scannen entstand, bevor der Titel bekannt war).
-function displayName(g) { return g.name || g.gameName || ''; }
 
+// --- Toast ---
+function showToast(message, isError = false, opts = {}) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    let cls = 'qb-toast toast-enter';
+    if (isError) cls += ' qb-toast--err';
+    else if (opts.variant === 'ok') cls += ' qb-toast--ok';
+    toast.className = cls;
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, opts.duration || 4500);
+}
+
+function showModal(el) { el.classList.remove('cl-hidden'); }
+function hideModal(el) { el.classList.add('cl-hidden'); }
+
+let confirmCallback = null;
+function showConfirm(title, text, onConfirm) {
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-text').textContent = text;
+    confirmCallback = onConfirm;
+    showModal(document.getElementById('confirm-modal-overlay'));
+}
+document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+    if (confirmCallback) confirmCallback();
+    confirmCallback = null;
+    hideModal(document.getElementById('confirm-modal-overlay'));
+});
+document.getElementById('confirm-modal-cancel').addEventListener('click', () => hideModal(document.getElementById('confirm-modal-overlay')));
+
+// --- Globaler State ---
+let allGames = [];
 let allCollections = [];
-let itemsUnsub = null;
-let currentItems = [];
-let selectedCollectionId = new URLSearchParams(location.search).get('collection') || '';
+let allCollectionItems = [];
+let allEvents = [];
+let allEventShelves = [];
+let allEventGames = [];
+let currentUser = null;
+let activeEventId = localStorage.getItem('sv_active_event') || '';
+let unsubs = [];
+
+// --- GTNM-Referenzdatenbank (EAN -> Titel) ---
+// Statische Datei, kein Firestore-Import: ~18.500 EANs würden als Dokumente
+// nur unnötig Zeit/Kosten verursachen. Liegt lokal neben dieser HTML-Datei.
+// WICHTIG: Diese Referenz bedeutet NICHT, dass wir das Spiel besitzen — sie
+// liefert nur einen Titel-Vorschlag für tatsächlich von uns gescannte EANs.
+let eanReference = {};
+let eanReferenceLoaded = false;
+fetch('./ean-referenz.json')
+    .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+    .then(data => {
+        eanReference = data || {};
+        eanReferenceLoaded = true;
+        if (Object.keys(eanReference).length === 0) {
+            notifyReferenceLoadIssue('GTNM-Referenzliste ist leer oder hat kein gültiges Format.');
+        }
+    })
+    .catch(err => {
+        eanReferenceLoaded = true;
+        console.error('GTNM-Referenzliste konnte nicht geladen werden:', err);
+        notifyReferenceLoadIssue('GTNM-Referenzliste (ean-referenz.json) konnte nicht geladen werden. Liegt die Datei im selben Ordner wie diese Seite, und läuft die Seite über http(s):// statt file://?');
+    });
+function notifyReferenceLoadIssue(message) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => showToast(message, true), { once: true });
+    } else {
+        showToast(message, true);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-    const loadingEl = document.getElementById('ov-loading');
-    const pickerWrap = document.getElementById('ov-collection-picker-wrap');
-    const picker = document.getElementById('ov-collection-picker');
-    const mainEl = document.getElementById('ov-main');
-    const titleEl = document.getElementById('ov-collection-title');
 
-    const searchInput = document.getElementById('ov-search');
-    const playersFilter = document.getElementById('ov-players-filter');
-    const complexityFilter = document.getElementById('ov-complexity-filter');
-    const ratingFilter = document.getElementById('ov-rating-filter');
-    const sortSelect = document.getElementById('ov-sort');
-    const tableBody = document.getElementById('ov-table-body');
-    const emptyEl = document.getElementById('ov-empty');
-    const statsEl = document.getElementById('ov-stats');
+    const loginView = document.getElementById('login-view');
+    const appView = document.getElementById('app-view');
+    const headerActions = document.getElementById('header-actions');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const loginError = document.getElementById('login-error');
 
-    [searchInput, playersFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('input', render));
-    [playersFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('change', render));
-
-    // --- Kompaktes Filter-Panel: eingeklappt per Default, zeigt Anzahl aktiver Filter ---
-    const filterToggle = document.getElementById('ov-filter-toggle');
-    const filterPanel = document.getElementById('ov-filter-panel');
-    const filterCount = document.getElementById('ov-filter-count');
-    filterToggle.addEventListener('click', () => {
-        filterPanel.classList.toggle('cl-hidden');
+    // --- AUTH: Login / Register ---
+    document.getElementById('show-register-btn').addEventListener('click', () => {
+        loginForm.classList.add('cl-hidden');
+        registerForm.classList.remove('cl-hidden');
+        document.getElementById('show-register-btn').classList.add('cl-hidden');
+        document.getElementById('show-login-btn').classList.remove('cl-hidden');
+        document.getElementById('auth-title').textContent = 'Konto anlegen';
+        loginError.textContent = '';
     });
-    document.getElementById('ov-filter-reset').addEventListener('click', () => {
-        playersFilter.value = '0'; complexityFilter.value = 'all'; ratingFilter.value = 'all'; sortSelect.value = 'name';
-        render();
-    });
-    function updateFilterCount() {
-        let n = 0;
-        if (playersFilter.value !== '0') n++;
-        if (complexityFilter.value !== 'all') n++;
-        if (ratingFilter.value !== 'all') n++;
-        if (sortSelect.value !== 'name') n++;
-        filterCount.textContent = n;
-        filterCount.classList.toggle('cl-hidden', n === 0);
-    }
-
-    onSnapshot(collection(db, 'collections'), (snap) => {
-        allCollections = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
-        loadingEl.classList.add('cl-hidden');
-
-        if (allCollections.length === 0) {
-            loadingEl.textContent = 'Aktuell sind keine Sammlungen verfügbar.';
-            loadingEl.classList.remove('cl-hidden');
-            return;
-        }
-
-        picker.innerHTML = allCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
-
-        if (!selectedCollectionId || !allCollections.some(c => c.id === selectedCollectionId)) {
-            selectedCollectionId = allCollections[0].id;
-        }
-        picker.value = selectedCollectionId;
-
-        if (!new URLSearchParams(location.search).get('collection')) {
-            pickerWrap.classList.remove('cl-hidden');
-        }
-
-        loadCollection(selectedCollectionId);
-    }, err => {
-        console.error('collections onSnapshot Fehler:', err);
-        loadingEl.textContent = 'Sammlungen konnten nicht geladen werden.';
+    document.getElementById('show-login-btn').addEventListener('click', () => {
+        registerForm.classList.add('cl-hidden');
+        loginForm.classList.remove('cl-hidden');
+        document.getElementById('show-login-btn').classList.add('cl-hidden');
+        document.getElementById('show-register-btn').classList.remove('cl-hidden');
+        document.getElementById('auth-title').textContent = 'Anmelden';
+        loginError.textContent = '';
     });
 
-    picker.addEventListener('change', () => {
-        selectedCollectionId = picker.value;
-        const url = new URL(location.href);
-        url.searchParams.set('collection', selectedCollectionId);
-        history.replaceState(null, '', url);
-        loadCollection(selectedCollectionId);
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        loginError.textContent = '';
+        signInWithEmailAndPassword(auth, email, password)
+            .catch(err => {
+                console.error('Login-Fehler:', err.code, err.message);
+                loginError.textContent = 'Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.';
+            });
     });
 
-    function loadCollection(collectionId) {
-        const col = allCollections.find(c => c.id === collectionId);
-        titleEl.textContent = col ? `Sammlung "${col.name}"${col.description ? ' · ' + col.description : ''}` : 'Alle Spiele einer Sammlung im Überblick.';
-        mainEl.classList.remove('cl-hidden');
-
-        if (itemsUnsub) itemsUnsub();
-
-        itemsUnsub = onSnapshot(query(collection(db, 'collectionItems'), where('collectionId', '==', collectionId)), async (snap) => {
-            const rawItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            // collectionItems selbst enthalten nur EAN + Menge + Name — die
-            // restlichen Details (Bild, Bewertung, Komplexität, Beschreibung
-            // usw.) stehen in der zentralen Spieledatenbank (games/{ean}).
-            const gameDocs = await Promise.all(rawItems.map(async item => {
-                try {
-                    const gSnap = await getGameOnce(item.ean);
-                    return { ...item, ...(gSnap || {}) };
-                } catch (err) { return item; }
-            }));
-            currentItems = gameDocs;
-            render();
-        }, err => console.error('collectionItems onSnapshot Fehler:', err));
-    }
-
-    // Einmaliges Nachladen der Spieledetails aus der zentralen Datenbank.
-    // Kein eigener Live-Listener pro Spiel nötig — Detaildaten ändern sich
-    // selten, und die Sammlung selbst bleibt live aktuell (Menge, Zusammensetzung).
-    const gameCache = new Map();
-    async function getGameOnce(ean) {
-        if (gameCache.has(ean)) return gameCache.get(ean);
-        const snap = await getDoc(doc(db, 'games', ean));
-        const data = snap.exists() ? snap.data() : null;
-        gameCache.set(ean, data);
-        return data;
-    }
-
-    function render() {
-        updateFilterCount();
-        const term = searchInput.value.trim().toLowerCase();
-        const playersVal = parseInt(playersFilter.value, 10);
-        const complexityVal = complexityFilter.value;
-        const ratingVal = ratingFilter.value === 'all' ? 0 : parseFloat(ratingFilter.value);
-        const sortVal = sortSelect.value;
-
-        let filtered = currentItems.filter(g => {
-            const nameMatch = !term || displayName(g).toLowerCase().includes(term);
-            const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
-            const ratingMatch = ratingVal === 0 || (g.rating != null && g.rating >= ratingVal);
-            let playersMatch = true;
-            if (playersVal > 0) {
-                if (g.minPlayers != null && g.maxPlayers != null) {
-                    playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
-                } else { playersMatch = false; }
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.textContent = '';
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const code = document.getElementById('register-code').value.trim();
+        try {
+            const configSnap = await getDoc(doc(db, 'config', 'registration'));
+            const validCode = configSnap.exists() ? configSnap.data().code : null;
+            if (!validCode || code !== validCode) {
+                loginError.textContent = 'Zugangscode ist falsch.';
+                return;
             }
-            return nameMatch && complexityMatch && ratingMatch && playersMatch;
-        });
-
-        if (sortVal === 'rating') {
-            filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else if (sortVal === 'complexity-asc') {
-            filtered.sort((a, b) => (a.complexity ?? Infinity) - (b.complexity ?? Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else if (sortVal === 'complexity-desc') {
-            filtered.sort((a, b) => (b.complexity ?? -Infinity) - (a.complexity ?? -Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else if (sortVal === 'quantity') {
-            filtered.sort((a, b) => (b.quantity ?? 1) - (a.quantity ?? 1) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else {
-            filtered.sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch (err) {
+            console.error('Registrierung fehlgeschlagen:', err.code, err.message);
+            loginError.textContent = err.code === 'auth/email-already-in-use' ? 'Diese E-Mail ist schon registriert.' : 'Registrierung fehlgeschlagen.';
         }
+    });
 
-        emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
-        tableBody.innerHTML = filtered.map(g => `
-            <tr data-id="${g.id}">
-                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
-                <td>${escapeHTML(displayName(g))}</td>
-                <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
-                <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
-                <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
-                <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
-                <td><span class="ov-badge ov-badge--qty">${g.quantity ?? 1}×</span></td>
-            </tr>`).join('');
-
-        const totalGames = currentItems.length;
-        const totalQuantity = currentItems.reduce((sum, g) => sum + (g.quantity ?? 1), 0);
-        statsEl.innerHTML = `
-            <span class="ov-stat"><strong>${totalGames}</strong> verschiedene Spiele</span>
-            <span class="ov-stat"><strong>${totalQuantity}</strong> Exemplare gesamt</span>`;
+    function renderHeaderActions() {
+        if (currentUser) {
+            headerActions.innerHTML = `
+                <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
+                <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        } else {
+            headerActions.innerHTML = '';
+        }
     }
 
-    tableBody.addEventListener('click', (e) => {
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        renderHeaderActions();
+        if (user) {
+            loginView.classList.add('cl-hidden');
+            appView.classList.remove('cl-hidden');
+            startListeners();
+        } else {
+            loginView.classList.remove('cl-hidden');
+            appView.classList.add('cl-hidden');
+            stopListeners();
+        }
+    });
+
+    function startListeners() {
+        if (unsubs.length) return;
+        unsubs.push(onSnapshot(collection(db, 'games'), (snap) => {
+            allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDatenbankTab();
+            renderCollectionsTab();
+        }, err => console.error('games onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'collections'), (snap) => {
+            allCollections = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+            renderCollectionsTab();
+            renderNewEventCollectionCheckboxes();
+            renderQuickTab();
+        }, err => console.error('collections onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'collectionItems'), (snap) => {
+            allCollectionItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderCollectionsTab();
+            if (currentCollectionId) renderCollectionItemsTable();
+        }, err => console.error('collectionItems onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'events'), (snap) => {
+            allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            renderEventSelects();
+            renderEventsTab();
+            renderQuickTab();
+        }, err => console.error('events onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'eventShelves'), (snap) => {
+            allEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderEventsTab();
+            renderQuickTab();
+            if (currentEventId) renderEventShelfGrid();
+        }, err => console.error('eventShelves onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(collection(db, 'eventGames'), (snap) => {
+            allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderAusleiheTab();
+            renderEventsTab();
+            if (currentEventId) { renderEventGamesTable(); renderEventShelfGrid(); }
+        }, err => console.error('eventGames onSnapshot Fehler:', err)));
+    }
+
+    function stopListeners() {
+        unsubs.forEach(u => u());
+        unsubs = [];
+        allGames = []; allCollections = []; allCollectionItems = []; allEvents = []; allEventShelves = []; allEventGames = [];
+    }
+
+    // --- TABS ---
+    document.querySelectorAll('.sv-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.sv-tab-btn').forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            document.querySelectorAll('.sv-tab-panel').forEach(p => p.classList.add('cl-hidden'));
+            document.getElementById('tab-' + btn.dataset.tab).classList.remove('cl-hidden');
+        });
+    });
+    function switchToTab(tabName) { document.querySelector(`.sv-tab-btn[data-tab="${tabName}"]`).click(); }
+
+    // ======================================================
+    // AKTIVES EVENT
+    // ======================================================
+    const activeEventSelect = document.getElementById('active-event-select');
+    const activeEventInfo = document.getElementById('active-event-info');
+
+    function renderEventSelects() {
+        const opts = ['<option value="">— kein aktives Event —</option>']
+            .concat(allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`));
+        activeEventSelect.innerHTML = opts.join('');
+        activeEventSelect.value = allEvents.some(ev => ev.id === activeEventId) ? activeEventId : '';
+        if (activeEventSelect.value !== activeEventId) { activeEventId = activeEventSelect.value; localStorage.setItem('sv_active_event', activeEventId); }
+        updateActiveEventInfo();
+
+        const statsSelect = document.getElementById('stats-event-select');
+        const prevStats = statsSelect.value;
+        statsSelect.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('') || '<option value="">— keine Events —</option>';
+        if (allEvents.some(ev => ev.id === prevStats)) statsSelect.value = prevStats;
+        renderStats();
+        renderAusleiheTab();
+    }
+
+    function updateActiveEventInfo() {
+        const ev = allEvents.find(e => e.id === activeEventId);
+        activeEventInfo.textContent = ev ? `Ausleihen werden aktuell "${ev.name}" zugeordnet.` : 'Kein Event gewählt – Ausleihen sind derzeit nicht möglich.';
+        document.getElementById('deactivate-event-btn').disabled = !activeEventId;
+    }
+
+    function setActiveEvent(id) {
+        activeEventId = id || '';
+        localStorage.setItem('sv_active_event', activeEventId);
+        activeEventSelect.value = activeEventId;
+        updateActiveEventInfo();
+        renderAusleiheTab();
+        renderQuickTab();
+        renderEventsTab();
+        updateSetActiveEventBtnLabel();
+    }
+
+    activeEventSelect.addEventListener('change', () => setActiveEvent(activeEventSelect.value));
+    document.getElementById('deactivate-event-btn').addEventListener('click', () => {
+        setActiveEvent('');
+        showToast('Aktives Event deaktiviert.');
+    });
+
+    // ======================================================
+    // TAB: SCHNELLERFASSUNG
+    // ======================================================
+    function renderQuickTab() {
+        const collWrap = document.getElementById('quick-collections');
+        collWrap.innerHTML = allCollections.map(c => `
+            <label class="sv-checkbox-chip"><input type="checkbox" value="${c.id}"> ${escapeHTML(c.name)}</label>
+        `).join('') || '<p class="cl-muted" style="font-size:.85rem;">Noch keine Sammlung angelegt.</p>';
+
+        const shelfSelect = document.getElementById('quick-shelf-select');
+        const hint = document.getElementById('quick-no-event-hint');
+        const prevShelf = shelfSelect.value;
+        if (!activeEventId) {
+            shelfSelect.innerHTML = '<option value="">— kein aktives Event —</option>';
+            shelfSelect.disabled = true;
+            hint.textContent = 'Kein aktives Event gewählt — Spiele werden nur der Datenbank/den Sammlungen hinzugefügt, nicht einem Event/Regal.';
+        } else {
+            const shelves = allEventShelves.filter(s => s.eventId === activeEventId);
+            shelfSelect.disabled = false;
+            shelfSelect.innerHTML = '<option value="">— kein Regal, nur Datenbank/Sammlung —</option>' + shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+            if ([...shelfSelect.options].some(o => o.value === prevShelf)) shelfSelect.value = prevShelf;
+            hint.textContent = shelves.length === 0 ? 'Für das aktive Event sind noch keine Regale angelegt (Tab Events).' : '';
+        }
+    }
+
+    let quickScanCount = 0;
+    const quickScanInput = document.getElementById('quick-scan-input');
+    const quickScanLog = document.getElementById('quick-scan-log');
+    const quickScanCounter = document.getElementById('quick-scan-counter');
+
+    quickScanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = quickScanInput.value.trim();
+            quickScanInput.value = '';
+            if (value) handleQuickScan(value);
+        }
+    });
+
+    function quickLog(text, ok) {
+        const div = document.createElement('div');
+        div.className = 'sv-progress-log-item';
+        div.innerHTML = `<span>${escapeHTML(text)}</span><span>${ok ? '✅' : '⚠️'}</span>`;
+        quickScanLog.prepend(div);
+    }
+
+    // Warteschlange für die BGG-Anreicherung im Hintergrund, damit das
+    // Scan-Tempo nicht durch die 5-Sek.-BGG-Bremse ausgebremst wird.
+    let bggBackgroundQueue = [];
+    let bggBackgroundRunning = false;
+    function queueBackgroundEnrich(ean, titleGuess) {
+        bggBackgroundQueue.push({ ean, titleGuess });
+        updateBggQueueStatus();
+        if (!bggBackgroundRunning) processBggBackgroundQueue();
+    }
+    function updateBggQueueStatus() {
+        const el = document.getElementById('quick-bgg-queue-status');
+        el.textContent = bggBackgroundQueue.length > 0 ? `Im Hintergrund werden noch ${bggBackgroundQueue.length} Titel bei BGG abgeglichen…` : '';
+    }
+    async function processBggBackgroundQueue() {
+        bggBackgroundRunning = true;
+        while (bggBackgroundQueue.length > 0) {
+            const { ean, titleGuess } = bggBackgroundQueue.shift();
+            updateBggQueueStatus();
+            const gameRef = doc(db, 'games', ean);
+            try {
+                const match = await bggSearchAndFetchBest(titleGuess);
+                if (match) {
+                    await updateDoc(gameRef, {
+                        name: titleGuess || match.bggName, bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
+                        minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
+                        Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
+                        category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
+                    });
+                } else {
+                    await updateDoc(gameRef, { enrichStatus: 'not_found', updatedAt: serverTimestamp() });
+                }
+            } catch (err) {
+                console.error('Hintergrund-BGG-Abgleich fehlgeschlagen für', ean, err);
+                await updateDoc(gameRef, { enrichStatus: 'error', updatedAt: serverTimestamp() }).catch(() => {});
+            }
+            if (bggBackgroundQueue.length > 0) await sleep(5000);
+        }
+        bggBackgroundRunning = false;
+        updateBggQueueStatus();
+    }
+
+    async function handleQuickScan(ean) {
+        let game = allGames.find(g => g.id === ean);
+        let isNewGame = false;
+        if (!game) {
+            const refTitle = eanReference[ean] || null;
+            try {
+                await setDoc(doc(db, 'games', ean), { ean, name: refTitle, titleSource: refTitle ? 'gtnm' : null, enrichStatus: 'pending', addedAt: serverTimestamp() });
+            } catch (err) { console.error(err); quickLog(`${ean}: Fehler beim Anlegen`, false); return; }
+            game = { id: ean, name: refTitle, bggImageUrl: null, minPlayers: null, maxPlayers: null, minAge: null, Duration: null, rating: null, complexity: null, category: null };
+            isNewGame = true;
+            if (refTitle) queueBackgroundEnrich(ean, refTitle);
+        }
+        const displayName = game.name || `(unbekannt: ${ean})`;
+
+        const checkedCollections = Array.from(document.querySelectorAll('#quick-collections input:checked')).map(cb => cb.value);
+        let addedToCollections = 0, incrementedInCollections = 0;
+        for (const cid of checkedCollections) {
+            const citemId = `${cid}_${ean}`;
+            try {
+                if (allCollectionItems.some(ci => ci.id === citemId)) {
+                    await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                    incrementedInCollections++;
+                } else {
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
+                    addedToCollections++;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        let eventResult = null;
+        const shelfId = document.getElementById('quick-shelf-select').value;
+        if (activeEventId && shelfId) {
+            try {
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name);
+            } catch (err) { console.error(err); }
+        }
+
+        quickScanCount++;
+        quickScanCounter.textContent = `${quickScanCount} Spiele in dieser Sitzung erfasst.`;
+        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden'];
+        if (addedToCollections > 0) parts.push(`zu ${addedToCollections} Sammlung(en) hinzugefügt`);
+        if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
+        if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
+        if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
+        quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
+        quickScanInput.focus();
+    }
+
+    // ======================================================
+    // TAB: SPIELEDATENBANK
+    // ======================================================
+    // Gemeinsame Warteschlange für den throttled BGG-Abgleich (5 Sek. Abstand),
+    // genutzt sowohl vom Stufe-2-JSON-Import als auch vom automatischen
+    // Abgleich mit der GTNM-Referenzliste nach Stufe 1.
+    async function runBggEnrichQueue(items, defaultTitleSource) {
+        const progressWrap = document.getElementById('stage2-progress-wrap');
+        const progressBar = document.getElementById('stage2-progress-bar');
+        const progressText = document.getElementById('stage2-progress-text');
+        const log = document.getElementById('stage2-log');
+        progressWrap.classList.remove('cl-hidden');
+        log.innerHTML = '';
+        document.getElementById('stage2-import-btn').disabled = true;
+
+        let done = 0;
+        function updateProgress() {
+            const pct = Math.round((done / items.length) * 100);
+            progressBar.style.width = pct + '%';
+            progressText.textContent = `${done} von ${items.length} erledigt`;
+        }
+        function logLine(text, ok) {
+            const div = document.createElement('div');
+            div.className = 'sv-progress-log-item';
+            div.innerHTML = `<span>${escapeHTML(text)}</span><span>${ok ? '✅' : '⚠️'}</span>`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        for (const item of items) {
+            const ean = (item.ean || '').toString().trim();
+            const titleGuess = item.title ? String(item.title).trim() : '';
+            const titleSource = item.source || defaultTitleSource || null;
+            if (!ean) { done++; updateProgress(); continue; }
+            const gameRef = doc(db, 'games', ean);
+            try {
+                if (!allGames.some(g => g.id === ean)) {
+                    await setDoc(gameRef, { ean, name: titleGuess || null, titleSource, enrichStatus: 'pending', addedAt: serverTimestamp() });
+                }
+                if (titleGuess) {
+                    const match = await bggSearchAndFetchBest(titleGuess);
+                    if (match) {
+                        await updateDoc(gameRef, {
+                            name: titleGuess || match.bggName, titleSource,
+                            bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
+                            minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
+                            Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
+                            category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
+                        });
+                        logLine(`${ean}: ${titleGuess || match.bggName}`, true);
+                    } else {
+                        await updateDoc(gameRef, { name: titleGuess, titleSource, enrichStatus: 'not_found', updatedAt: serverTimestamp() });
+                        logLine(`${ean}: kein BGG-Treffer für "${titleGuess}"`, false);
+                    }
+                } else {
+                    await updateDoc(gameRef, { enrichStatus: 'not_found', updatedAt: serverTimestamp() });
+                    logLine(`${ean}: kein Titel angegeben`, false);
+                }
+            } catch (err) {
+                console.error('BGG-Abgleich Fehler für', ean, err);
+                await updateDoc(gameRef, { enrichStatus: 'error', updatedAt: serverTimestamp() }).catch(() => {});
+                logLine(`${ean}: Fehler (${err.message})`, false);
+            }
+            done++;
+            updateProgress();
+            if (done < items.length) await sleep(5000);
+        }
+        document.getElementById('stage2-import-btn').disabled = false;
+        showToast('Abgleich abgeschlossen. Bitte Ergebnisse in der Tabelle prüfen.');
+    }
+
+    function resetConfirmModalStyle() {
+        const okBtn = document.getElementById('confirm-modal-ok');
+        okBtn.textContent = 'Löschen';
+        okBtn.style.background = 'var(--cl-err)';
+        okBtn.style.borderColor = 'var(--cl-err)';
+    }
+
+    document.getElementById('stage1-add-btn').addEventListener('click', async () => {
+        const textarea = document.getElementById('stage1-textarea');
+        const feedback = document.getElementById('stage1-feedback');
+        const lines = textarea.value.split('\n').map(x => x.trim()).filter(Boolean);
+        if (lines.length === 0) { feedback.textContent = 'Bitte mindestens eine EAN eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        feedback.textContent = `Erfasse ${lines.length} EAN(s)…`;
+        feedback.style.color = 'var(--cl-muted)';
+        let added = 0, skipped = 0;
+        const matchedForEnrich = [];
+        for (const ean of lines) {
+            if (allGames.some(g => g.id === ean)) { skipped++; continue; }
+            const refTitle = eanReference[ean] || null;
+            try {
+                // Titel wird bewusst NICHT sofort gesetzt — erst nach Prüfung im
+                // Review-Panel unten (bei Treffer in der GTNM-Referenz).
+                await setDoc(doc(db, 'games', ean), {
+                    ean, name: null, titleSource: null,
+                    enrichStatus: 'pending', addedAt: serverTimestamp()
+                });
+                added++;
+                if (refTitle) matchedForEnrich.push({ ean, title: refTitle });
+            } catch (err) { console.error('EAN erfassen fehlgeschlagen:', ean, err); }
+        }
+        feedback.textContent = `${added} neu erfasst.` + (skipped > 0 ? ` ${skipped} bereits vorhanden.` : '')
+            + (matchedForEnrich.length > 0 ? ` ${matchedForEnrich.length} Titel aus der GTNM-Referenzliste erkannt — bitte unten prüfen.` : '');
+        feedback.style.color = 'var(--cl-ok)';
+        textarea.value = '';
+
+        const reviewPanel = document.getElementById('stage1-review-panel');
+        const reviewBody = document.getElementById('stage1-review-body');
+        if (matchedForEnrich.length > 0) {
+            reviewBody.innerHTML = matchedForEnrich.map(m => `
+                <tr>
+                    <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(m.ean)}</td>
+                    <td><input type="text" class="cl-input stage1-review-title-input" data-ean="${escapeHTML(m.ean)}" value="${escapeHTML(m.title)}"></td>
+                </tr>`).join('');
+            reviewPanel.classList.remove('cl-hidden');
+        } else {
+            reviewBody.innerHTML = '';
+            reviewPanel.classList.add('cl-hidden');
+        }
+    });
+
+    document.getElementById('stage1-review-apply-btn').addEventListener('click', async () => {
+        const inputs = Array.from(document.querySelectorAll('.stage1-review-title-input'));
+        const items = [];
+        for (const input of inputs) {
+            const ean = input.dataset.ean;
+            const title = input.value.trim();
+            if (!title) continue; // leer gelassen -> bleibt "Offen", keine Anreicherung
+            try { await updateDoc(doc(db, 'games', ean), { name: title, titleSource: 'gtnm' }); }
+            catch (err) { console.error('Titel übernehmen fehlgeschlagen für', ean, err); continue; }
+            items.push({ ean, title, source: 'gtnm' });
+        }
+        document.getElementById('stage1-review-panel').classList.add('cl-hidden');
+        document.getElementById('stage1-review-body').innerHTML = '';
+        if (items.length > 0) await runBggEnrichQueue(items);
+        else showToast('Keine Titel übernommen.');
+    });
+
+    document.getElementById('stage1-review-cancel-btn').addEventListener('click', () => {
+        document.getElementById('stage1-review-panel').classList.add('cl-hidden');
+        document.getElementById('stage1-review-body').innerHTML = '';
+        showToast('Titel wurden nicht übernommen. Die EANs bleiben als "Offen" erhalten.');
+    });
+
+    document.getElementById('stage2-import-btn').addEventListener('click', async () => {
+        const textarea = document.getElementById('stage2-textarea');
+        let items;
+        try { items = JSON.parse(textarea.value.trim()); }
+        catch (err) { showToast('Ungültiges JSON.', true); return; }
+        if (!Array.isArray(items) || items.length === 0) { showToast('Die Liste ist leer oder kein Array.', true); return; }
+        await runBggEnrichQueue(items, 'stage2-import');
+    });
+
+    const dbSearchInput = document.getElementById('db-search-input');
+    const dbStatusFilter = document.getElementById('db-status-filter');
+    const gamesTableBody = document.getElementById('games-table-body');
+    const gamesEmpty = document.getElementById('games-empty');
+    dbSearchInput.addEventListener('input', renderDatenbankTab);
+    dbStatusFilter.addEventListener('change', renderDatenbankTab);
+
+    function enrichBadge(status) {
+        const map = { done: ['Fertig', 'done'], pending: ['Offen', 'pending'], not_found: ['Kein Treffer', 'not_found'], error: ['Fehler', 'error'] };
+        const [label, cls] = map[status] || ['Offen', 'pending'];
+        return `<span class="sv-badge-enrich sv-badge-enrich--${cls}">${label}</span>`;
+    }
+
+    function titleSourceLabel(source) {
+        const map = { gtnm: 'GTNM-Referenz', manual: 'manuell', 'stage2-import': 'Recherche-Import' };
+        return source ? (map[source] || source) : null;
+    }
+
+    function renderDatenbankTab() {
+        const term = dbSearchInput.value.trim().toLowerCase();
+        const statusVal = dbStatusFilter.value;
+        const filtered = allGames.filter(g => {
+            const nameMatch = !term || (g.name || '').toLowerCase().includes(term) || (g.id || '').includes(term);
+            const statusMatch = statusVal === 'all' || (g.enrichStatus || 'pending') === statusVal;
+            return nameMatch && statusMatch;
+        }).sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || '', 'de'));
+
+        gamesEmpty.classList.toggle('cl-hidden', filtered.length > 0);
+        gamesTableBody.innerHTML = filtered.map(g => `
+            <tr data-id="${g.id}" class="sv-clickable-row">
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(g.name || '(ohne Titel)')}${titleSourceLabel(g.titleSource) ? `<br><span class="cl-muted" style="font-size:.75rem;">Quelle: ${escapeHTML(titleSourceLabel(g.titleSource))}</span>` : ''}</td>
+                <td style="font-family: monospace; font-size:.8rem;">${escapeHTML(g.id)}</td>
+                <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
+                <td>${enrichBadge(g.enrichStatus)}</td>
+                <td class="sv-row-actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-edit-game-btn" data-id="${g.id}">Bearbeiten</button>
+                </td>
+            </tr>`).join('');
+    }
+    gamesTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr[data-id]');
         if (!row) return;
-        const g = currentItems.find(x => x.id === row.dataset.id);
-        if (g) openDetail(g);
+        const game = allGames.find(g => g.id === row.dataset.id);
+        if (game) openGameModal(game);
+    });
+    document.getElementById('open-add-game-btn').addEventListener('click', () => openGameModal(null));
+
+    document.getElementById('backfill-desc-btn').addEventListener('click', () => {
+        const missing = allGames.filter(g => g.enrichStatus === 'done' && !g.description && g.name);
+        if (missing.length === 0) { showToast('Alle fertig angereicherten Spiele haben bereits eine Beschreibung.'); return; }
+        const items = missing.map(g => ({ ean: g.id, title: g.name, source: g.titleSource || 'backfill' }));
+        const okBtn = document.getElementById('confirm-modal-ok');
+        okBtn.textContent = 'Ja, nachholen';
+        okBtn.style.background = '';
+        okBtn.style.borderColor = '';
+        showConfirm(
+            'Beschreibungen nachholen?',
+            `${missing.length} bereits fertige Spiele haben noch keine BGG-Beschreibung (weil sie vor dieser Funktion angereichert wurden). Jetzt für alle nachholen? Das läuft mit Fortschrittsbalken, ca. 5 Sek. je Spiel — bei vielen Einträgen kann das dauern.`,
+            () => { runBggEnrichQueue(items); resetConfirmModalStyle(); }
+        );
     });
 
-    // --- Detailansicht ---
-    const modalOverlay = document.getElementById('ov-modal-overlay');
-    function openDetail(g) {
-        document.getElementById('ov-modal-title').textContent = displayName(g);
-        const img = document.getElementById('ov-modal-img');
-        if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
+    // --- Game Modal (Master-Datenbank) ---
+    const gameModalOverlay = document.getElementById('game-modal-overlay');
+    const gameModalTitle = document.getElementById('game-modal-title');
+    const gameForm = document.getElementById('game-form');
+    const gameEanInput = document.getElementById('game-ean');
+    const gameNameInput = document.getElementById('game-name-input');
+    const gameMinPlayers = document.getElementById('game-minplayers');
+    const gameMaxPlayers = document.getElementById('game-maxplayers');
+    const gameMinAge = document.getElementById('game-minage');
+    const gameDuration = document.getElementById('game-duration');
+    const gameCategory = document.getElementById('game-category');
+    const gameDescription = document.getElementById('game-description');
+    const deleteGameBtn = document.getElementById('delete-game-btn');
+    let editingGameId = null;
 
-        const cLabel = complexityLabel(g.complexity);
-        document.getElementById('ov-modal-badges').innerHTML = `
-            <span class="ov-badge ov-badge--qty">${g.quantity ?? 1}× im Bestand</span>
-            ${g.rating ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
-            ${cLabel ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
-        `;
+    function clearBggMatch() {
+        selectedBggMatch = null;
+        document.getElementById('bgg-match-preview').classList.add('cl-hidden');
+        document.getElementById('bgg-match-preview').innerHTML = '';
+        document.getElementById('bgg-search-panel').classList.add('cl-hidden');
+        document.getElementById('bgg-search-results').innerHTML = '';
+    }
 
-        document.getElementById('ov-modal-meta').innerHTML = `
-            <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
-            <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
-            <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
-            ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
-        `;
-
-        const descEl = document.getElementById('ov-modal-desc');
-        if (g.description) {
-            const short = g.description.length > 700 ? g.description.slice(0, 700).trim() + '…' : g.description;
-            descEl.textContent = short;
-            descEl.style.display = '';
+    function openGameModal(game, prefillEan) {
+        clearBggMatch();
+        gameForm.reset();
+        if (game) {
+            editingGameId = game.id;
+            gameModalTitle.textContent = 'Spiel bearbeiten';
+            gameEanInput.value = game.id;
+            gameEanInput.disabled = true;
+            gameNameInput.value = game.name || '';
+            gameMinPlayers.value = game.minPlayers ?? '';
+            gameMaxPlayers.value = game.maxPlayers ?? '';
+            gameMinAge.value = game.minAge ?? '';
+            gameDuration.value = game.Duration ?? '';
+            gameCategory.value = game.category || '';
+            gameDescription.value = game.description || '';
+            deleteGameBtn.classList.remove('cl-hidden');
+            if (game.bggImageUrl || game.bggId) {
+                selectedBggMatch = { bggId: game.bggId, bggImageUrl: game.bggImageUrl, bggName: game.name, bggRating: game.rating, bggComplexity: game.complexity };
+                renderBggMatchPreview(selectedBggMatch, true);
+            }
         } else {
-            descEl.style.display = 'none';
+            editingGameId = null;
+            gameModalTitle.textContent = 'Neues Spiel anlegen';
+            gameEanInput.value = prefillEan || '';
+            gameEanInput.disabled = false;
+            deleteGameBtn.classList.add('cl-hidden');
+        }
+        showModal(gameModalOverlay);
+        (prefillEan || game ? gameNameInput : gameEanInput).focus();
+    }
+
+    document.getElementById('game-modal-close').addEventListener('click', () => hideModal(gameModalOverlay));
+    document.getElementById('game-modal-cancel').addEventListener('click', () => hideModal(gameModalOverlay));
+    gameModalOverlay.addEventListener('click', (e) => { if (e.target === gameModalOverlay) hideModal(gameModalOverlay); });
+
+    document.getElementById('bgg-search-btn').addEventListener('click', async () => {
+        const q = gameNameInput.value.trim();
+        const panel = document.getElementById('bgg-search-panel');
+        const results = document.getElementById('bgg-search-results');
+        if (!q) { showToast('Bitte zuerst einen Spielnamen eingeben.', true); return; }
+        panel.classList.remove('cl-hidden');
+        results.innerHTML = '<p class="qb-bgg-hint">Suche auf BGG…</p>';
+        try {
+            const xmlDoc = await callBggApi('search', { query: q, type: 'boardgame' });
+            const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 20);
+            if (items.length === 0) { results.innerHTML = '<p class="qb-bgg-hint">Keine Treffer auf BGG gefunden.</p>'; return; }
+            results.innerHTML = items.map(item => {
+                const id = item.getAttribute('id');
+                const nameNode = item.querySelector('name');
+                const yearNode = item.querySelector('yearpublished');
+                const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannt';
+                const year = yearNode ? yearNode.getAttribute('value') : '';
+                return `<div class="qb-bgg-result-item" data-id="${id}"><span>${escapeHTML(name)}</span><span class="qb-bgg-result-item__year">${escapeHTML(year)}</span></div>`;
+            }).join('');
+        } catch (err) {
+            console.error('BGG-Suche fehlgeschlagen:', err);
+            results.innerHTML = '<p class="qb-bgg-hint">Suche fehlgeschlagen (evtl. Netzwerk/CORS). Du kannst den Namen frei eingeben.</p>';
+        }
+    });
+
+    document.getElementById('bgg-search-results').addEventListener('click', async (e) => {
+        const item = e.target.closest('.qb-bgg-result-item');
+        if (!item) return;
+        const id = item.dataset.id;
+        const results = document.getElementById('bgg-search-results');
+        results.innerHTML = '<p class="qb-bgg-hint">Lade Details…</p>';
+        try {
+            const xmlDoc = await callBggApi('thing', { id, stats: 1 });
+            const match = parseBggDetails(xmlDoc);
+            if (!match) throw new Error('Keine Details gefunden.');
+            selectedBggMatch = match;
+            gameNameInput.value = gameNameInput.value.trim() || match.bggName || '';
+            if (match.minPlayers) gameMinPlayers.value = match.minPlayers;
+            if (match.maxPlayers) gameMaxPlayers.value = match.maxPlayers;
+            if (match.minAge) gameMinAge.value = match.minAge;
+            if (match.duration) gameDuration.value = match.duration;
+            if (match.bggCategory) gameCategory.value = match.bggCategory;
+            if (match.bggDescription) gameDescription.value = match.bggDescription;
+            renderBggMatchPreview(match, false);
+        } catch (err) {
+            console.error('BGG-Details fehlgeschlagen:', err);
+            results.innerHTML = '<p class="qb-bgg-hint">Details konnten nicht geladen werden.</p>';
+        }
+    });
+
+    function renderBggMatchPreview(match, isExisting) {
+        const el = document.getElementById('bgg-match-preview');
+        el.innerHTML = `
+            ${match.bggImageUrl ? `<img src="${escapeHTML(match.bggImageUrl)}" alt="">` : ''}
+            <div class="qb-bgg-match__body">
+                <div class="qb-bgg-match__title">${escapeHTML(match.bggName || '')}</div>
+                <div class="qb-bgg-match__badges">
+                    ${match.bggRating ? `<span class="qb-bgg-badge">⭐ ${match.bggRating.toFixed(1)}</span>` : ''}
+                    ${match.bggComplexity ? `<span class="qb-bgg-badge">⚙️ ${match.bggComplexity.toFixed(1)}</span>` : ''}
+                    ${isExisting ? '<span class="qb-bgg-badge">bereits verknüpft</span>' : ''}
+                </div>
+            </div>`;
+        el.classList.remove('cl-hidden');
+        document.getElementById('bgg-search-panel').classList.add('cl-hidden');
+    }
+
+    gameForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ean = gameEanInput.value.trim();
+        if (!ean) { showToast('Bitte eine EAN eingeben.', true); return; }
+        const payload = {
+            ean,
+            name: gameNameInput.value.trim(),
+            minPlayers: gameMinPlayers.value ? parseInt(gameMinPlayers.value) : null,
+            maxPlayers: gameMaxPlayers.value ? parseInt(gameMaxPlayers.value) : null,
+            minAge: gameMinAge.value ? parseInt(gameMinAge.value) : null,
+            Duration: gameDuration.value ? parseInt(gameDuration.value) : null,
+            category: gameCategory.value.trim() || null,
+            description: gameDescription.value.trim() || null,
+            bggId: selectedBggMatch?.bggId ?? null,
+            bggImageUrl: selectedBggMatch?.bggImageUrl ?? null,
+            bggYear: selectedBggMatch?.bggYear ?? null,
+            rating: selectedBggMatch?.bggRating ?? null,
+            complexity: selectedBggMatch?.bggComplexity ?? null,
+            description: selectedBggMatch?.bggDescription ?? null,
+            enrichStatus: selectedBggMatch ? 'done' : 'pending',
+            updatedAt: serverTimestamp()
+        };
+        try {
+            if (editingGameId) {
+                await updateDoc(doc(db, 'games', editingGameId), payload);
+                showToast('Spiel aktualisiert.');
+            } else {
+                const existing = await getDoc(doc(db, 'games', ean));
+                if (existing.exists() && existing.data().name) { showToast('Diese EAN ist bereits vorhanden.', true); return; }
+                await setDoc(doc(db, 'games', ean), { ...payload, addedAt: serverTimestamp() });
+                showToast('Spiel angelegt.');
+            }
+            hideModal(gameModalOverlay);
+        } catch (err) {
+            console.error('Speichern fehlgeschlagen:', err);
+            showToast('Speichern fehlgeschlagen.', true);
+        }
+    });
+
+    deleteGameBtn.addEventListener('click', () => {
+        if (!editingGameId) return;
+        showConfirm('Spiel löschen', `Soll "${gameNameInput.value}" wirklich endgültig aus der Datenbank gelöscht werden? (Sammlungs-Zuordnungen bleiben als Karteileichen bestehen.)`, async () => {
+            try {
+                await deleteDoc(doc(db, 'games', editingGameId));
+                showToast('Spiel gelöscht.');
+                hideModal(gameModalOverlay);
+            } catch (err) {
+                console.error('Löschen fehlgeschlagen:', err);
+                showToast('Löschen fehlgeschlagen.', true);
+            }
+        });
+    });
+
+    // ======================================================
+    // TAB: SAMMLUNGEN
+    // ======================================================
+    document.getElementById('add-collection-btn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-collection-name');
+        const descInput = document.getElementById('new-collection-desc');
+        const feedback = document.getElementById('collection-feedback');
+        const name = nameInput.value.trim();
+        if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        try {
+            await addDoc(collection(db, 'collections'), { name, description: descInput.value.trim() || null, createdAt: serverTimestamp() });
+            nameInput.value = ''; descInput.value = '';
+            feedback.textContent = `Sammlung "${name}" angelegt.`;
+            feedback.style.color = 'var(--cl-ok)';
+        } catch (err) {
+            console.error('Sammlung anlegen fehlgeschlagen:', err);
+            feedback.textContent = 'Anlegen fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    // ======================================================
+    // BGStats-Import
+    // ======================================================
+    const bgstatsModal = document.getElementById('bgstats-modal-overlay');
+    let bgstatsUnmatched = []; // [{ bggId, name, minPlayers, maxPlayers, minAge, duration, bggImageUrl, quantity, ean }]
+    let bgstatsMatched = [];   // [{ ean, gameName, quantity }]
+
+    function resetBgstatsModal() {
+        document.getElementById('bgstats-step-setup').classList.remove('cl-hidden');
+        document.getElementById('bgstats-step-review').classList.add('cl-hidden');
+        document.getElementById('bgstats-collection-name').value = '';
+        document.getElementById('bgstats-collection-desc').value = '';
+        document.getElementById('bgstats-file-input').value = '';
+        document.getElementById('bgstats-analyze-feedback').textContent = '';
+        document.getElementById('bgstats-import-feedback').textContent = '';
+        bgstatsUnmatched = []; bgstatsMatched = [];
+    }
+    document.getElementById('open-bgstats-import-btn').addEventListener('click', () => {
+        resetBgstatsModal();
+        showModal(bgstatsModal);
+    });
+    document.getElementById('bgstats-modal-close').addEventListener('click', () => hideModal(bgstatsModal));
+    document.getElementById('bgstats-cancel-btn').addEventListener('click', () => hideModal(bgstatsModal));
+    bgstatsModal.addEventListener('click', (e) => { if (e.target === bgstatsModal) hideModal(bgstatsModal); });
+
+    document.getElementById('bgstats-analyze-btn').addEventListener('click', async () => {
+        const feedback = document.getElementById('bgstats-analyze-feedback');
+        const nameInput = document.getElementById('bgstats-collection-name');
+        const fileInput = document.getElementById('bgstats-file-input');
+        if (!nameInput.value.trim()) { feedback.textContent = 'Bitte zuerst einen Sammlungsnamen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        const file = fileInput.files?.[0];
+        if (!file) { feedback.textContent = 'Bitte eine BGStats-JSON-Datei auswählen.'; feedback.style.color = 'var(--cl-err)'; return; }
+
+        feedback.textContent = 'Analysiere Datei…';
+        feedback.style.color = 'var(--cl-muted)';
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const games = Array.isArray(data.games) ? data.games : [];
+
+            const owned = [];
+            for (const g of games) {
+                const ownedCopies = (g.copies || []).filter(c => c && c.statusOwned);
+                if (ownedCopies.length === 0) continue;
+                owned.push({
+                    bggId: g.bggId || null,
+                    name: g.bggName || g.name || 'Unbenanntes Spiel',
+                    minPlayers: g.minPlayerCount ?? null,
+                    maxPlayers: g.maxPlayerCount ?? null,
+                    minAge: g.minAge ?? null,
+                    duration: g.maxPlayTime ?? g.minPlayTime ?? null,
+                    bggImageUrl: g.urlImage || g.urlThumb || null,
+                    quantity: ownedCopies.length
+                });
+            }
+
+            if (owned.length === 0) {
+                feedback.textContent = 'In dieser Datei wurden keine als "besessen" markierten Spiele gefunden.';
+                feedback.style.color = 'var(--cl-err)';
+                return;
+            }
+
+            bgstatsMatched = [];
+            bgstatsUnmatched = [];
+            for (const bg of owned) {
+                const existing = bg.bggId ? allGames.find(g => g.bggId === bg.bggId) : null;
+                if (existing) {
+                    bgstatsMatched.push({ ean: existing.id, gameName: existing.name || bg.name, quantity: bg.quantity });
+                } else {
+                    bgstatsUnmatched.push({ ...bg, ean: '' });
+                }
+            }
+
+            document.getElementById('bgstats-matched-summary').innerHTML =
+                `<strong>${owned.length}</strong> besessene Spiele in der Datei gefunden — <strong>${bgstatsMatched.length}</strong> davon automatisch per BGG-ID eurer Datenbank zugeordnet (werden direkt übernommen).` +
+                (bgstatsUnmatched.length > 0 ? ` <strong>${bgstatsUnmatched.length}</strong> unbekannte Spiele brauchen unten eine gescannte EAN.` : ' Alle Spiele konnten zugeordnet werden — einfach unten importieren.');
+
+            renderBgstatsUnmatchedTable();
+            document.getElementById('bgstats-step-setup').classList.add('cl-hidden');
+            document.getElementById('bgstats-step-review').classList.remove('cl-hidden');
+        } catch (err) {
+            console.error('BGStats-Analyse fehlgeschlagen:', err);
+            feedback.textContent = 'Datei konnte nicht gelesen werden — ist es eine gültige BGStats-JSON-Exportdatei?';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderBgstatsUnmatchedTable() {
+        const body = document.getElementById('bgstats-unmatched-body');
+        const wrap = document.getElementById('bgstats-unmatched-wrap');
+        if (bgstatsUnmatched.length === 0) { wrap.classList.add('cl-hidden'); return; }
+        wrap.classList.remove('cl-hidden');
+        body.innerHTML = bgstatsUnmatched.map((bg, i) => `
+            <tr>
+                <td>${bg.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(bg.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(bg.name)}</td>
+                <td>${bg.minPlayers && bg.maxPlayers ? `${bg.minPlayers}–${bg.maxPlayers}` : '—'}</td>
+                <td>${bg.quantity}×</td>
+                <td><input type="text" class="cl-input bgstats-ean-input" data-index="${i}" placeholder="EAN scannen…" autocomplete="off"></td>
+            </tr>`).join('');
+    }
+    // Enter im EAN-Feld übernimmt den Wert und springt automatisch zum
+    // nächsten noch leeren Feld — so lässt sich der ganze Stapel am Stück
+    // durchscannen, ohne jedes Mal mit der Maus klicken zu müssen.
+    document.getElementById('bgstats-unmatched-body').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const input = e.target;
+        if (!input.classList.contains('bgstats-ean-input')) return;
+        e.preventDefault();
+        const idx = parseInt(input.dataset.index, 10);
+        bgstatsUnmatched[idx].ean = input.value.trim();
+        const allInputs = Array.from(document.querySelectorAll('.bgstats-ean-input'));
+        const next = allInputs.find(inp => inp !== input && !inp.value.trim());
+        if (next) next.focus();
+    });
+
+    document.getElementById('bgstats-import-btn').addEventListener('click', async () => {
+        const feedback = document.getElementById('bgstats-import-feedback');
+        const name = document.getElementById('bgstats-collection-name').value.trim();
+        if (!name) { feedback.textContent = 'Bitte einen Sammlungsnamen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+
+        // Letzten Stand der EAN-Felder einsammeln (auch ohne Enter-Bestätigung).
+        document.querySelectorAll('.bgstats-ean-input').forEach(inp => {
+            const idx = parseInt(inp.dataset.index, 10);
+            bgstatsUnmatched[idx].ean = inp.value.trim();
+        });
+
+        feedback.textContent = 'Importiere…';
+        feedback.style.color = 'var(--cl-muted)';
+        try {
+            const colRef = await addDoc(collection(db, 'collections'), {
+                name, description: document.getElementById('bgstats-collection-desc').value.trim() || null, createdAt: serverTimestamp()
+            });
+            const colId = colRef.id;
+
+            let imported = 0, skipped = 0, newGamesCreated = 0;
+
+            for (const m of bgstatsMatched) {
+                await setDoc(doc(db, 'collectionItems', `${colId}_${m.ean}`), {
+                    collectionId: colId, ean: m.ean, gameName: m.gameName, quantity: m.quantity, addedAt: serverTimestamp()
+                });
+                imported++;
+            }
+
+            for (const u of bgstatsUnmatched) {
+                if (!u.ean) { skipped++; continue; }
+                const existingGame = allGames.find(g => g.id === u.ean);
+                if (!existingGame) {
+                    await setDoc(doc(db, 'games', u.ean), {
+                        ean: u.ean, name: u.name, titleSource: 'bgstats-import',
+                        bggId: u.bggId, bggImageUrl: u.bggImageUrl,
+                        minPlayers: u.minPlayers, maxPlayers: u.maxPlayers, minAge: u.minAge, Duration: u.duration,
+                        rating: null, complexity: null, category: null, description: null,
+                        enrichStatus: 'pending', addedAt: serverTimestamp()
+                    });
+                    newGamesCreated++;
+                }
+                const gameName = existingGame ? (existingGame.name || u.name) : u.name;
+                await setDoc(doc(db, 'collectionItems', `${colId}_${u.ean}`), {
+                    collectionId: colId, ean: u.ean, gameName, quantity: u.quantity, addedAt: serverTimestamp()
+                });
+                imported++;
+            }
+
+            feedback.textContent = `Fertig! ${imported} Spiel(e) in "${name}" importiert${newGamesCreated > 0 ? ` (${newGamesCreated} davon neu in der Datenbank angelegt — Titel stammt von BGStats, BGG-Anreicherung fehlt noch)` : ''}${skipped > 0 ? `. ${skipped} Spiel(e) ohne EAN übersprungen.` : '.'}`;
+            feedback.style.color = 'var(--cl-ok)';
+            showToast(`✅ Sammlung "${name}" importiert (${imported} Spiele)`, false, { variant: 'ok', duration: 3000 });
+            setTimeout(() => hideModal(bgstatsModal), 2000);
+        } catch (err) {
+            console.error('BGStats-Import fehlgeschlagen:', err);
+            feedback.textContent = 'Import fehlgeschlagen — bitte erneut versuchen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderCollectionsTab() {
+        const grid = document.getElementById('collections-grid');
+        if (allCollections.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Sammlungen angelegt.</p>'; return; }
+        grid.innerHTML = allCollections.map(c => {
+            const count = allCollectionItems.filter(ci => ci.collectionId === c.id).length;
+            return `
+            <div class="sv-entity-card">
+                <div class="sv-entity-card__head">
+                    <div>
+                        <p class="sv-entity-card__title">${escapeHTML(c.name)}</p>
+                        <p class="sv-entity-card__meta">${count} Spiel(e)${c.description ? ' · ' + escapeHTML(c.description) : ''}</p>
+                    </div>
+                </div>
+                <div class="sv-entity-card__actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-open-collection-btn" data-id="${c.id}">Öffnen</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('collections-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-open-collection-btn');
+        if (btn) openCollectionModal(btn.dataset.id);
+    });
+
+    let currentCollectionId = null;
+    const collectionModalOverlay = document.getElementById('collection-modal-overlay');
+    function openCollectionModal(id) {
+        currentCollectionId = id;
+        const c = allCollections.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('collection-edit-name').value = c.name || '';
+        document.getElementById('collection-edit-desc').value = c.description || '';
+        document.getElementById('collection-add-search').value = '';
+        document.getElementById('collection-add-results').classList.add('cl-hidden');
+        const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
+        document.getElementById('collection-public-link').value = basePath + `sammlung-uebersicht.html?collection=${id}`;
+        renderCollectionItemsTable();
+        showModal(collectionModalOverlay);
+    }
+    function closeCollectionModal() { hideModal(collectionModalOverlay); currentCollectionId = null; }
+    document.getElementById('collection-modal-close').addEventListener('click', closeCollectionModal);
+    document.getElementById('collection-modal-close2').addEventListener('click', closeCollectionModal);
+    collectionModalOverlay.addEventListener('click', (e) => { if (e.target === collectionModalOverlay) closeCollectionModal(); });
+    document.getElementById('collection-copy-link-btn').addEventListener('click', () => {
+        const input = document.getElementById('collection-public-link');
+        input.select();
+        navigator.clipboard?.writeText(input.value).then(
+            () => showToast('Link kopiert!', false, { variant: 'ok', duration: 1800 }),
+            () => showToast('Kopieren fehlgeschlagen — bitte manuell markieren.', true)
+        );
+    });
+
+    document.getElementById('collection-save-meta-btn').addEventListener('click', async () => {
+        if (!currentCollectionId) return;
+        const name = document.getElementById('collection-edit-name').value.trim();
+        const description = document.getElementById('collection-edit-desc').value.trim() || null;
+        if (!name) { showToast('Bitte einen Namen eingeben.', true); return; }
+        try {
+            await updateDoc(doc(db, 'collections', currentCollectionId), { name, description });
+            showToast('Sammlung aktualisiert.');
+        } catch (err) { console.error(err); showToast('Speichern fehlgeschlagen.', true); }
+    });
+
+    function renderCollectionItemsTable() {
+        const body = document.getElementById('collection-items-body');
+        const empty = document.getElementById('collection-items-empty');
+        const items = allCollectionItems.filter(ci => ci.collectionId === currentCollectionId);
+        empty.classList.toggle('cl-hidden', items.length > 0);
+        body.innerHTML = items.map(ci => {
+            const g = allGames.find(g => g.id === ci.ean);
+            const qty = ci.quantity ?? 1;
+            return `<tr>
+                <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(g?.name || ci.gameName || ci.ean)}</td>
+                <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:.4rem;">
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-minus" data-id="${ci.id}" ${qty <= 0 ? 'disabled' : ''}>−</button>
+                        <span>${qty}</span>
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-ci-qty-plus" data-id="${ci.id}">+</button>
+                    </div>
+                </td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-collection-item" data-id="${ci.id}">Entfernen</button></td>
+            </tr>`;
+        }).join('');
+    }
+    document.getElementById('collection-items-body').addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.sv-remove-collection-item');
+        if (removeBtn) {
+            deleteDoc(doc(db, 'collectionItems', removeBtn.dataset.id)).catch(err => { console.error(err); showToast('Entfernen fehlgeschlagen.', true); });
+            return;
+        }
+        const plusBtn = e.target.closest('.sv-ci-qty-plus');
+        if (plusBtn) {
+            updateDoc(doc(db, 'collectionItems', plusBtn.dataset.id), { quantity: increment(1) }).catch(err => { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); });
+            return;
+        }
+        const minusBtn = e.target.closest('.sv-ci-qty-minus');
+        if (minusBtn) {
+            const ci = allCollectionItems.find(x => x.id === minusBtn.dataset.id);
+            if (!ci || (ci.quantity ?? 1) <= 0) return; // nie unter 0
+            minusBtn.disabled = true; // sofort sperren, verhindert Doppelklick vor dem Live-Update
+            updateDoc(doc(db, 'collectionItems', minusBtn.dataset.id), { quantity: increment(-1) }).catch(err => { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); });
+            return;
+        }
+    });
+
+    const collectionAddSearch = document.getElementById('collection-add-search');
+    const collectionAddResults = document.getElementById('collection-add-results');
+    collectionAddSearch.addEventListener('input', () => {
+        const term = collectionAddSearch.value.trim().toLowerCase();
+        if (!term) { collectionAddResults.classList.add('cl-hidden'); return; }
+        const already = new Set(allCollectionItems.filter(ci => ci.collectionId === currentCollectionId).map(ci => ci.ean));
+        const matches = allGames.filter(g => (g.name || '').toLowerCase().includes(term) || g.id.includes(term)).slice(0, 15);
+        collectionAddResults.innerHTML = matches.length ? matches.map(g => `
+            <div class="sv-manual-result-item" data-ean="${g.id}" data-name="${escapeHTML(g.name || g.id)}">
+                <span>${escapeHTML(g.name || '(ohne Titel)')} <span class="cl-muted" style="font-size:.8rem;">${escapeHTML(g.id)}</span></span>
+                <span class="cl-btn cl-btn--ghost cl-btn--sm">${already.has(g.id) ? '+1 Exemplar' : '+ hinzufügen'}</span>
+            </div>`).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
+        collectionAddResults.classList.remove('cl-hidden');
+    });
+    collectionAddResults.addEventListener('click', async (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item || !currentCollectionId) return;
+        const ean = item.dataset.ean, name = item.dataset.name;
+        const citemId = `${currentCollectionId}_${ean}`;
+        try {
+            if (allCollectionItems.some(ci => ci.id === citemId)) {
+                await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
+            } else {
+                await setDoc(doc(db, 'collectionItems', citemId), { collectionId: currentCollectionId, ean, gameName: name, quantity: 1, addedAt: serverTimestamp() });
+                showToast(`"${name}" zur Sammlung hinzugefügt.`);
+            }
+            collectionAddSearch.value = '';
+            collectionAddResults.classList.add('cl-hidden');
+        } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
+    });
+
+    document.getElementById('delete-collection-btn').addEventListener('click', () => {
+        if (!currentCollectionId) return;
+        const c = allCollections.find(x => x.id === currentCollectionId);
+        showConfirm('Sammlung löschen', `Sammlung "${c?.name}" inkl. aller Zuordnungen wirklich löschen? Die Spiele selbst bleiben in der Datenbank erhalten.`, async () => {
+            try {
+                const items = allCollectionItems.filter(ci => ci.collectionId === currentCollectionId);
+                for (const ci of items) await deleteDoc(doc(db, 'collectionItems', ci.id));
+                await deleteDoc(doc(db, 'collections', currentCollectionId));
+                showToast('Sammlung gelöscht.');
+                closeCollectionModal();
+            } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    // ======================================================
+    // TAB: EVENTS
+    // ======================================================
+    function renderNewEventCollectionCheckboxes() {
+        const wrap = document.getElementById('new-event-collections');
+        wrap.innerHTML = allCollections.map(c => `
+            <label class="sv-checkbox-chip"><input type="checkbox" value="${c.id}"> ${escapeHTML(c.name)}</label>
+        `).join('') || '<p class="cl-muted" style="font-size:.85rem;">Erst eine Sammlung anlegen.</p>';
+    }
+
+    document.getElementById('add-event-btn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-event-name');
+        const dateInput = document.getElementById('new-event-date');
+        const feedback = document.getElementById('event-feedback');
+        const name = nameInput.value.trim();
+        const selectedCollections = Array.from(document.querySelectorAll('#new-event-collections input:checked')).map(cb => cb.value);
+        const loadAll = document.getElementById('new-event-load-all').checked;
+        if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        try {
+            const evRef = await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp() });
+            nameInput.value = ''; dateInput.value = '';
+            document.querySelectorAll('#new-event-collections input:checked').forEach(cb => cb.checked = false);
+            document.getElementById('new-event-load-all').checked = false;
+
+            if (loadAll && selectedCollections.length > 0) {
+                feedback.textContent = `Event "${name}" angelegt. Lade alle Spiele der ausgewählten Sammlung(en)…`;
+                feedback.style.color = 'var(--cl-muted)';
+                const shelfRef = await addDoc(collection(db, 'eventShelves'), { eventId: evRef.id, name: 'Hauptregal', createdAt: serverTimestamp() });
+                const items = allCollectionItems.filter(i => selectedCollections.includes(i.collectionId));
+                let added = 0;
+                for (const item of items) {
+                    const game = allGames.find(g => g.id === item.ean);
+                    const qty = Math.max(1, item.quantity || 1);
+                    try {
+                        const result = await addOrIncrementEventGame(evRef.id, item.ean, shelfRef.id, item.collectionId, game || {}, item.gameName);
+                        if (qty > 1) {
+                            const egId = `${evRef.id}_${item.ean}`;
+                            await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(qty - 1), availableQuantity: increment(qty - 1), lastActivityAt: serverTimestamp() });
+                        }
+                        if (result) added++;
+                    } catch (err) { console.error(err); }
+                }
+                feedback.textContent = `Event "${name}" angelegt, ${added} Spiel(e) im "Hauptregal" bereitgestellt.`;
+                feedback.style.color = 'var(--cl-ok)';
+            } else {
+                feedback.textContent = `Event "${name}" angelegt.`;
+                feedback.style.color = 'var(--cl-ok)';
+            }
+        } catch (err) {
+            console.error('Event anlegen fehlgeschlagen:', err);
+            feedback.textContent = 'Anlegen fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    function renderEventsTab() {
+        const grid = document.getElementById('events-grid');
+        if (allEvents.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Events angelegt.</p>'; return; }
+        grid.innerHTML = '<div class="sv-card-grid">' + allEvents.map(ev => {
+            const count = allEventGames.filter(eg => eg.eventId === ev.id).length;
+            const colNames = (ev.sourceCollectionIds || []).map(id => allCollections.find(c => c.id === id)?.name).filter(Boolean).join(', ');
+            return `
+            <div class="sv-entity-card">
+                <div class="sv-entity-card__head">
+                    <div>
+                        <p class="sv-entity-card__title">${escapeHTML(ev.name)} ${ev.id === activeEventId ? '<span class="qb-bgg-badge">aktiv</span>' : ''}</p>
+                        <p class="sv-entity-card__meta">${ev.date ? escapeHTML(ev.date) + ' · ' : ''}${count} Spiel(e)${colNames ? ' · Aus: ' + escapeHTML(colNames) : ''}</p>
+                    </div>
+                </div>
+                <div class="sv-entity-card__actions">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-open-event-btn" data-id="${ev.id}">Öffnen</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+    // Baut die Optionsliste fürs "Ganze Sammlung laden"-Dropdown: die
+    // verknüpften Sammlungen des Events, plus immer zusätzlich die gesamte
+    // Spieledatenbank als eigene Option — unabhängig davon, ob Sammlungen
+    // verknüpft sind.
+    function buildBulkCollectionOptions(linkedCollections) {
+        const collectionOptions = linkedCollections.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+        return collectionOptions + `<option value="__all__">🗄️ Gesamte Spieledatenbank (alle Spiele)</option>`;
+    }
+
+    document.getElementById('event-save-collections-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const feedback = document.getElementById('event-collections-feedback');
+        const selected = Array.from(document.querySelectorAll('#event-edit-collections input:checked')).map(cb => cb.value);
+        try {
+            await updateDoc(doc(db, 'events', currentEventId), { sourceCollectionIds: selected });
+            feedback.textContent = 'Gespeichert.';
+            feedback.style.color = 'var(--cl-ok)';
+            showToast('✅ Sammlungen aktualisiert', false, { variant: 'ok', duration: 1800 });
+
+            // Lokalen Cache-Eintrag sofort nachziehen, damit alles, was von
+            // sourceCollectionIds abhängt (Bulk-Laden-Dropdown, Kopfzeile),
+            // ohne Schließen/Neuöffnen des Fensters sofort aktuell ist.
+            const ev = allEvents.find(e => e.id === currentEventId);
+            if (ev) ev.sourceCollectionIds = selected;
+            const colNames = selected.map(cid => allCollections.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+            document.getElementById('event-modal-meta').textContent = (ev?.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
+            const bulkColSelect = document.getElementById('event-bulk-collection-select');
+            const linkedCollections = selected.map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
+            bulkColSelect.innerHTML = buildBulkCollectionOptions(linkedCollections);
+            bulkColSelect.disabled = false;
+        } catch (err) {
+            console.error('Sammlungen speichern fehlgeschlagen:', err);
+            feedback.textContent = 'Speichern fehlgeschlagen.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
+
+    document.getElementById('events-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-open-event-btn');
+        if (btn) openEventModal(btn.dataset.id);
+    });
+
+    let currentEventId = null;
+    const eventModalOverlay = document.getElementById('event-modal-overlay');
+    function openEventModal(id) {
+        currentEventId = id;
+        const ev = allEvents.find(e => e.id === id);
+        if (!ev) return;
+        document.getElementById('event-modal-title').textContent = ev.name;
+        const colNames = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+        document.getElementById('event-modal-meta').textContent = (ev.date ? ev.date + ' · ' : '') + (colNames ? 'Sammlungen: ' + colNames : 'Keine Sammlungen ausgewählt');
+        const editColWrap = document.getElementById('event-edit-collections');
+        const currentSourceIds = ev.sourceCollectionIds || [];
+        editColWrap.innerHTML = allCollections.length > 0
+            ? allCollections.map(c => `
+                <label class="sv-checkbox-chip">
+                    <input type="checkbox" value="${c.id}" ${currentSourceIds.includes(c.id) ? 'checked' : ''}>
+                    ${escapeHTML(c.name)}
+                </label>`).join('')
+            : '<p class="cl-muted" style="font-size:.85rem;">Noch keine Sammlungen vorhanden.</p>';
+        document.getElementById('event-collections-feedback').textContent = '';
+        document.getElementById('event-add-search').value = '';
+        document.getElementById('event-add-results').classList.add('cl-hidden');
+        document.getElementById('event-quick-scan-input').value = '';
+        eventQuickScanCount = 0;
+        document.getElementById('event-quick-scan-counter').textContent = '';
+        document.getElementById('event-bulk-load-status').textContent = '';
+        const bulkColSelect = document.getElementById('event-bulk-collection-select');
+        const linkedCollections = (ev.sourceCollectionIds || []).map(cid => allCollections.find(c => c.id === cid)).filter(Boolean);
+        bulkColSelect.innerHTML = buildBulkCollectionOptions(linkedCollections);
+        bulkColSelect.disabled = false;
+        const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
+        const embedUrl = basePath + `index.html?event=${id}`;
+        document.getElementById('event-embed-code').value = `<iframe src="${embedUrl}" style="width:100%; max-width:900px; height:640px; border:0;" loading="lazy"></iframe>`;
+        const deskUrl = basePath + `spieleausleihe-tresen.html?event=${id}`;
+        document.getElementById('event-desk-link').value = deskUrl;
+        const mode = ev.returnMessageMode === 'timer' ? 'timer' : 'confirm';
+        document.getElementById('return-msg-confirm').checked = mode === 'confirm';
+        document.getElementById('return-msg-timer').checked = mode === 'timer';
+        document.getElementById('return-msg-seconds').value = ev.returnMessageSeconds ?? 5;
+        renderEventShelfGrid();
+        renderEventGamesTable();
+        updateSetActiveEventBtnLabel();
+        showModal(eventModalOverlay);
+    }
+    function closeEventModal() { hideModal(eventModalOverlay); currentEventId = null; }
+    document.getElementById('event-modal-close').addEventListener('click', closeEventModal);
+    document.getElementById('event-modal-close2').addEventListener('click', closeEventModal);
+    eventModalOverlay.addEventListener('click', (e) => { if (e.target === eventModalOverlay) closeEventModal(); });
+
+    document.getElementById('copy-embed-btn').addEventListener('click', () => {
+        const ta = document.getElementById('event-embed-code');
+        ta.select();
+        navigator.clipboard?.writeText(ta.value).then(() => showToast('Code kopiert.')).catch(() => {});
+    });
+    document.getElementById('copy-desk-link-btn').addEventListener('click', () => {
+        const ta = document.getElementById('event-desk-link');
+        ta.select();
+        navigator.clipboard?.writeText(ta.value).then(() => showToast('Link kopiert.')).catch(() => {});
+    });
+    document.getElementById('open-desk-link-btn').addEventListener('click', () => {
+        window.open(document.getElementById('event-desk-link').value, '_blank');
+    });
+
+    async function saveReturnMessageSettings() {
+        if (!currentEventId) return;
+        const mode = document.getElementById('return-msg-timer').checked ? 'timer' : 'confirm';
+        const seconds = Math.max(1, Math.min(60, parseInt(document.getElementById('return-msg-seconds').value) || 5));
+        try { await updateDoc(doc(db, 'events', currentEventId), { returnMessageMode: mode, returnMessageSeconds: seconds }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); }
+    }
+    document.getElementById('return-msg-confirm').addEventListener('change', saveReturnMessageSettings);
+    document.getElementById('return-msg-timer').addEventListener('change', saveReturnMessageSettings);
+    document.getElementById('return-msg-seconds').addEventListener('change', saveReturnMessageSettings);
+
+    function updateSetActiveEventBtnLabel() {
+        const btn = document.getElementById('set-active-event-btn');
+        if (!currentEventId) return;
+        btn.textContent = currentEventId === activeEventId ? 'Deaktivieren (aktuell aktiv)' : 'Als aktiv setzen';
+    }
+    document.getElementById('set-active-event-btn').addEventListener('click', () => {
+        if (!currentEventId) return;
+        if (currentEventId === activeEventId) {
+            setActiveEvent('');
+            showToast('Aktives Event deaktiviert.');
+        } else {
+            setActiveEvent(currentEventId);
+            showToast('Aktives Event gesetzt.');
+        }
+    });
+
+    document.getElementById('delete-event-btn').addEventListener('click', () => {
+        if (!currentEventId) return;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        showConfirm('Event löschen', `Event "${ev?.name}" inkl. Regale und Spielzuordnungen wirklich löschen? Ausleihstatistiken (bereits erfasste Ausleihen) bleiben erhalten.`, async () => {
+            try {
+                const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+                for (const s of shelves) await deleteDoc(doc(db, 'eventShelves', s.id));
+                const games = allEventGames.filter(g => g.eventId === currentEventId);
+                for (const g of games) await deleteDoc(doc(db, 'eventGames', g.id));
+                await deleteDoc(doc(db, 'events', currentEventId));
+                if (activeEventId === currentEventId) { activeEventId = ''; localStorage.removeItem('sv_active_event'); }
+                showToast('Event gelöscht.');
+                closeEventModal();
+            } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    function renderEventShelfGrid() {
+        const grid = document.getElementById('event-shelf-grid');
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        const quickSelect = document.getElementById('event-quick-shelf-select');
+        const bulkSelect = document.getElementById('event-bulk-shelf-select');
+        const prevQuick = quickSelect.value;
+        const prevBulk = bulkSelect.value;
+        if (shelves.length === 0) {
+            grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>';
+            quickSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
+            quickSelect.disabled = true;
+            bulkSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
+            bulkSelect.disabled = true;
+            return;
+        }
+        grid.innerHTML = shelves.map(s => {
+            const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === s.id).length;
+            return `<div class="sv-shelf-card">
+                <div><div style="font-weight:600;">${escapeHTML(s.name)}</div><div class="cl-muted" style="font-size:.8rem;">${count} Spiel(e)</div></div>
+                <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
+            </div>`;
+        }).join('');
+        quickSelect.disabled = false;
+        quickSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...quickSelect.options].some(o => o.value === prevQuick)) quickSelect.value = prevQuick;
+        bulkSelect.disabled = false;
+        bulkSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...bulkSelect.options].some(o => o.value === prevBulk)) bulkSelect.value = prevBulk;
+    }
+    document.getElementById('add-event-shelf-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const input = document.getElementById('new-event-shelf-name');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+            await addDoc(collection(db, 'eventShelves'), { eventId: currentEventId, name, createdAt: serverTimestamp() });
+            input.value = '';
+        } catch (err) { console.error(err); showToast('Regal anlegen fehlgeschlagen.', true); }
+    });
+    document.getElementById('event-shelf-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-delete-event-shelf');
+        if (!btn) return;
+        const count = parseInt(btn.dataset.count);
+        if (count > 0) { showToast(`Regal "${btn.dataset.name}" enthält noch ${count} Spiel(e).`, true); return; }
+        showConfirm('Regal löschen', `Regal "${btn.dataset.name}" wirklich löschen?`, async () => {
+            try { await deleteDoc(doc(db, 'eventShelves', btn.dataset.id)); } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+        });
+    });
+
+    document.getElementById('event-bulk-load-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const colId = document.getElementById('event-bulk-collection-select').value;
+        const shelfId = document.getElementById('event-bulk-shelf-select').value;
+        const statusEl = document.getElementById('event-bulk-load-status');
+        if (!colId) { statusEl.textContent = 'Bitte eine Sammlung auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        if (!shelfId) { statusEl.textContent = 'Bitte zuerst ein Regal anlegen und auswählen.'; statusEl.style.color = 'var(--cl-err)'; return; }
+
+        const isFullDb = colId === '__all__';
+        // Bei der Gesamtdatenbank gibt's keine Sammlungs-Stückzahl — jedes
+        // Spiel wird mit 1 Exemplar angelegt (gilt nicht für die Menge, mit
+        // der es evtl. schon in einer echten Sammlung erfasst ist).
+        const items = isFullDb
+            ? allGames.map(g => ({ ean: g.id, gameName: g.name || g.id, collectionId: null, quantity: 1 }))
+            : allCollectionItems.filter(i => i.collectionId === colId);
+        if (items.length === 0) { statusEl.textContent = isFullDb ? 'Die Spieledatenbank ist leer.' : 'Diese Sammlung enthält keine Spiele.'; statusEl.style.color = 'var(--cl-err)'; return; }
+        if (isFullDb && items.length > 30 && !confirm(`Wirklich alle ${items.length} Spiele der gesamten Datenbank in dieses Event laden?`)) { return; }
+        statusEl.textContent = `Lade ${items.length} Spiel(e)…`;
+        statusEl.style.color = 'var(--cl-muted)';
+        let added = 0, incremented = 0, failed = 0;
+        for (const item of items) {
+            const game = allGames.find(g => g.id === item.ean);
+            const qty = Math.max(1, item.quantity || 1);
+            try {
+                const result = await addOrIncrementEventGame(currentEventId, item.ean, shelfId, item.collectionId, game || {}, item.gameName);
+                if (result === 'added') added++; else if (result === 'incremented') incremented++;
+                if (qty > 1) {
+                    const egId = `${currentEventId}_${item.ean}`;
+                    await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(qty - 1), availableQuantity: increment(qty - 1), lastActivityAt: serverTimestamp() });
+                }
+            } catch (err) { console.error(err); failed++; }
+        }
+        statusEl.textContent = `Fertig: ${added} neu eingeräumt, ${incremented} in Stückzahl erhöht${failed > 0 ? `, ${failed} fehlgeschlagen` : ''}.`;
+        statusEl.style.color = 'var(--cl-ok)';
+        showToast(`✅ Sammlung geladen: ${added + incremented} Spiel(e) verarbeitet`, false, { variant: 'ok', duration: 2500 });
+    });
+
+    // Fügt ein Spiel neu zum Event hinzu (Menge 1) oder erhöht die Stückzahl
+    // um 1, falls es in diesem Event/Regal bereits vorhanden ist — genutzt
+    // sowohl hier als auch in der Schnellerfassung.
+    async function addOrIncrementEventGame(eventId, ean, shelfId, collectionId, gameMeta, name) {
+        const egId = `${eventId}_${ean}`;
+        const existing = allEventGames.find(g => g.id === egId);
+        if (existing) {
+            await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
+            return 'incremented';
+        }
+        await setDoc(doc(db, 'eventGames', egId), {
+            eventId, ean, collectionId: collectionId || null, gameName: name || gameMeta?.name || ean,
+            bggId: gameMeta?.bggId ?? null, bggImageUrl: gameMeta?.bggImageUrl ?? null, minPlayers: gameMeta?.minPlayers ?? null, maxPlayers: gameMeta?.maxPlayers ?? null,
+            minAge: gameMeta?.minAge ?? null, Duration: gameMeta?.Duration ?? null, rating: gameMeta?.rating ?? null,
+            complexity: gameMeta?.complexity ?? null, category: gameMeta?.category ?? null, description: gameMeta?.description ?? null,
+            shelfId: shelfId || null, quantity: 1, availableQuantity: 1, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
+        });
+        return 'added';
+    }
+
+    const eventAddSearch = document.getElementById('event-add-search');
+    const eventAddResults = document.getElementById('event-add-results');
+    eventAddSearch.addEventListener('input', () => {
+        const term = eventAddSearch.value.trim().toLowerCase();
+        eventAddResults.classList.toggle('cl-hidden', !term);
+        if (!term || !currentEventId) return;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        const sourceIds = ev?.sourceCollectionIds || [];
+
+        // 1) Treffer aus den verknüpften Sammlungen (mit Sammlungsname, wie bisher).
+        // Name kommt bevorzugt aus der zentralen Spieledatenbank (aktuell),
+        // die gespeicherte ci.gameName ist nur eine Momentaufnahme vom
+        // Scan-Zeitpunkt und kann veraltet sein (z.B. noch die rohe EAN).
+        const fromCollections = allCollectionItems.filter(ci => {
+            if (!sourceIds.includes(ci.collectionId)) return false;
+            const liveName = allGames.find(g => g.id === ci.ean)?.name || ci.gameName || '';
+            return liveName.toLowerCase().includes(term) || ci.ean.includes(term);
+        });
+        const eansAlreadyShown = new Set(fromCollections.map(ci => ci.ean));
+
+        // 2) Zusätzlich direkt aus der Gesamtdatenbank — wichtig für Events
+        // ganz ohne verknüpfte Sammlung, oder um gezielt ein einzelnes Spiel
+        // zu ergänzen, das in keiner der verknüpften Sammlungen steckt.
+        const fromDatabase = allGames.filter(g => !eansAlreadyShown.has(g.id) &&
+            ((g.name || '').toLowerCase().includes(term) || g.id.includes(term)));
+
+        const rows = [
+            ...fromCollections.slice(0, 15).map(ci => {
+                const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
+                const already = allEventGames.some(g => g.eventId === currentEventId && g.ean === ci.ean);
+                const liveName = allGames.find(g => g.id === ci.ean)?.name || ci.gameName || ci.ean;
+                return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(liveName)}">
+                    <span>${escapeHTML(liveName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                </div>`;
+            }),
+            ...fromDatabase.slice(0, 15).map(g => {
+                const already = allEventGames.some(eg => eg.eventId === currentEventId && eg.ean === g.id);
+                return `<div class="sv-manual-result-item" data-ean="${g.id}" data-collection="" data-name="${escapeHTML(g.name || g.id)}">
+                    <span>${escapeHTML(g.name || g.id)} <span class="cl-muted" style="font-size:.8rem;">(aus Gesamtdatenbank, keine Sammlung)</span></span>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                </div>`;
+            })
+        ];
+        eventAddResults.innerHTML = rows.length ? rows.join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
+    });
+    eventAddResults.addEventListener('click', async (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item || !currentEventId) return;
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        if (shelves.length === 0) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
+        const ean = item.dataset.ean, collectionId = item.dataset.collection || null, name = item.dataset.name;
+        const g = allGames.find(g => g.id === ean);
+        try {
+            const existing = allEventGames.find(eg => eg.eventId === currentEventId && eg.ean === ean);
+            const result = await addOrIncrementEventGame(currentEventId, ean, existing ? existing.shelfId : shelves[0].id, collectionId, g, name);
+            eventAddSearch.value = '';
+            eventAddResults.classList.add('cl-hidden');
+            showToast(result === 'incremented' ? `Ein weiteres Exemplar von "${name}" ergänzt.` : `"${name}" zum Event hinzugefügt.`);
+        } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
+    });
+
+    function renderEventGamesTable() {
+        const body = document.getElementById('event-games-body');
+        const empty = document.getElementById('event-games-empty');
+        const games = allEventGames.filter(g => g.eventId === currentEventId);
+        empty.classList.toggle('cl-hidden', games.length > 0);
+        const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
+        body.innerHTML = games.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            const canRemove = avail >= qty;
+            return `<tr>
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${escapeHTML(liveGameName(g))}</td>
+                <td>
+                    <select class="cl-select sv-event-game-shelf-select" data-id="${g.id}" style="min-width:100px;">
+                        ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:.4rem;">
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-minus" data-id="${g.id}" ${avail <= 0 ? 'disabled' : ''}>−</button>
+                        <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${qty} verfügbar</span>
+                        <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-plus" data-id="${g.id}">+</button>
+                    </div>
+                </td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-event-game" data-id="${g.id}" ${canRemove ? '' : 'disabled'}>Entfernen</button></td>
+            </tr>`;
+        }).join('');
+    }
+    document.getElementById('event-games-body').addEventListener('click', async (e) => {
+        const plusBtn = e.target.closest('.sv-eg-qty-plus');
+        const minusBtn = e.target.closest('.sv-eg-qty-minus');
+        if (plusBtn) {
+            try { await updateDoc(doc(db, 'eventGames', plusBtn.dataset.id), { quantity: increment(1), availableQuantity: increment(1) }); }
+            catch (err) { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); }
+            return;
+        }
+        if (minusBtn) {
+            const eg = allEventGames.find(x => x.id === minusBtn.dataset.id);
+            if (!eg || (eg.availableQuantity ?? 1) <= 0) return; // nie unter 0, und nie ein verliehenes Exemplar "wegzaubern"
+            minusBtn.disabled = true; // sofort sperren, verhindert Doppelklick vor dem Live-Update
+            try { await updateDoc(doc(db, 'eventGames', minusBtn.dataset.id), { quantity: increment(-1), availableQuantity: increment(-1) }); }
+            catch (err) { console.error(err); showToast('Menge ändern fehlgeschlagen.', true); }
+            return;
+        }
+    });
+    document.getElementById('event-games-body').addEventListener('change', async (e) => {
+        const sel = e.target.closest('.sv-event-game-shelf-select');
+        if (!sel) return;
+        try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value }); }
+        catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
+    });
+    document.getElementById('event-games-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-remove-event-game');
+        if (!btn || btn.disabled) return;
+        showConfirm('Spiel entfernen', 'Dieses Spiel aus dem Event entfernen?', async () => {
+            try { await deleteDoc(doc(db, 'eventGames', btn.dataset.id)); }
+            catch (err) { console.error(err); showToast('Entfernen fehlgeschlagen.', true); }
+        });
+    });
+
+    // --- Schnellscan direkt im Event-Fenster: Regal wählen, dann scannen,
+    // ohne jede einzelne Rückfrage. Nutzt dieselbe Logik wie der globale
+    // Schnellerfassungs-Tab, aber fest auf DIESES Event bezogen (unabhängig
+    // vom global gewählten "aktiven Event").
+    let eventQuickScanCount = 0;
+    const eventQuickScanInput = document.getElementById('event-quick-scan-input');
+    eventQuickScanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = eventQuickScanInput.value.trim();
+            eventQuickScanInput.value = '';
+            if (value) handleEventQuickScan(value);
+        }
+    });
+
+    async function handleEventQuickScan(ean) {
+        if (!currentEventId) return;
+        const shelfId = document.getElementById('event-quick-shelf-select').value;
+        if (!shelfId) { showToast('Bitte zuerst ein Regal für dieses Event anlegen und wählen.', true); return; }
+
+        let game = allGames.find(g => g.id === ean);
+        let isNewGame = false;
+        if (!game) {
+            const refTitle = eanReference[ean] || null;
+            try {
+                await setDoc(doc(db, 'games', ean), { ean, name: refTitle, titleSource: refTitle ? 'gtnm' : null, enrichStatus: 'pending', addedAt: serverTimestamp() });
+            } catch (err) { console.error(err); showToast(`${ean}: Fehler beim Anlegen.`, true); return; }
+            game = { id: ean, name: refTitle, bggImageUrl: null, minPlayers: null, maxPlayers: null, minAge: null, Duration: null, rating: null, complexity: null, category: null };
+            isNewGame = true;
+            if (refTitle) queueBackgroundEnrich(ean, refTitle);
+        }
+        const displayName = game.name || `(unbekannt: ${ean})`;
+
+        const ev = allEvents.find(e => e.id === currentEventId);
+        const sourceIds = ev?.sourceCollectionIds || [];
+        for (const cid of sourceIds) {
+            const citemId = `${cid}_${ean}`;
+            try {
+                if (allCollectionItems.some(ci => ci.id === citemId)) {
+                    await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
+                } else {
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
+                }
+            } catch (err) { console.error(err); }
         }
 
-        const bggLink = document.getElementById('ov-modal-bgg-link');
-        if (g.bggId) { bggLink.href = `https://boardgamegeek.com/boardgame/${g.bggId}`; bggLink.style.display = ''; }
-        else { bggLink.style.display = 'none'; }
+        let eventResult = null;
+        try {
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name);
+        } catch (err) { console.error(err); }
 
-        modalOverlay.classList.add('is-visible');
+        eventQuickScanCount++;
+        const counterEl = document.getElementById('event-quick-scan-counter');
+        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
+        counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
+        eventQuickScanInput.focus();
     }
-    function closeDetail() { modalOverlay.classList.remove('is-visible'); }
-    document.getElementById('ov-modal-close').addEventListener('click', closeDetail);
-    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeDetail(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+
+    // ======================================================
+    // TAB: AUSLEIHE / RÜCKGABE (scoped auf aktives Event)
+    // ======================================================
+    const scanInput = document.getElementById('scan-input');
+    const scanResult = document.getElementById('scan-result');
+    const manualSearchInput = document.getElementById('manual-search-input');
+    const manualResults = document.getElementById('manual-search-results');
+    const borrowedTableBody = document.getElementById('borrowed-table-body');
+    const borrowedEmpty = document.getElementById('borrowed-empty');
+
+    // Modus (Ausleihen/Rückgabe) statt automatischem Raten — bei Mehrfach-
+    // Exemplaren ist "verfügbar > 0" allein nicht eindeutig, ob der nächste
+    // Scan eine weitere Ausleihe oder eine Rückgabe sein soll.
+    let ausleiheMode = localStorage.getItem('sv_ausleihe_mode') || 'borrow';
+    function updateAusleiheModeButtons() {
+        document.getElementById('ausleihe-mode-borrow-btn').classList.toggle('is-active-borrow', ausleiheMode === 'borrow');
+        document.getElementById('ausleihe-mode-return-btn').classList.toggle('is-active-return', ausleiheMode === 'return');
+    }
+    document.getElementById('ausleihe-mode-borrow-btn').addEventListener('click', () => {
+        ausleiheMode = 'borrow'; localStorage.setItem('sv_ausleihe_mode', ausleiheMode); updateAusleiheModeButtons(); scanInput.focus();
+    });
+    document.getElementById('ausleihe-mode-return-btn').addEventListener('click', () => {
+        ausleiheMode = 'return'; localStorage.setItem('sv_ausleihe_mode', ausleiheMode); updateAusleiheModeButtons(); scanInput.focus();
+    });
+    updateAusleiheModeButtons();
+
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = scanInput.value.trim();
+            scanInput.value = '';
+            if (value) handleScan(value);
+        }
+    });
+
+    function shelfNameFor(eventId, shelfId) {
+        const s = allEventShelves.find(s => s.eventId === eventId && s.id === shelfId);
+        return s ? s.name : '—';
+    }
+    // Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank vor der
+    // ggf. veralteten Momentaufnahme im Event-Eintrag (eg.gameName, die beim
+    // Scannen entstand, bevor der Titel bekannt war).
+    function liveGameName(eg) {
+        return allGames.find(g => g.id === eg.ean)?.name || eg.gameName || eg.ean;
+    }
+
+    async function handleScan(ean) {
+        if (!activeEventId) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `<div class="sv-scan-result__body"><p class="sv-scan-result__title">Kein aktives Event gewählt</p><p class="cl-muted" style="margin:0;">Bitte oben zuerst ein aktives Event auswählen.</p></div>`;
+            return;
+        }
+        const eg = allEventGames.find(g => g.eventId === activeEventId && g.ean === ean);
+        if (eg) { await processScanAction(eg); return; }
+
+        const masterGame = allGames.find(g => g.id === ean);
+        if (masterGame) {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">${escapeHTML(masterGame.name || ean)}</p>
+                    <p class="cl-muted" style="margin:0 0 .5rem 0;">Ist in der Datenbank, aber noch nicht diesem Event zugeordnet.</p>
+                    <button type="button" class="cl-btn cl-btn--signal cl-btn--sm" id="scan-add-to-event-btn">Zum Event hinzufügen</button>
+                </div>`;
+            document.getElementById('scan-add-to-event-btn').addEventListener('click', () => {
+                switchToTab('events');
+                openEventModal(activeEventId);
+                document.getElementById('event-add-search').value = masterGame.name || ean;
+                document.getElementById('event-add-search').dispatchEvent(new Event('input'));
+            });
+        } else {
+            scanResult.className = 'sv-scan-result is-visible sv-result--unknown';
+            scanResult.innerHTML = `
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">Unbekannte EAN: ${escapeHTML(ean)}</p>
+                    <p class="cl-muted" style="margin:0 0 .5rem 0;">Dieses Spiel ist noch nicht in der Datenbank.</p>
+                    <button type="button" class="cl-btn cl-btn--signal cl-btn--sm" id="scan-add-new-btn">Jetzt in Datenbank anlegen</button>
+                </div>`;
+            document.getElementById('scan-add-new-btn').addEventListener('click', () => {
+                switchToTab('datenbank');
+                openGameModal(null, ean);
+            });
+        }
+        scanInput.focus();
+    }
+
+    // Der Modus wird nur befragt, wenn es wirklich mehrdeutig ist (manche
+    // Exemplare verfügbar UND manche draußen). In jedem anderen Fall — nur
+    // 1 Exemplar, alle verfügbar, oder alle draußen — gibt es ohnehin nur
+    // eine sinnvolle Aktion, die dann automatisch ausgeführt wird.
+    function resolveScanAction(eg) {
+        const qty = eg.quantity ?? 1, avail = eg.availableQuantity ?? qty;
+        if (avail >= qty) return 'borrow';
+        if (avail <= 0) return 'return';
+        return ausleiheMode;
+    }
+
+    async function processScanAction(eg) {
+        const action = resolveScanAction(eg);
+        if (action === 'borrow') await borrowOne(eg); else await returnOne(eg);
+        scanInput.focus();
+    }
+
+
+    async function borrowOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        const ev = allEvents.find(e => e.id === eg.eventId);
+        try {
+            await addDoc(collection(db, 'loans'), {
+                ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: ev ? ev.name : '',
+                shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+            });
+            await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
+            const restLeft = (eg.availableQuantity ?? 1) - 1;
+            scanResult.className = 'sv-scan-result is-visible sv-result--out';
+            scanResult.innerHTML = `
+                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} ausgeliehen 📖</p>
+                    <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
+                </div>`;
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
+        } catch (err) { console.error('Ausleih-Fehler:', err); showToast('Ausleihe fehlgeschlagen.', true); }
+    }
+
+    async function returnOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        try {
+            const q = query(collection(db, 'loans'), where('eventId', '==', eg.eventId), where('ean', '==', eg.ean), where('returnedAt', '==', null));
+            const snap = await getDocs(q);
+            if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
+            await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
+            scanResult.className = 'sv-scan-result is-visible sv-result--in';
+            scanResult.innerHTML = `
+                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                <div class="sv-scan-result__body">
+                    <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} zurückgelegt ✅</p>
+                    <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
+                </div>`;
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`);
+        } catch (err) { console.error('Rückgabe-Fehler:', err); showToast('Rückgabe fehlgeschlagen.', true); }
+    }
+
+    manualSearchInput.addEventListener('input', () => {
+        const term = manualSearchInput.value.trim().toLowerCase();
+        if (!term || !activeEventId) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
+        const matches = allEventGames.filter(g => g.eventId === activeEventId && liveGameName(g).toLowerCase().includes(term)).slice(0, 15);
+        manualResults.innerHTML = matches.length ? matches.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            return `<div class="sv-manual-result-item" data-id="${g.id}">
+                <span>${escapeHTML(liveGameName(g))} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfNameFor(g.eventId, g.shelfId))})</span></span>
+                <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${qty} verfügbar</span>
+            </div>`;
+        }).join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
+        manualResults.classList.remove('cl-hidden');
+    });
+    manualResults.addEventListener('click', (e) => {
+        const item = e.target.closest('.sv-manual-result-item');
+        if (!item) return;
+        const eg = allEventGames.find(g => g.id === item.dataset.id);
+        if (eg) { processScanAction(eg); manualSearchInput.value = ''; manualResults.classList.add('cl-hidden'); }
+    });
+
+    function renderAusleiheTab() {
+        const borrowed = allEventGames.filter(g => g.eventId === activeEventId && (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1))
+            .sort((a, b) => (b.lastActivityAt?.seconds || 0) - (a.lastActivityAt?.seconds || 0));
+        borrowedEmpty.classList.toggle('cl-hidden', borrowed.length > 0);
+        borrowedTableBody.innerHTML = borrowed.map(g => {
+            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
+            return `<tr>
+                <td>${escapeHTML(liveGameName(g))}${qty > 1 ? ` <span class="cl-muted" style="font-size:.8rem;">(${out} von ${qty} draußen)</span>` : ''}</td>
+                <td>${escapeHTML(shelfNameFor(g.eventId, g.shelfId))}</td>
+                <td>${g.lastActivityAt?.seconds ? new Date(g.lastActivityAt.seconds * 1000).toLocaleString('de-AT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
+                <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-return-btn" data-id="${g.id}">1 zurückgeben</button></td>
+            </tr>`;
+        }).join('');
+    }
+    borrowedTableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sv-return-btn');
+        if (!btn) return;
+        const eg = allEventGames.find(g => g.id === btn.dataset.id);
+        if (eg) returnOne(eg);
+    });
+
+    // ======================================================
+    // TAB: STATISTIK
+    // ======================================================
+    document.getElementById('stats-event-select').addEventListener('change', renderStats);
+    document.getElementById('stats-chart-bucket-select').addEventListener('change', renderStatsChart);
+    document.getElementById('stats-chart-toggle-btn').addEventListener('click', () => {
+        const wrap = document.getElementById('stats-chart-wrap');
+        const nowHidden = wrap.classList.toggle('cl-hidden');
+        document.getElementById('stats-chart-toggle-btn').textContent = nowHidden ? '📈 Diagramm anzeigen' : '📈 Diagramm verbergen';
+        if (!nowHidden) renderStatsChart();
+    });
+    document.getElementById('stats-csv-export-btn').addEventListener('click', exportStatsCsv);
+
+    let lastStatsLoans = [];
+    let lastStatsEventName = '';
+
+    function shelfNameGlobal(shelfId) {
+        const s = allEventShelves.find(s => s.id === shelfId);
+        return s ? s.name : '—';
+    }
+    function formatDateTimeParts(ts) {
+        if (!ts?.seconds) return { date: '', time: '' };
+        const d = new Date(ts.seconds * 1000);
+        return {
+            date: d.toLocaleDateString('de-AT'),
+            time: d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+    }
+
+    async function renderStats() {
+        const select = document.getElementById('stats-event-select');
+        const content = document.getElementById('stats-content');
+        const eventId = select.value;
+        if (!eventId) { content.innerHTML = '<p class="sv-empty">Bitte ein Event wählen.</p>'; lastStatsLoans = []; return; }
+        content.innerHTML = '<p class="cl-muted">Lade Statistik…</p>';
+        try {
+            const ev = allEvents.find(e => e.id === eventId);
+            lastStatsEventName = ev ? ev.name : eventId;
+            const q = query(collection(db, 'loans'), where('eventId', '==', eventId));
+            const snap = await getDocs(q);
+            const loans = snap.docs.map(d => d.data()).sort((a, b) => (a.borrowedAt?.seconds || 0) - (b.borrowedAt?.seconds || 0));
+            lastStatsLoans = loans;
+
+            const totalLoans = loans.length;
+            const gameCounts = {};
+            loans.forEach(l => { gameCounts[l.gameName || l.ean] = (gameCounts[l.gameName || l.ean] || 0) + 1; });
+            const distinctGames = Object.keys(gameCounts).length;
+            const stillOut = loans.filter(l => !l.returnedAt).length;
+            const sortedGames = Object.entries(gameCounts).sort((a, b) => b[1] - a[1]);
+
+            content.innerHTML = `
+                <div class="sv-stats-grid">
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${totalLoans}</div><div class="sv-stat-box__label">Ausleihen gesamt</div></div>
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${distinctGames}</div><div class="sv-stat-box__label">Verschiedene Spiele</div></div>
+                    <div class="sv-stat-box"><div class="sv-stat-box__num">${stillOut}</div><div class="sv-stat-box__label">Aktuell noch draußen</div></div>
+                </div>
+                <div class="sv-table-wrap">
+                    <table class="sv-table">
+                        <thead><tr><th>Spiel</th><th>Anzahl Ausleihen</th></tr></thead>
+                        <tbody>${sortedGames.map(([name, count]) => `<tr><td>${escapeHTML(name)}</td><td>${count}</td></tr>`).join('') || '<tr><td colspan="2" class="sv-empty">Keine Ausleihen erfasst.</td></tr>'}</tbody>
+                    </table>
+                </div>`;
+
+            if (!document.getElementById('stats-chart-wrap').classList.contains('cl-hidden')) renderStatsChart();
+        } catch (err) {
+            console.error('Statistik-Ladefehler:', err);
+            content.innerHTML = '<p class="sv-empty">Statistik konnte nicht geladen werden.</p>';
+        }
+    }
+
+    // CSV: eine Zeile pro Ausleihe (Wert +1) und, falls schon zurückgegeben,
+    // eine weitere Zeile pro Rückgabe (Wert -1) — jeweils mit echtem
+    // Datum/Uhrzeit dieses Vorgangs.
+    function exportStatsCsv() {
+        if (lastStatsLoans.length === 0) { showToast('Keine Daten zum Exportieren für dieses Event.', true); return; }
+        const rows = [['Datum', 'Uhrzeit', 'Spiel', 'Regal', 'Aktion', 'Wert']];
+        for (const l of lastStatsLoans) {
+            const shelf = shelfNameGlobal(l.shelfId);
+            const borrowed = formatDateTimeParts(l.borrowedAt);
+            rows.push([borrowed.date, borrowed.time, l.gameName || l.ean, shelf, 'Ausgeliehen', '1']);
+            if (l.returnedAt) {
+                const returned = formatDateTimeParts(l.returnedAt);
+                rows.push([returned.date, returned.time, l.gameName || l.ean, shelf, 'Retour', '-1']);
+            }
+        }
+
+        // Zusammenfassung: Gesamtzahl Ausleihen je Spiel, absteigend sortiert.
+        // Spiele ohne jede Ausleihe tauchen hier gar nicht erst auf, weil
+        // lastStatsLoans von vornherein nur tatsächliche Ausleihvorgänge enthält.
+        const countByGame = {};
+        for (const l of lastStatsLoans) {
+            const name = l.gameName || l.ean;
+            countByGame[name] = (countByGame[name] || 0) + 1;
+        }
+        const summaryRows = Object.entries(countByGame).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de'));
+        rows.push([]);
+        rows.push(['Zusammenfassung — Gesamtausleihen je Spiel']);
+        rows.push(['Spiel', 'Gesamtausleihen']);
+        for (const [name, count] of summaryRows) rows.push([name, String(count)]);
+
+        const csv = rows.map(r => r.map(cell => {
+            const s = String(cell ?? '');
+            return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }).join(';')).join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeEventName = (lastStatsEventName || 'event').replace(/[^\wäöüÄÖÜß-]+/g, '_');
+        a.href = url;
+        a.download = `ausleihstatistik_${safeEventName}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    // Diagramm: Zeitverlauf in wählbaren Zeitfenstern, Ausleihen positiv,
+    // Retouren negativ dargestellt — zeigt auf einen Blick, wann viel los war.
+    function renderStatsChart() {
+        const chartEl = document.getElementById('stats-chart');
+        if (lastStatsLoans.length === 0) { chartEl.innerHTML = '<p class="sv-empty">Keine Daten für ein Diagramm.</p>'; return; }
+        const bucketMinutes = parseInt(document.getElementById('stats-chart-bucket-select').value, 10);
+        const bucketMs = bucketMinutes * 60 * 1000;
+
+        const points = [];
+        lastStatsLoans.forEach(l => {
+            if (l.borrowedAt?.seconds) points.push({ t: l.borrowedAt.seconds * 1000, v: 1 });
+            if (l.returnedAt?.seconds) points.push({ t: l.returnedAt.seconds * 1000, v: -1 });
+        });
+        if (points.length === 0) { chartEl.innerHTML = '<p class="sv-empty">Keine Daten für ein Diagramm.</p>'; return; }
+
+        const buckets = {};
+        points.forEach(p => {
+            const bucketStart = Math.floor(p.t / bucketMs) * bucketMs;
+            buckets[bucketStart] = (buckets[bucketStart] || 0) + p.v;
+        });
+        const sortedKeys = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+        const xVals = sortedKeys.map(k => new Date(k));
+        const yVals = sortedKeys.map(k => buckets[k]);
+        const colors = yVals.map(v => v >= 0 ? 'rgb(37, 99, 235)' : 'rgb(220, 38, 38)');
+
+        Plotly.newPlot(chartEl, [{
+            x: xVals, y: yVals, type: 'bar',
+            marker: { color: colors },
+            hovertemplate: '%{x|%d.%m. %H:%M}<br>%{y}<extra></extra>'
+        }], {
+            margin: { t: 20, r: 20, b: 40, l: 40 },
+            xaxis: { title: 'Uhrzeit' },
+            yaxis: { title: 'Ausleihen (+) / Retouren (−)', zeroline: true },
+            bargap: 0.15,
+            font: { family: 'inherit' }
+        }, { responsive: true, displayModeBar: false });
+    }
+
 });
 </script>
 </body>
