@@ -178,8 +178,15 @@ function complexityBucket(c) {
     if (c <= 3.5) return 'medium';
     return 'hard';
 }
+// Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank (g.name)
+// vor der ggf. veralteten Momentaufnahme im Event-Eintrag (g.gameName, die
+// beim Scannen entstand, bevor der Titel bekannt war).
+function displayName(g) {
+    return allGames.find(x => x.id === g.ean)?.name || g.gameName || g.ean;
+}
 
 let allEvents = [];
+let allGames = [];
 let eventGamesUnsub = null;
 let eventShelvesUnsub = null;
 let currentEventGames = [];
@@ -230,6 +237,11 @@ document.addEventListener('DOMContentLoaded', () => {
         filterCount.textContent = n;
         filterCount.classList.toggle('cl-hidden', n === 0);
     }
+
+    onSnapshot(collection(db, 'games'), (snap) => {
+        allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        render();
+    }, err => console.error('games onSnapshot Fehler:', err));
 
     onSnapshot(collection(db, 'events'), (snap) => {
         allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -306,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let filtered = currentEventGames.filter(g => {
             const avail = g.availableQuantity ?? (g.quantity ?? 1);
-            const nameMatch = !term || (g.gameName || '').toLowerCase().includes(term);
+            const nameMatch = !term || displayName(g).toLowerCase().includes(term);
             const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
             const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
             const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
@@ -321,13 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (sortVal === 'rating') {
-            filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+            filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || displayName(a).localeCompare(displayName(b), 'de'));
         } else if (sortVal === 'complexity-asc') {
-            filtered.sort((a, b) => (a.complexity ?? Infinity) - (b.complexity ?? Infinity) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+            filtered.sort((a, b) => (a.complexity ?? Infinity) - (b.complexity ?? Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
         } else if (sortVal === 'complexity-desc') {
-            filtered.sort((a, b) => (b.complexity ?? -Infinity) - (a.complexity ?? -Infinity) || (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+            filtered.sort((a, b) => (b.complexity ?? -Infinity) - (a.complexity ?? -Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
         } else {
-            filtered.sort((a, b) => (a.gameName || '').localeCompare(b.gameName || '', 'de'));
+            filtered.sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
         }
 
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
@@ -336,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
             return `<tr data-id="${g.id}">
                 <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
-                <td>${escapeHTML(g.gameName)}</td>
+                <td>${escapeHTML(displayName(g))}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
                 <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
@@ -365,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Detailansicht ---
     const modalOverlay = document.getElementById('ov-modal-overlay');
     function openDetail(g) {
-        document.getElementById('ov-modal-title').textContent = g.gameName || '';
+        document.getElementById('ov-modal-title').textContent = displayName(g);
         const img = document.getElementById('ov-modal-img');
         if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
 
