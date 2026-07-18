@@ -153,9 +153,10 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v24</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v25</span></p>
         </div>
         <div class="cl-header__spacer"></div>
+        <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
         <div class="qb-header-actions" id="header-actions"></div>
     </div>
 </header>
@@ -638,8 +639,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v24 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v25 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v25 — Header (Verwaltungstool + Tresen): immer sichtbarer
+//        "📖 Dokumentation"-Link. Event-Karten haben jetzt zusätzlich zu
+//        "Öffnen" direkte Links "🖥️ Zum Tresen" und "👁️ Ansicht für
+//        Besucher:innen" (öffentliche Übersicht) — ohne das Event-Fenster
+//        erst öffnen zu müssen.
 //   v24 — Stufe 2: neuer Button "Liste löschen" neben "Import starten".
 //   v23 — Ausleihe-Tresen: "Aktuell ausgeliehen"-Liste ersetzt durch eine
 //        immer sichtbare vollständige Spieleliste des Events, mit Suchfeld
@@ -2056,6 +2062,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderEventsTab() {
         const grid = document.getElementById('events-grid');
         if (allEvents.length === 0) { grid.innerHTML = '<p class="sv-empty">Noch keine Events angelegt.</p>'; return; }
+        const basePath = location.href.split('?')[0].split('#')[0].replace(/[^/]*$/, '');
         grid.innerHTML = '<div class="sv-card-grid">' + allEvents.map(ev => {
             const count = allEventGames.filter(eg => eg.eventId === ev.id).length;
             const colNames = (ev.sourceCollectionIds || []).map(id => allCollections.find(c => c.id === id)?.name).filter(Boolean).join(', ');
@@ -2069,6 +2076,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="sv-entity-card__actions">
                     <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-open-event-btn" data-id="${ev.id}">Öffnen</button>
+                    <a href="${basePath}spieleausleihe-tresen.html?event=${ev.id}" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">🖥️ Zum Tresen</a>
+                    <a href="${basePath}index.html?event=${ev.id}" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">👁️ Ansicht für Besucher:innen</a>
                 </div>
             </div>`;
         }).join('') + '</div>';
