@@ -117,7 +117,7 @@
         <div class="ov-table-wrap">
             <table class="ov-table">
                 <thead>
-                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Regal</th><th>Status</th></tr>
+                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th>Status</th></tr>
                 </thead>
                 <tbody id="ov-table-body"></tbody>
             </table>
@@ -353,6 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
                 <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
                 <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
+                <td>${g.complexity ? `${complexityLabel(g.complexity)} (${g.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
                 <td><span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span></td>
             </tr>`;
