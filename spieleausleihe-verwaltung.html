@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v25</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v29</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -275,6 +275,8 @@
                     <div id="stage2-log" class="sv-progress-log"></div>
                 </div>
             </div>
+
+            <div class="sv-stats-grid" id="db-stats"></div>
 
             <div class="sv-toolbar">
                 <input type="text" id="db-search-input" class="cl-input" placeholder="Spiele durchsuchen…">
@@ -639,8 +641,27 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v25 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v29 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v29 — Spieledatenbank: neue Kennzahlen-Leiste oberhalb der Suche —
+//        Spiele gesamt, Fertig angereichert, Offen, Kein BGG-Treffer,
+//        Fehler. Bezieht sich immer auf die gesamte Datenbank, unabhängig
+//        von Suchbegriff/Status-Filter darunter.
+//   v28 — index.html (öffentliche Event-Übersicht) und
+//        sammlung-uebersicht.html zeigen jetzt ebenfalls eine
+//        "Komplexität"-Spalte in der Tabelle (bisher nur im Filter bzw.
+//        in der Detailkarte sichtbar, nicht in der Tabelle selbst).
+//   v27 — Ausleihe-Tresen: Spieleliste zeigt jetzt zusätzlich die Spalten
+//        "Bewertung" und "Komplexität" direkt in der Tabelle (bisher nur
+//        über den Filter nutzbar, nicht sichtbar).
+//   v26 — Bugfix: index.html (öffentliche Event-Übersicht) hatte denselben
+//        Namens-Bug wie zuvor die Sammlungs-Ansichten (rohe EAN statt
+//        Titel) — behoben, liest jetzt ebenfalls die Spieledatenbank live
+//        mit. Ausleihe-Tresen: "Spieleliste" hat jetzt dasselbe kompakte,
+//        einklappbare Filter- &amp; Sortierungs-Panel wie die öffentlichen
+//        Übersichten (Spielerzahl, Komplexität, Bewertung, Sortierung,
+//        Status), damit Fragen wie "Spiel für 2 Personen?" direkt am
+//        Tresen beantwortbar sind.
 //   v25 — Header (Verwaltungstool + Tresen): immer sichtbarer
 //        "📖 Dokumentation"-Link. Event-Karten haben jetzt zusätzlich zu
 //        "Öffnen" direkte Links "🖥️ Zum Tresen" und "👁️ Ansicht für
@@ -1434,6 +1455,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDatenbankTab() {
+        const total = allGames.length;
+        const done = allGames.filter(g => g.enrichStatus === 'done').length;
+        const pending = allGames.filter(g => (g.enrichStatus || 'pending') === 'pending').length;
+        const notFound = allGames.filter(g => g.enrichStatus === 'not_found').length;
+        const errorCount = allGames.filter(g => g.enrichStatus === 'error').length;
+        document.getElementById('db-stats').innerHTML = `
+            <div class="sv-stat-box"><div class="sv-stat-box__num">${total}</div><div class="sv-stat-box__label">Spiele gesamt</div></div>
+            <div class="sv-stat-box"><div class="sv-stat-box__num">${done}</div><div class="sv-stat-box__label">Fertig angereichert</div></div>
+            <div class="sv-stat-box"><div class="sv-stat-box__num">${pending}</div><div class="sv-stat-box__label">Offen</div></div>
+            <div class="sv-stat-box"><div class="sv-stat-box__num">${notFound}</div><div class="sv-stat-box__label">Kein BGG-Treffer</div></div>
+            <div class="sv-stat-box"><div class="sv-stat-box__num">${errorCount}</div><div class="sv-stat-box__label">Fehler</div></div>
+        `;
+
         const term = dbSearchInput.value.trim().toLowerCase();
         const statusVal = dbStatusFilter.value;
         const filtered = allGames.filter(g => {
