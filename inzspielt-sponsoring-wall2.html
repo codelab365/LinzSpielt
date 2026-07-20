@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinzSpielt 2026 · Kleinsponsoring-Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-1:#150E27; --bg-2:#2C1B52; --card:#221A3D; --card-line:rgba(255,255,255,.09);
+    --text:#FBF9FF; --text-soft:#B9AFDC; --gold:#F4C63D; --blue-1:#3E6FE8; --blue-2:#8A5CF0;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+    --t1:#DCE6FF; --t2:#4C9A6B; --t3:#3AA6D4; --t4:#C98A4B; --t5:#9B6BE0; --t6:#EF6A4C; --t7:#F4C63D;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:radial-gradient(ellipse 900px 600px at 50% -10%, var(--bg-2), transparent 65%), radial-gradient(ellipse 700px 500px at 100% 30%, rgba(138,92,240,.22), transparent 60%), var(--bg-1); color:var(--text); font-family:'Work Sans',sans-serif; line-height:1.55;}
+  @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important; transition-duration:.001ms !important;}}
+  h1,h2,h3{font-family:'Fredoka',sans-serif; margin:0; color:var(--text); font-weight:600;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
+
+  header.top{padding:16px 0; border-bottom:1px solid var(--card-line); background:rgba(21,14,39,.75); backdrop-filter:blur(6px); position:sticky; top:0; z-index:30;}
+  .top-inner{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .emblem{width:46px; height:46px; border-radius:50%; flex-shrink:0; background:radial-gradient(circle at 35% 30%, #4a2f86, #1b1136 72%); border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px rgba(244,198,61,.18);}
+  .emblem svg{width:24px; height:24px;}
+  .brand-text{font-family:'Fredoka',sans-serif; font-weight:600; font-size:18px; color:var(--gold);}
+  .brand-text small{display:block; font-family:'Work Sans',sans-serif; font-weight:500; font-size:11.5px; color:var(--text-soft);}
+  nav.pills{display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
+  nav.pills a{font-size:13.5px; font-weight:600; color:var(--text); text-decoration:none; padding-bottom:4px; border-bottom:2px solid transparent; transition:color .15s, border-color .15s;}
+  nav.pills a:hover, nav.pills a:focus-visible{color:var(--gold); border-color:var(--gold);}
+  .cta-btn{display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, var(--blue-1), var(--blue-2)); color:#fff; font-weight:600; font-size:13.5px; text-decoration:none; padding:10px 18px; border-radius:10px; box-shadow:var(--shadow); border:none; cursor:pointer;}
+  .cta-btn:hover{filter:brightness(1.08);}
+
+  .hero{padding:66px 0 40px; text-align:center;}
+  .eyebrow{font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); display:inline-block; margin-bottom:16px;}
+  .hero h1{font-size:clamp(30px,4.6vw,48px); font-weight:600; max-width:19ch; margin:0 auto;}
+  .hero p{max-width:58ch; color:var(--text-soft); font-size:16px; margin:16px auto 0;}
+
+  .section{padding:50px 0;}
+  .section-head{margin-bottom:24px; text-align:center;}
+  .section-head .eyebrow{color:var(--gold);}
+  .section-head h2{font-size:clamp(22px,3vw,30px);}
+  .section-head p{color:var(--text-soft); margin:8px auto 0; max-width:64ch;}
+  .card{background:var(--card); border:1px solid var(--card-line); border-radius:18px; box-shadow:var(--shadow);}
+
+  /* Legende: dekoratives Einzel-Puzzlestueck (CSS) */
+  .piece{position:relative; border-radius:15%; background:var(--pc,#888); display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.4); flex-shrink:0;}
+  .piece .knob{position:absolute; border-radius:50%; background:var(--pc,#888); z-index:1;}
+  .piece .knob.r{width:28%; height:28%; right:-14%; top:36%;}
+  .piece .knob.b{width:28%; height:28%; bottom:-14%; left:36%;}
+  .piece .notch{position:absolute; border-radius:50%; background:var(--card); z-index:2;}
+  .piece .notch.t{width:26%; height:26%; top:-13%; left:37%;}
+  .piece .notch.l{width:26%; height:26%; left:-13%; top:37%;}
+  .piece .pc-icon{width:36%; height:36%; z-index:3;}
+  .piece .pc-icon svg{width:100%; height:100%; fill:none; stroke:rgba(20,12,40,.75); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
+  .ladder{display:flex; align-items:flex-end; justify-content:center; gap:26px; flex-wrap:wrap; padding:32px 22px;}
+  .tier-col{display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .tier-col .amt{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13.5px;}
+  .tier-col .tname{font-size:11.5px; color:var(--text-soft); text-align:center; max-width:100px;}
+
+  .builder{padding:26px;}
+  .builder-grid{display:grid; grid-template-columns:1fr; gap:22px;}
+  @media(min-width:760px){.builder-grid{grid-template-columns:280px 1fr;}}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-soft); margin-bottom:6px;}
+  .field input[type=text]{width:100%; padding:11px 12px; border-radius:9px; border:1.5px solid var(--card-line); font-size:14.5px; background:var(--bg-1); color:var(--text);}
+  .field input::placeholder{color:var(--text-soft); opacity:.7;}
+  .field input:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+  .tier-picker{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;}
+  @media(min-width:760px){.tier-picker{grid-template-columns:repeat(2,1fr);}}
+  .tier-btn{border:1.5px solid var(--card-line); background:var(--bg-1); border-radius:8px; padding:7px 6px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; cursor:pointer; color:var(--text);}
+  .tier-btn.active{background:var(--gold); color:var(--bg-1); border-color:var(--gold);}
+  .add-btn{margin-top:16px; width:100%; padding:12px; border-radius:9px; border:none; background:linear-gradient(135deg, var(--blue-1), var(--blue-2)); color:#fff; font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; cursor:pointer;}
+  .add-btn:hover{filter:brightness(1.06);}
+  .hint{font-size:12px; color:var(--text-soft); margin-top:10px;}
+  .recent{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+  .recent li{display:flex; justify-content:space-between; gap:10px; font-size:13px; background:var(--bg-1); border-radius:8px; padding:7px 10px; border:1px solid var(--card-line);}
+  .recent b{color:var(--gold); font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px;}
+
+  .browser-mock{border-radius:16px; overflow:hidden;}
+  .browser-bar{background:#100A20; padding:9px 12px; display:flex; align-items:center; gap:6px;}
+  .browser-bar .dot{width:9px; height:9px; border-radius:50%; background:var(--text-soft); opacity:.4;}
+  .browser-bar .url{margin-left:10px; background:rgba(255,255,255,.06); color:var(--text-soft); font-family:'JetBrains Mono',monospace; font-size:11.5px; padding:4px 10px; border-radius:6px;}
+  .browser-body{padding:22px;}
+  .stat-row{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:16px;}
+  .stat{font-family:'JetBrains Mono',monospace;}
+  .stat b{display:block; font-size:22px; color:var(--gold);}
+  .stat span{font-size:11.5px; color:var(--text-soft);}
+
+  .wall-mock{padding:26px;}
+  .wall-title{text-align:center; font-size:clamp(19px,2.6vw,25px); margin-bottom:4px;}
+  .wall-sub{text-align:center; color:var(--text-soft); font-size:13px; margin-bottom:18px;}
+
+  /* Zoom-/Pan-Buehne */
+  .stage{position:relative; height:400px; border-radius:14px; overflow:hidden; background:#150E27; border:1px solid var(--card-line); touch-action:none;}
+  .stage svg{position:absolute; top:0; left:0; transform-origin:0 0; cursor:grab; user-select:none;}
+  .stage svg.grabbing{cursor:grabbing;}
+  .toolbar{position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:5;}
+  .toolbar button{width:34px; height:34px; border-radius:8px; border:1px solid var(--card-line); background:rgba(15,10,30,.75); color:var(--text); font-size:16px; font-weight:700; cursor:pointer; backdrop-filter:blur(4px);}
+  .toolbar button:hover{background:rgba(244,198,61,.18); border-color:var(--gold);}
+  .zoom-hint{position:absolute; bottom:8px; left:10px; font-size:10.5px; color:var(--text-soft); background:rgba(15,10,30,.6); padding:3px 8px; border-radius:6px; z-index:5;}
+
+  .standee{margin-top:20px; background:var(--bg-1); border:1.5px dashed var(--card-line); border-radius:12px; padding:14px 16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;}
+  .qr{width:56px; height:56px; border-radius:6px; flex-shrink:0; background:linear-gradient(var(--text) 0 0) 0 0/12px 12px, linear-gradient(var(--text) 0 0) 44px 0/12px 12px, linear-gradient(var(--text) 0 0) 0 44px/12px 12px, linear-gradient(var(--text) 0 0) 16px 16px/8px 8px no-repeat, var(--card); background-repeat:no-repeat;}
+  .standee p{margin:0; font-size:12.5px; color:var(--text-soft);}
+  .standee b{font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px; display:block; margin-bottom:2px; color:var(--text);}
+
+  footer{padding:36px 0 60px; border-top:1px solid var(--card-line); margin-top:16px;}
+  footer p{font-size:12.5px; color:var(--text-soft); max-width:70ch; margin:0 auto; text-align:center;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <div class="emblem"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="var(--gold)" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="var(--gold)" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="var(--gold)" stroke="none"/></svg></div>
+      <div class="brand-text">SpieleVersum<small>Kleinsponsoring-Wall · Entwurf</small></div>
+    </div>
+    <nav class="pills">
+      <a href="#leiter">Bauteile</a>
+      <a href="#builder">Live-Vorschau</a>
+      <a href="#digital">Website-Welt</a>
+      <a href="#event">Welt vor Ort</a>
+      <a class="cta-btn" href="#builder">Spenden testen →</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Kleinsponsoring · echtes Puzzle-Mosaik</span>
+    <h1>Ein Puzzle, das mit jeder Spende weiterwächst.</h1>
+    <p>Alle Stücke greifen wirklich ineinander wie ein echtes Puzzle und ergeben zusammen ein einziges großes Bild unserer Spielewelt. Je größer die Spende, desto größer das Stück, das freigelegt wird. Man kann ins Bild hinein- und herauszoomen – auf der Website genauso wie an der Wand beim Event.</p>
+  </div>
+</section>
+
+<section class="section" id="leiter">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Die Bauteile</span>
+      <h2>7 Stufen, 7 Landschaftsstücke</h2>
+      <p>Vom kleinen Wolkenstück bis zum goldenen Kronen-Turm – jede Stufe belegt eine größere Fläche im Gesamtbild.</p>
+    </div>
+    <div class="card ladder" id="ladder"></div>
+  </div>
+</section>
+
+<section class="section" id="builder">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Live-Vorschau</span>
+      <h2>Testweise eintragen</h2>
+      <p>Name eingeben, Stufe wählen, hinzufügen – dein Stück wird sofort im Puzzle unten (Website und Event-Wand) eingesetzt.</p>
+    </div>
+    <div class="card builder">
+      <div class="builder-grid">
+        <div>
+          <div class="field"><label for="nameInput">Name / Spitzname</label><input type="text" id="nameInput" placeholder="z. B. Familie Gruber" maxlength="26"></div>
+          <div class="field" style="margin-top:14px;"><label>Spendenstufe</label><div class="tier-picker" id="tierPicker"></div></div>
+          <button class="add-btn" id="addBtn">+ Stück ins Puzzle setzen</button>
+          <p class="hint">Scroll runter zu „Website-Welt" oder „Welt vor Ort", um dein Stück im Bild zu sehen.</p>
+        </div>
+        <div>
+          <span class="hint" style="margin-top:0; display:block; margin-bottom:8px;">Zuletzt hinzugefügt</span>
+          <ul class="recent" id="recentList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="digital">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Website-Welt</span>
+      <h2>So wächst das Bild auf spieleversum.at</h2>
+      <p>Echtes Puzzle-Mosaik zum Rein- und Rauszoomen. Freigelegte Stücke zeigen Name und Motiv, der Rest liegt noch im Nebel – Platz zum Weiterwachsen.</p>
+    </div>
+    <div class="card browser-mock">
+      <div class="browser-bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">spieleversum.at/linzspielt/sponsoring-wall</div></div>
+      <div class="browser-body">
+        <div class="stat-row">
+          <div class="stat"><b id="statCount">0</b><span>Sponsor:innen</span></div>
+          <div class="stat"><b id="statSum">€ 0</b><span>gesammelt</span></div>
+          <div class="stat"><b>17.–18.10.</b><span>LinzSpielt! 2026</span></div>
+        </div>
+        <div class="stage" id="stageDigital">
+          <div class="toolbar"><button data-act="in" title="Reinzoomen">+</button><button data-act="out" title="Rauszoomen">–</button><button data-act="reset" title="Zurücksetzen">⤾</button></div>
+          <span class="zoom-hint">Ziehen zum Verschieben · Scrollen zum Zoomen</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="event">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Welt vor Ort</span>
+      <h2>Dieselbe Welt, live an der Wand</h2>
+      <p>Großformat im Neuen Rathaus: dasselbe Mosaik, aufgebaut aus echten Puzzlekärtchen, die während der Spieletage nach und nach dazukommen.</p>
+    </div>
+    <div class="card wall-mock">
+      <h3 class="wall-title">Danke, dass ihr an unserer Welt mitbaut</h3>
+      <p class="wall-sub">Kleinsponsoring-Wand · wächst live während der Spieletage</p>
+      <div class="stage" id="stageEvent">
+        <div class="toolbar"><button data-act="in" title="Reinzoomen">+</button><button data-act="out" title="Rauszoomen">–</button><button data-act="reset" title="Zurücksetzen">⤾</button></div>
+        <span class="zoom-hint">Ziehen zum Verschieben · Scrollen zum Zoomen</span>
+      </div>
+      <div class="standee">
+        <div class="qr" role="img" aria-label="Platzhalter QR-Code"></div>
+        <div><b>Selbst spenden &amp; ein Stück bauen</b><p>QR-Code scannen, Stufe wählen, Namen hinterlassen – das Puzzlestück erscheint innerhalb weniger Minuten an dieser Wand und auf der Website.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap"><p><strong>Stand: Entwurf.</strong> Beträge, Motive und Platzierung sind Platzhalter. Offen für die Umsetzung: Zahlungsanbindung, Freigabe-Workflow bevor ein Stück live geht, und Produktion der physischen Puzzlekärtchen.</p></div>
+</footer>
+
+<script>
+(function(){
+  /* ---------- Tier-Definitionen ---------- */
+  const tiers = [
+    {amt:4,   name:'Wolkenstück',  color:'var(--t1)', w:1, h:1, row:0,
+      icon:'<path d="M6 16a3.4 3.4 0 0 1 .4-6.8A4.6 4.6 0 0 1 15.5 8 3.7 3.7 0 0 1 16 15.5H6z"/>'},
+    {amt:8,   name:'Waldstück',    color:'var(--t2)', w:1, h:1, row:1,
+      icon:'<path d="M12 3l4.5 7.5H14L18 18H6l4-7.5H7.5z"/><path d="M11 18v3h2v-3"/>'},
+    {amt:16,  name:'Flussbiegung', color:'var(--t3)', w:2, h:1, row:2,
+      icon:'<path d="M3 10c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M3 15c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/>'},
+    {amt:25,  name:'Wegstück',     color:'var(--t4)', w:2, h:1, row:3,
+      icon:'<path d="M4 18v-3a8 8 0 0 1 16 0v3"/><path d="M4 18h4M16 18h4"/>'},
+    {amt:50,  name:'Dorfplatz',    color:'var(--t5)', w:3, h:1, row:4,
+      icon:'<path d="M4 19l4-9 4 9z"/><path d="M12 19l4-9 4 9z"/>'},
+    {amt:75,  name:'Burgmauer',    color:'var(--t6)', w:3, h:1, row:5,
+      icon:'<path d="M3 19v-9h3V7h2v3h4V7h2v3h4V7h2v3h3v9z"/>'},
+    {amt:100, name:'Kronen-Turm',  color:'var(--t7)', w:4, h:1, row:6,
+      icon:'<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M12 13v4M9 21h6M4 5H2a3 3 0 0 0 3 4M20 5h2a3 3 0 0 1-3 4"/>'}
+  ];
+
+  /* ---------- Legende (dekorative Einzel-Stuecke) ---------- */
+  const ladder = document.getElementById('ladder');
+  tiers.forEach(t=>{
+    const col = document.createElement('div'); col.className='tier-col';
+    const w = 56 + t.w*14;
+    const p = document.createElement('div'); p.className='piece';
+    p.style.setProperty('--pc', t.color); p.style.width=w+'px'; p.style.height=w+'px';
+    p.innerHTML = `<span class="knob r"></span><span class="knob b"></span><span class="notch t"></span><span class="notch l"></span><span class="pc-icon"><svg viewBox="0 0 24 24">${t.icon}</svg></span>`;
+    col.appendChild(p);
+    const amt = document.createElement('div'); amt.className='amt'; amt.textContent = t.amt+' €';
+    const nm = document.createElement('div'); nm.className='tname'; nm.textContent = t.name;
+    col.appendChild(amt); col.appendChild(nm);
+    ladder.appendChild(col);
+  });
+
+  /* ---------- Echtes Puzzle-Grid ---------- */
+  const COLS=12, ROWS=7, CELL=76, AMP=11;
+  const W = COLS*CELL, H = ROWS*CELL, MARGIN = 26;
+  const VB = `${-MARGIN} ${-MARGIN} ${W+MARGIN*2} ${H+MARGIN*2}`;
+
+  function rnd(){ return Math.random()<0.5 ? -1 : 1; }
+  const edges = {
+    h: Array.from({length:ROWS-1}, ()=> Array.from({length:COLS}, rnd)),
+    v: Array.from({length:ROWS},   ()=> Array.from({length:COLS-1}, rnd))
+  };
+
+  function hSeg(xs,xe,y,sign,amp){
+    const w=xe-xs, s=sign*amp, n=sign*amp*0.42;
+    return ` L ${xs+w*0.35},${y} C ${xs+w*0.35},${y+n} ${xs+w*0.3},${y+s} ${xs+w*0.5},${y+s} C ${xs+w*0.7},${y+s} ${xs+w*0.65},${y+n} ${xs+w*0.65},${y} L ${xe},${y}`;
+  }
+  function vSeg(ys,ye,x,sign,amp){
+    const h=ye-ys, s=sign*amp, n=sign*amp*0.42;
+    return ` L ${x},${ys+h*0.35} C ${x+n},${ys+h*0.35} ${x+s},${ys+h*0.3} ${x+s},${ys+h*0.5} C ${x+s},${ys+h*0.7} ${x+n},${ys+h*0.65} ${x},${ys+h*0.65} L ${x},${ye}`;
+  }
+  function piecePath(r0,c0,w,h){
+    const x0=c0*CELL, y0=r0*CELL, x1=(c0+w)*CELL, y1=(r0+h)*CELL;
+    let d = `M ${x0},${y0}`;
+    if(r0===0){ d+=` L ${x1},${y0}`; } else { for(let c=c0;c<c0+w;c++){ d+=hSeg(c*CELL,(c+1)*CELL,y0,edges.h[r0-1][c],AMP); } }
+    if(c0+w===COLS){ d+=` L ${x1},${y1}`; } else { for(let r=r0;r<r0+h;r++){ d+=vSeg(r*CELL,(r+1)*CELL,x1,edges.v[r][c0+w-1],AMP); } }
+    if(r0+h===ROWS){ d+=` L ${x0},${y1}`; } else { for(let c=c0+w-1;c>=c0;c--){ d+=hSeg((c+1)*CELL,c*CELL,y1,edges.h[r0+h-1][c],AMP); } }
+    if(c0===0){ d+=` L ${x0},${y0}`; } else { for(let r=r0+h-1;r>=r0;r--){ d+=vSeg((r+1)*CELL,r*CELL,x0,edges.v[r][c0-1],AMP); } }
+    return d + ' Z';
+  }
+
+  function place(w,h,prefRow,occ){
+    const tryRows = [prefRow, ...Array.from({length:ROWS-h+1},(_,i)=>i).filter(r=>r!==prefRow)];
+    for(const r0 of tryRows){
+      if(r0+h>ROWS) continue;
+      for(let c0=0;c0<=COLS-w;c0++){
+        let free=true;
+        for(let r=r0;r<r0+h && free;r++) for(let c=c0;c<c0+w;c++) if(occ[r][c]){ free=false; break; }
+        if(free){
+          for(let r=r0;r<r0+h;r++) for(let c=c0;c<c0+w;c++) occ[r][c]=true;
+          return {r0,c0};
+        }
+      }
+    }
+    return null;
+  }
+
+  function backgroundArt(){
+    const bandH = H/ROWS;
+    let s = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#150E27"/><stop offset="42%" stop-color="#241A45"/>
+      <stop offset="72%" stop-color="#3a2456"/><stop offset="100%" stop-color="#4a2f1a"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="100%" r="70%"><stop offset="0%" stop-color="#F4C63D" stop-opacity=".35"/><stop offset="100%" stop-color="#F4C63D" stop-opacity="0"/></radialGradient>
+      </defs>`;
+    s += `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#sky)"/>`;
+    s += `<rect x="0" y="${bandH*4.6}" width="${W}" height="${bandH*2.4}" fill="url(#glow)"/>`;
+    // Sterne
+    for(let i=0;i<26;i++){ const x=(i*137)%W, y=(i*59)%(bandH*2.2), r=(i%3)+1; s+=`<circle cx="${x}" cy="${y}" r="${r*0.6}" fill="#fff" opacity="${0.3+(i%4)*0.15}"/>`; }
+    // Berge
+    s += `<polygon points="0,${bandH*2.3} 90,${bandH*1.3} 180,${bandH*2.1} 300,${bandH*1.1} 420,${bandH*2.2} 560,${bandH*1.2} 700,${bandH*2.1} 820,${bandH*1.4} ${W},${bandH*2.2} ${W},${bandH*2.6} 0,${bandH*2.6}" fill="#2a1d4a"/>`;
+    s += `<polygon points="0,${bandH*2.5} 140,${bandH*1.9} 260,${bandH*2.4} 420,${bandH*1.8} 600,${bandH*2.4} 760,${bandH*1.9} ${W},${bandH*2.5} ${W},${bandH*2.9} 0,${bandH*2.9}" fill="#3a2860"/>`;
+    // Wald
+    for(let i=0;i<16;i++){ const x=i*(W/16)+20, y=bandH*3.3; s+=`<polygon points="${x},${y} ${x-16},${y+30} ${x+16},${y+30}" fill="#1f3a2c"/>`; }
+    // Fluss
+    s += `<path d="M0,${bandH*3.9} C ${W*0.2},${bandH*3.6} ${W*0.3},${bandH*4.2} ${W*0.5},${bandH*3.9} S ${W*0.8},${bandH*3.6} ${W},${bandH*3.9} L ${W},${bandH*4.5} C ${W*0.8},${bandH*4.2} ${W*0.7},${bandH*4.7} ${W*0.5},${bandH*4.4} S ${W*0.2},${bandH*4.1} 0,${bandH*4.4} Z" fill="#2e6f8a"/>`;
+    // Dorf
+    for(let i=0;i<7;i++){ const x=i*(W/7)+40, y=bandH*5.1; s+=`<polygon points="${x},${y} ${x-14},${y+26} ${x+14},${y+26}" fill="#7a4a2e"/><circle cx="${x}" cy="${y+16}" r="1.6" fill="#F4C63D" opacity=".8"/>`; }
+    // Burgmauer
+    s += `<rect x="${W*0.08}" y="${bandH*5.55}" width="${W*0.84}" height="${bandH*0.9}" fill="#5c4a78"/>`;
+    for(let x=W*0.08; x<W*0.92; x+=W*0.05){ s+=`<rect x="${x}" y="${bandH*5.4}" width="${W*0.025}" height="${bandH*0.2}" fill="#5c4a78"/>`; }
+    // Tuerme
+    [0.16,0.5,0.82].forEach((f,i)=>{
+      const x=W*f, tw=54, th=bandH*1.5, y=bandH*4.9;
+      s += `<rect x="${x-tw/2}" y="${y}" width="${tw}" height="${th}" fill="#4a3a68"/>`;
+      s += `<polygon points="${x-tw/2-6},${y} ${x+tw/2+6},${y} ${x},${y-34}" fill="#3a2c56"/>`;
+      if(i===1){ s += `<rect x="${x-2}" y="${y-56}" width="3" height="24" fill="#F4C63D"/><polygon points="${x+1},${y-56} ${x+1},${y-46} ${x+16},${y-51}" fill="${'#EF6A4C'}"/>`; }
+    });
+    return s;
+  }
+
+  function pieceIconAndLabel(cx,cy,w,entry){
+    const size = Math.min(22, 12+w*3);
+    const fs = Math.max(10, Math.min(15, 9 + w*1.6));
+    const pillW = Math.min(w*CELL-14, Math.max(60, entry.name.length*fs*0.62));
+    return `
+      <g transform="translate(${cx-size/2},${cy-size-6}) scale(${size/24})" opacity=".95">
+        <g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${entry.tier.icon}</g>
+      </g>
+      <rect x="${cx-pillW/2}" y="${cy+2}" width="${pillW}" height="${fs+10}" rx="6" fill="rgba(8,6,18,.62)"/>
+      <text x="${cx}" y="${cy+fs+6}" text-anchor="middle" font-family="Work Sans, sans-serif" font-weight="700" font-size="${fs}" fill="#fff">${entry.name}</text>`;
+  }
+
+  function renderWorld(svgEl, entries){
+    const occ = Array.from({length:ROWS}, ()=>Array(COLS).fill(false));
+    const placed = [];
+    entries.forEach(en=>{
+      const t = en.tier;
+      const pos = place(t.w, t.h, t.row, occ);
+      if(pos) placed.push({...pos, w:t.w, h:t.h, entry:en});
+    });
+
+    let pieces = '';
+    placed.forEach(p=>{
+      const d = piecePath(p.r0,p.c0,p.w,p.h);
+      const cx = (p.c0+p.w/2)*CELL, cy = (p.r0+p.h/2)*CELL;
+      pieces += `<path d="${d}" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.55)" stroke-width="1.4"/>`;
+      pieces += pieceIconAndLabel(cx,cy,p.w,p.entry);
+    });
+
+    let fog = '';
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      if(!occ[r][c]){
+        const d = piecePath(r,c,1,1);
+        const sparkle = (r*13+c*7)%9===0 ? `<circle cx="${(c+0.5)*CELL}" cy="${(r+0.5)*CELL}" r="1.6" fill="rgba(255,255,255,.28)"/>` : '';
+        fog += `<path d="${d}" fill="rgba(9,6,20,.86)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>${sparkle}`;
+      }
+    }
+
+    svgEl.setAttribute('viewBox', VB);
+    svgEl.setAttribute('width', W+MARGIN*2);
+    svgEl.setAttribute('height', H+MARGIN*2);
+    svgEl.innerHTML = backgroundArt() + fog + pieces;
+    return placed.length;
+  }
+
+  /* ---------- Zoom & Pan ---------- */
+  function setupStage(stageEl, svgEl){
+    let scale=1, tx=0, ty=0, dragging=false, lastX=0, lastY=0;
+    function fit(){
+      scale = Math.min(1, (stageEl.clientWidth-20) / (W+MARGIN*2));
+      tx = (stageEl.clientWidth - (W+MARGIN*2)*scale)/2;
+      ty = 14;
+      apply();
+    }
+    function apply(){ svgEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+    stageEl.querySelector('[data-act="in"]').addEventListener('click', ()=>{ scale=Math.min(3, scale+0.25); apply(); });
+    stageEl.querySelector('[data-act="out"]').addEventListener('click', ()=>{ scale=Math.max(0.35, scale-0.25); apply(); });
+    stageEl.querySelector('[data-act="reset"]').addEventListener('click', fit);
+    stageEl.addEventListener('wheel', (e)=>{ e.preventDefault(); scale=Math.min(3, Math.max(0.35, scale + (e.deltaY<0?0.15:-0.15))); apply(); }, {passive:false});
+    svgEl.addEventListener('pointerdown', (e)=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; svgEl.classList.add('grabbing'); svgEl.setPointerCapture(e.pointerId); });
+    svgEl.addEventListener('pointermove', (e)=>{ if(!dragging) return; tx += (e.clientX-lastX); ty += (e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; apply(); });
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=> svgEl.addEventListener(ev, ()=>{ dragging=false; svgEl.classList.remove('grabbing'); }));
+    window.addEventListener('resize', fit);
+    fit();
+  }
+
+  const svgDigital = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  const svgEvent = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  document.getElementById('stageDigital').appendChild(svgDigital);
+  document.getElementById('stageEvent').appendChild(svgEvent);
+  setupStage(document.getElementById('stageDigital'), svgDigital);
+  setupStage(document.getElementById('stageEvent'), svgEvent);
+
+  /* ---------- Daten & Steuerung ---------- */
+  const seedAssign = [0,1,0,2,1,3,0,4,2,5,1,6];
+  const seedNames = ['Familie Berger','Anna K.','Team Würfelfreunde','Spielekiste OG','Markus P.','Verein Brettwerk','Lisa & Tom','Herr Novak','Die Meeples','Sophie R.','Familie Hofer','Bäckerei Kern'];
+  let entries = seedAssign.map((ti,i)=>({name:seedNames[i], tier:tiers[ti]}));
+
+  function renderAll(){
+    renderWorld(svgDigital, entries);
+    renderWorld(svgEvent, entries);
+    document.getElementById('statCount').textContent = entries.length;
+    document.getElementById('statSum').textContent = '€ ' + entries.reduce((s,e)=>s+e.tier.amt,0);
+    const recent = document.getElementById('recentList');
+    recent.innerHTML = '';
+    entries.slice(-6).reverse().forEach(e=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${e.name}</span><b>${e.tier.amt}€</b>`;
+      recent.appendChild(li);
+    });
+  }
+
+  const picker = document.getElementById('tierPicker');
+  let selectedTier = tiers[1];
+  tiers.forEach((t,i)=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='tier-btn'+(i===1?' active':''); b.textContent=t.amt+'€';
+    b.addEventListener('click', ()=>{ selectedTier=t; [...picker.children].forEach(c=>c.classList.remove('active')); b.classList.add('active'); });
+    picker.appendChild(b);
+  });
+
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('nameInput');
+    const name = input.value.trim() || 'Anonym';
+    entries.push({name, tier:selectedTier});
+    input.value = '';
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
