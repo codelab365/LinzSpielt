@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinzSpielt 2026 · Kleinsponsoring-Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-1:#150E27;
+    --bg-2:#2C1B52;
+    --card:#221A3D;
+    --card-line:rgba(255,255,255,.09);
+    --text:#FBF9FF;
+    --text-soft:#B9AFDC;
+    --gold:#F4C63D;
+    --blue-1:#3E6FE8;
+    --blue-2:#8A5CF0;
+
+    /* Wertleiter-Palette: wird mit steigender Spende waermer */
+    --t1:#4FC1B4;
+    --t2:#3AA6D4;
+    --t3:#6C7FE0;
+    --t4:#9B6BE0;
+    --t5:#D45FA8;
+    --t6:#EF6A4C;
+    --t7:#F4C63D;
+
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 600px at 50% -10%, var(--bg-2), transparent 65%),
+      radial-gradient(ellipse 700px 500px at 100% 30%, rgba(138,92,240,.22), transparent 60%),
+      var(--bg-1);
+    color:var(--text);
+    font-family:'Work Sans',sans-serif;
+    line-height:1.55;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  h1,h2,h3{font-family:'Fredoka',sans-serif; margin:0; color:var(--text); font-weight:600;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- header ---------- */
+  header.top{
+    padding:16px 0; border-bottom:1px solid var(--card-line);
+    background:rgba(21,14,39,.75); backdrop-filter:blur(6px);
+    position:sticky; top:0; z-index:10;
+  }
+  .top-inner{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .emblem{
+    width:46px; height:46px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #4a2f86, #1b1136 72%);
+    border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px rgba(244,198,61,.18);
+  }
+  .emblem svg{width:24px; height:24px;}
+  .brand-text{font-family:'Fredoka',sans-serif; font-weight:600; font-size:18px; color:var(--gold); letter-spacing:.01em;}
+  .brand-text small{display:block; font-family:'Work Sans',sans-serif; font-weight:500; font-size:11.5px; color:var(--text-soft); letter-spacing:normal;}
+
+  nav.pills{display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
+  nav.pills a{
+    font-size:13.5px; font-weight:600; color:var(--text); text-decoration:none;
+    padding-bottom:4px; border-bottom:2px solid transparent;
+    transition:color .15s, border-color .15s;
+  }
+  nav.pills a:hover, nav.pills a:focus-visible{color:var(--gold); border-color:var(--gold);}
+  .cta-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg, var(--blue-1), var(--blue-2));
+    color:#fff; font-weight:600; font-size:13.5px; text-decoration:none;
+    padding:10px 18px; border-radius:10px; box-shadow:var(--shadow);
+    border:none; cursor:pointer; font-family:'Work Sans',sans-serif;
+  }
+  .cta-btn:hover{filter:brightness(1.08);}
+
+  /* ---------- hero ---------- */
+  .hero{padding:70px 0 44px; text-align:center;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--gold);
+    display:inline-block; margin-bottom:16px;
+  }
+  .hero h1{font-size:clamp(32px,5vw,52px); font-weight:600; max-width:18ch; margin:0 auto;}
+  .hero p{max-width:56ch; color:var(--text-soft); font-size:16.5px; margin:18px auto 0;}
+
+  .hero-strip{
+    margin-top:40px; display:flex; align-items:flex-end; justify-content:center; gap:10px; flex-wrap:wrap;
+  }
+  .hex{
+    clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--bg-1); position:relative; flex-shrink:0;
+    box-shadow:var(--shadow);
+  }
+  .hex svg{width:38%; height:38%; fill:none; stroke:var(--bg-1); stroke-width:6;}
+
+  /* ---------- generic sections ---------- */
+  .section{padding:54px 0;}
+  .section-head{margin-bottom:30px; text-align:center;}
+  .section-head .eyebrow{color:var(--gold);}
+  .section-head h2{font-size:clamp(24px,3.2vw,32px);}
+  .section-head p{color:var(--text-soft); margin:10px auto 0; max-width:64ch;}
+
+  .card{
+    background:var(--card); border:1px solid var(--card-line); border-radius:18px;
+    box-shadow:var(--shadow);
+  }
+
+  .ladder{
+    display:flex; align-items:flex-end; justify-content:center; gap:16px; flex-wrap:wrap;
+    padding:30px 22px;
+  }
+  .tier-card{
+    display:flex; flex-direction:column; align-items:center; gap:10px; width:120px;
+  }
+  .tier-card .amt{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:14px; color:var(--text);}
+  .tier-card .name{font-size:12.5px; font-weight:500; color:var(--text-soft); text-align:center;}
+
+  /* ---------- builder ---------- */
+  .builder{padding:28px;}
+  .builder-grid{display:grid; grid-template-columns:1fr; gap:22px;}
+  @media(min-width:760px){.builder-grid{grid-template-columns:280px 1fr;}}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-soft); margin-bottom:6px;}
+  .field input[type=text]{
+    width:100%; padding:11px 12px; border-radius:9px; border:1.5px solid var(--card-line);
+    font-family:'Work Sans',sans-serif; font-size:14.5px; background:var(--bg-1); color:var(--text);
+  }
+  .field input[type=text]::placeholder{color:var(--text-soft); opacity:.7;}
+  .field input[type=text]:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+  .tier-picker{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;}
+  @media(min-width:760px){.tier-picker{grid-template-columns:repeat(2,1fr);}}
+  .tier-btn{
+    border:1.5px solid var(--card-line); background:var(--bg-1); border-radius:8px;
+    padding:7px 6px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+    cursor:pointer; color:var(--text);
+  }
+  .tier-btn.active{background:var(--gold); color:var(--bg-1); border-color:var(--gold);}
+  .add-btn{
+    margin-top:16px; width:100%; padding:12px; border-radius:9px; border:none;
+    background:linear-gradient(135deg, var(--blue-1), var(--blue-2)); color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; cursor:pointer;
+  }
+  .add-btn:hover{filter:brightness(1.06);}
+  .hint{font-size:12px; color:var(--text-soft); margin-top:10px;}
+
+  .panel-label{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; display:block;}
+  .honeycomb{
+    display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px; min-height:120px;
+    background:var(--bg-1); border-radius:12px; padding:16px; border:1px solid var(--card-line);
+  }
+
+  /* ---------- browser mock ---------- */
+  .browser-mock{border-radius:16px; overflow:hidden;}
+  .browser-bar{background:#100A20; padding:9px 12px; display:flex; align-items:center; gap:6px;}
+  .browser-bar .dot{width:9px; height:9px; border-radius:50%; background:var(--text-soft); opacity:.4;}
+  .browser-bar .url{
+    margin-left:10px; background:rgba(255,255,255,.06); color:var(--text-soft);
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; padding:4px 10px; border-radius:6px;
+  }
+  .browser-body{padding:26px;}
+  .stat-row{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:18px;}
+  .stat{font-family:'JetBrains Mono',monospace;}
+  .stat b{display:block; font-size:22px; color:var(--gold);}
+  .stat span{font-size:11.5px; color:var(--text-soft);}
+
+  /* ---------- physical wall mock ---------- */
+  .wall-mock{
+    padding:40px 26px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(244,198,61,.12), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(138,92,240,.18), transparent 45%),
+      var(--card);
+  }
+  .wall-title{text-align:center; font-size:clamp(19px,2.6vw,25px); margin-bottom:6px;}
+  .wall-sub{text-align:center; color:var(--text-soft); font-size:13px; margin-bottom:26px;}
+  .wall-hex{filter:drop-shadow(0 3px 0 rgba(0,0,0,.35));}
+  .standee{
+    margin-top:24px; background:var(--bg-1); border:1.5px dashed var(--card-line);
+    border-radius:12px; padding:14px 16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  }
+  .qr{
+    width:56px; height:56px; border-radius:6px; flex-shrink:0;
+    background:
+      linear-gradient(var(--text) 0 0) 0 0/12px 12px,
+      linear-gradient(var(--text) 0 0) 44px 0/12px 12px,
+      linear-gradient(var(--text) 0 0) 0 44px/12px 12px,
+      linear-gradient(var(--text) 0 0) 16px 16px/8px 8px no-repeat,
+      var(--card);
+    background-repeat:no-repeat;
+  }
+  .standee p{margin:0; font-size:12.5px; color:var(--text-soft);}
+  .standee b{font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px; display:block; margin-bottom:2px; color:var(--text);}
+
+  footer{padding:36px 0 60px; border-top:1px solid var(--card-line); margin-top:20px;}
+  footer p{font-size:12.5px; color:var(--text-soft); max-width:70ch; margin:0 auto; text-align:center;}
+
+  .name-tag{
+    position:absolute; bottom:-16px; left:50%; transform:translateX(-50%);
+    font-size:9.5px; font-weight:600; white-space:nowrap; color:var(--text);
+    font-family:'Work Sans',sans-serif;
+  }
+  .hex-wrap{position:relative; display:flex; flex-direction:column; align-items:center; padding-bottom:16px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <div class="emblem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="var(--gold)" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="var(--gold)" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="var(--gold)" stroke="none"/></svg>
+      </div>
+      <div class="brand-text">SpieleVersum
+        <small>Kleinsponsoring-Wall · Entwurf</small>
+      </div>
+    </div>
+    <nav class="pills">
+      <a href="#leiter">Goodie-Leiter</a>
+      <a href="#builder">Live-Vorschau</a>
+      <a href="#digital">Website-Wall</a>
+      <a href="#event">Wand vor Ort</a>
+      <a class="cta-btn" href="#builder">Spenden testen →</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Kleinsponsoring · bis 10 € Wert pro Fläche</span>
+    <h1>Jede Spende bekommt ihren Platz an der Wand.</h1>
+    <p>Statt eines Logos gibt's für kleine Spenden ein Sammel-Goodie: ein Hex-Feld mit Namen, das mit der Spendenhöhe wächst – parallel auf der Website und live als Wand beim Event im Neuen Rathaus.</p>
+
+    <div class="hero-strip" aria-hidden="true">
+      <div class="hex" style="width:46px;height:52px;background:var(--t1)"></div>
+      <div class="hex" style="width:54px;height:61px;background:var(--t2)"></div>
+      <div class="hex" style="width:62px;height:70px;background:var(--t3)"></div>
+      <div class="hex" style="width:70px;height:79px;background:var(--t4)"></div>
+      <div class="hex" style="width:80px;height:90px;background:var(--t5)"></div>
+      <div class="hex" style="width:90px;height:101px;background:var(--t6)"></div>
+      <div class="hex" style="width:102px;height:115px;background:var(--t7)"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="leiter">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Die Wertleiter</span>
+      <h2>7 Stufen, 7 Goodies</h2>
+      <p>Die Fläche wächst mit der Spende – vom kleinen Würfel bis zum goldenen Pokal. Beträge und Namen der Goodies sind frei anpassbar.</p>
+    </div>
+
+    <div class="card ladder">
+      <div class="tier-card">
+        <div class="hex" style="width:64px;height:72px;background:var(--t1)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="1.6" fill="var(--bg-1)"/></svg></div>
+        <div class="amt">4 €</div>
+        <div class="name">Würfel-Fan</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:74px;height:83px;background:var(--t2)"><svg viewBox="0 0 24 24"><path d="M9 21v-6c0-3 1.5-5 3-6 1.5 1 3 3 3 6v6"/><circle cx="12" cy="7" r="3"/></svg></div>
+        <div class="amt">8 €</div>
+        <div class="name">Meeple-Freund</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:84px;height:95px;background:var(--t3)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 9h6M9 13h4"/></svg></div>
+        <div class="amt">16 €</div>
+        <div class="name">Kartendeck-Pate</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:94px;height:106px;background:var(--t4)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21c0-4 3-6 6-6s6 2 6 6"/></svg></div>
+        <div class="amt">25 €</div>
+        <div class="name">Spielfiguren-Pöppel</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:104px;height:117px;background:var(--t5)"><svg viewBox="0 0 24 24"><polygon points="12,3 21,8 21,16 12,21 3,16 3,8"/></svg></div>
+        <div class="amt">50 €</div>
+        <div class="name">Spielbrett-Fliese</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:116px;height:130px;background:var(--t6)"><svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M4 9c0-3 2-5 8-5s8 2 8 5"/></svg></div>
+        <div class="amt">75 €</div>
+        <div class="name">Schatztruhen-Held:in</div>
+      </div>
+      <div class="tier-card">
+        <div class="hex" style="width:130px;height:146px;background:var(--t7)"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M12 13v4M9 21h6M4 5H2a3 3 0 0 0 3 4M20 5h2a3 3 0 0 1-3 4"/></svg></div>
+        <div class="amt">100 €</div>
+        <div class="name">Pokal-Legende</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="builder">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Live-Vorschau</span>
+      <h2>Testweise eintragen</h2>
+      <p>Name eingeben, Stufe wählen, hinzufügen – die Vorschau unten (Website-Wall und Event-Wand) aktualisiert sich sofort. Rein clientseitig, es wird nichts gespeichert oder verschickt.</p>
+    </div>
+
+    <div class="card builder">
+      <div class="builder-grid">
+        <div>
+          <div class="field">
+            <label for="nameInput">Name / Spitzname</label>
+            <input type="text" id="nameInput" placeholder="z. B. Familie Gruber" maxlength="26">
+          </div>
+          <div class="field" style="margin-top:14px;">
+            <label>Spendenstufe</label>
+            <div class="tier-picker" id="tierPicker"></div>
+          </div>
+          <button class="add-btn" id="addBtn">+ Zur Wand hinzufügen</button>
+          <p class="hint">Beide Vorschauen unten teilen sich dieselben Einträge.</p>
+        </div>
+        <div>
+          <span class="panel-label">Mini-Vorschau</span>
+          <div class="honeycomb" id="honeycombLive"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="digital">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Website-Wall</span>
+      <h2>So wirkt's eingebettet auf spieleversum.at</h2>
+      <p>Ein Grid aus Hex-Feldern, sortiert nach Stufe, mit laufendem Spendenzähler oben. Klick auf ein Feld könnte künftig einen kurzen Dank-Text der Sponsor:in zeigen.</p>
+    </div>
+
+    <div class="card browser-mock">
+      <div class="browser-bar">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <div class="url">spieleversum.at/linzspielt/sponsoring-wall</div>
+      </div>
+      <div class="browser-body">
+        <div class="stat-row">
+          <div class="stat"><b id="statCount">36</b><span>Sponsor:innen</span></div>
+          <div class="stat"><b id="statSum">€ 612</b><span>gesammelt</span></div>
+          <div class="stat"><b>17.–18.10.</b><span>LinzSpielt! 2026</span></div>
+        </div>
+        <div class="honeycomb" id="honeycombDigital"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="event">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Wand vor Ort</span>
+      <h2>Die echte Namenswand beim Event</h2>
+      <p>Großformat im Neuen Rathaus: Hex-Kärtchen zum Anstecken oder Aufkleben, nach Stufe sortiert, mit Standee für Spontanspenden per QR-Code.</p>
+    </div>
+
+    <div class="card wall-mock">
+      <h3 class="wall-title">Danke, dass ihr LinzSpielt! möglich macht</h3>
+      <p class="wall-sub">Kleinsponsoring-Wand · laufend ergänzt während der Spieletage</p>
+      <div class="honeycomb" id="honeycombEvent" style="background:transparent; border:none; padding:6px;"></div>
+
+      <div class="standee">
+        <div class="qr" role="img" aria-label="Platzhalter QR-Code"></div>
+        <div>
+          <b>Selbst spenden &amp; Feld sichern</b>
+          <p>QR-Code scannen, Stufe wählen, Namen hinterlassen – das Feld erscheint innerhalb weniger Minuten an dieser Wand und auf der Website.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Stand: Entwurf.</strong> Beträge, Goodie-Namen und Icons sind Platzhalter und lassen sich beliebig anpassen. Offen für die Umsetzung: Zahlungsanbindung (z. B. QR-Code → Zahlungslink), Freigabe-Workflow bevor ein Name live geht, Produktion der physischen Hex-Kärtchen (Karton, laminiert oder Holz).</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const tiers = [
+    {amt:4,   name:'Würfel-Fan',           color:'var(--t1)', w:60,  icon:'<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="1.6" fill="var(--bg-1)"/>'},
+    {amt:8,   name:'Meeple-Freund',        color:'var(--t2)', w:68,  icon:'<path d="M9 21v-6c0-3 1.5-5 3-6 1.5 1 3 3 3 6v6"/><circle cx="12" cy="7" r="3"/>'},
+    {amt:16,  name:'Kartendeck-Pate',      color:'var(--t3)', w:76,  icon:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 9h6M9 13h4"/>'},
+    {amt:25,  name:'Spielfiguren-Pöppel',  color:'var(--t4)', w:84,  icon:'<circle cx="12" cy="8" r="4"/><path d="M6 21c0-4 3-6 6-6s6 2 6 6"/>'},
+    {amt:50,  name:'Spielbrett-Fliese',    color:'var(--t5)', w:94,  icon:'<polygon points="12,3 21,8 21,16 12,21 3,16 3,8"/>'},
+    {amt:75,  name:'Schatztruhen-Held:in', color:'var(--t6)', w:106, icon:'<rect x="4" y="9" width="16" height="11" rx="2"/><path d="M4 9c0-3 2-5 8-5s8 2 8 5"/>'},
+    {amt:100, name:'Pokal-Legende',        color:'var(--t7)', w:120, icon:'<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M12 13v4M9 21h6M4 5H2a3 3 0 0 0 3 4M20 5h2a3 3 0 0 1-3 4"/>'}
+  ];
+
+  const seedNames = ['Familie Berger','Team Würfelfreunde','Anna K.','Spielekiste OG','Markus P.','Verein Brettwerk','Lisa & Tom','Herr Novak','Die Meeples','Sophie R.'];
+  let entries = [];
+  seedNames.forEach((n,i)=> entries.push({name:n, tier: tiers[i % tiers.length]}));
+
+  function makeHex(entry){
+    const t = entry.tier;
+    const wrap = document.createElement('div');
+    wrap.className = 'hex-wrap';
+    wrap.innerHTML = `
+      <div class="hex wall-hex" style="width:${t.w}px;height:${Math.round(t.w*1.125)}px;background:${t.color};">
+        <svg viewBox="0 0 24 24">${t.icon}</svg>
+      </div>
+      <span class="name-tag">${entry.name}</span>`;
+    return wrap;
+  }
+
+  function render(){
+    ['honeycombDigital','honeycombEvent','honeycombLive'].forEach(id=>{
+      const el = document.getElementById(id);
+      el.innerHTML = '';
+      const list = id === 'honeycombLive' ? entries.slice(-6) : entries;
+      list.forEach(e => el.appendChild(makeHex(e)));
+    });
+    document.getElementById('statCount').textContent = entries.length;
+    document.getElementById('statSum').textContent = '€ ' + entries.reduce((s,e)=>s+e.tier.amt,0);
+  }
+
+  const picker = document.getElementById('tierPicker');
+  let selectedTier = tiers[1];
+  tiers.forEach((t,i)=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tier-btn' + (i===1 ? ' active' : '');
+    b.textContent = t.amt + '€';
+    b.addEventListener('click', ()=>{
+      selectedTier = t;
+      [...picker.children].forEach(c=>c.classList.remove('active'));
+      b.classList.add('active');
+    });
+    picker.appendChild(b);
+  });
+
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('nameInput');
+    const name = input.value.trim() || 'Anonym';
+    entries.push({name, tier: selectedTier});
+    input.value = '';
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
