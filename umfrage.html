@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linz Spielt 2026 - Umfrage</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --bg-color: #f1faee;
+            --text-color: #1d3557;
+            --box-bg: #ffffff;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--box-bg);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 450px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            text-align: center;
+            font-size: 1rem;
+            color: #457b9d;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label.section-label {
+            display: block;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #a8dadc;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+        }
+
+        .radio-label:active {
+            background: #e2e8f0;
+            transform: scale(0.98);
+        }
+
+        .radio-label input[type="radio"] {
+            margin-right: 15px;
+            transform: scale(1.5);
+            accent-color: var(--primary-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #d62828;
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            color: #2a9d8f;
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin-top: 20px;
+            padding: 20px;
+            background: #e9f5f4;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="form-container">
+        <h1>🎲 Linz Spielt 2026</h1>
+        <p class="subtitle">Anonyme Besucher-Auswertung</p>
+
+        <form id="surveyForm">
+            <div class="form-group">
+                <label class="section-label" for="plz">Meine Postleitzahl:</label>
+                <input type="number" id="plz" name="plz" placeholder="z.B. 4020" required>
+            </div>
+
+            <div class="form-group">
+                <label class="section-label">Wie bist du auf uns aufmerksam geworden?</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="source" value="friends" required> Empfehlung (Freunde / Familie)
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="source" value="social_media"> Social Media (Insta, FB, etc.)
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="source" value="flyer"> Plakat oder Flyer
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="source" value="website"> Spieleversum Webseite / Newsletter
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="source" value="random"> Zufällig vorbeigekommen
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">Daten absenden</button>
+            <div class="success-message" id="successMsg">Danke! Viel Spaß beim Spielen! 🎲</div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('surveyForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            // Datenstruktur vorbereiten
+            const formData = {
+                plz: document.getElementById('plz').value,
+                source: document.querySelector('input[name="source"]:checked').value,
+                timestamp: new Date().toISOString()
+            };
+
+            // Hier kannst du die Logik für deine Datenbank einbauen 
+            // (z. B. push in eine Firebase Realtime Database oder Firestore)
+            // console.log("Payload:", formData);
+
+            // Erfolgsmeldung anzeigen und Formular ausblenden
+            const btn = document.getElementById('submitBtn');
+            const inputs = document.querySelectorAll('.form-group');
+            
+            btn.style.display = 'none';
+            inputs.forEach(el => el.style.display = 'none');
+            document.getElementById('successMsg').style.display = 'block';
+
+            // Kiosk-Modus: Nach 3 Sekunden automatisch für den nächsten Gast zurücksetzen
+            setTimeout(() => {
+                this.reset();
+                btn.style.display = 'block';
+                inputs.forEach(el => el.style.display = 'block');
+                document.getElementById('successMsg').style.display = 'none';
+                
+                // Fokus wieder auf die PLZ setzen
+                document.getElementById('plz').focus();
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
