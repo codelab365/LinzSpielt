@@ -153,7 +153,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v29</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v30</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -319,6 +319,19 @@
         </section>
 
         <!-- MODAL: BGSTATS-IMPORT -->
+        <!-- MODAL: SUPERADMIN-EINSTELLUNGEN (nur für SuperAdmin sichtbar) -->
+        <div id="superadmin-modal-overlay" class="qb-modal-overlay cl-hidden">
+            <div class="cl-card cl-card--pad qb-modal modal-enter">
+                <button type="button" id="superadmin-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+                <h2 style="margin-top:0;">Zugangscode für Registrierung</h2>
+                <p class="cl-muted" style="font-size:.85rem;">Diesen Code brauchen neue Team-Mitglieder, um sich selbst ein Konto anzulegen. Nur du als SuperAdmin kannst ihn hier ändern.</p>
+                <label class="cl-label" for="superadmin-code-input">Zugangscode</label>
+                <input type="text" id="superadmin-code-input" class="cl-input" autocomplete="off">
+                <button type="button" id="superadmin-code-save-btn" class="cl-btn cl-btn--signal" style="margin-top:.75rem;">Speichern</button>
+                <p id="superadmin-feedback" class="qb-feedback"></p>
+            </div>
+        </div>
+
         <div id="bgstats-modal-overlay" class="qb-modal-overlay cl-hidden">
             <div class="cl-card cl-card--pad qb-modal qb-modal--lg modal-enter">
                 <button type="button" id="bgstats-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
@@ -641,8 +654,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v29 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v30 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v30 — Neuer Button "⚙️ Zugangscode" im Header, sichtbar ausschließlich
+//        für andreas.neuhold@gmail.com (SuperAdmin) — öffnet ein Fenster
+//        zum Anzeigen/Ändern des Registrierungs-Zugangscodes direkt im
+//        Tool, statt über die Firebase-Konsole. WICHTIG: Die Firestore-
+//        Regel für config muss dafür angepasst werden (siehe Chat-Antwort),
+//        sonst ist das nur eine Oberflächen-Einschränkung.
 //   v29 — Spieledatenbank: neue Kennzahlen-Leiste oberhalb der Suche —
 //        Spiele gesamt, Fertig angereichert, Offen, Kein BGG-Treffer,
 //        Fehler. Bezieht sich immer auf die gesamte Datenbank, unabhängig
@@ -1010,17 +1029,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const SUPERADMIN_EMAIL = 'andreas.neuhold@gmail.com';
+
     function renderHeaderActions() {
         if (currentUser) {
+            const isSuperAdmin = currentUser.email === SUPERADMIN_EMAIL;
             headerActions.innerHTML = `
                 <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
+                ${isSuperAdmin ? '<button type="button" id="superadmin-settings-btn" class="cl-btn cl-btn--ghost cl-btn--sm">⚙️ Zugangscode</button>' : ''}
                 <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            if (isSuperAdmin) {
+                document.getElementById('superadmin-settings-btn').addEventListener('click', openSuperAdminModal);
+            }
         } else {
             headerActions.innerHTML = '';
         }
     }
+
+    async function openSuperAdminModal() {
+        const overlay = document.getElementById('superadmin-modal-overlay');
+        const input = document.getElementById('superadmin-code-input');
+        const feedback = document.getElementById('superadmin-feedback');
+        feedback.textContent = '';
+        input.value = 'Lade…';
+        input.disabled = true;
+        showModal(overlay);
+        try {
+            const snap = await getDoc(doc(db, 'config', 'registration'));
+            input.value = snap.exists() ? (snap.data().code || '') : '';
+        } catch (err) {
+            console.error('Zugangscode laden fehlgeschlagen:', err);
+            input.value = '';
+            feedback.textContent = 'Aktueller Code konnte nicht geladen werden.';
+            feedback.style.color = 'var(--cl-err)';
+        }
+        input.disabled = false;
+    }
+    document.getElementById('superadmin-modal-close').addEventListener('click', () => hideModal(document.getElementById('superadmin-modal-overlay')));
+    document.getElementById('superadmin-modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'superadmin-modal-overlay') hideModal(e.currentTarget);
+    });
+    document.getElementById('superadmin-code-save-btn').addEventListener('click', async () => {
+        const input = document.getElementById('superadmin-code-input');
+        const feedback = document.getElementById('superadmin-feedback');
+        const newCode = input.value.trim();
+        if (!newCode) { feedback.textContent = 'Bitte einen Code eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
+        try {
+            await setDoc(doc(db, 'config', 'registration'), { code: newCode }, { merge: true });
+            feedback.textContent = 'Gespeichert.';
+            feedback.style.color = 'var(--cl-ok)';
+            showToast('✅ Zugangscode aktualisiert', false, { variant: 'ok', duration: 2000 });
+        } catch (err) {
+            console.error('Zugangscode speichern fehlgeschlagen:', err);
+            feedback.textContent = 'Speichern fehlgeschlagen — bist du wirklich als SuperAdmin eingeloggt?';
+            feedback.style.color = 'var(--cl-err)';
+        }
+    });
 
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
