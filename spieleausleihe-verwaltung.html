@@ -26,13 +26,14 @@
     .qb-modal-close:hover { color: var(--cl-text); }
     .modal-enter { animation: qbFadeIn .22s ease-out; }
     @keyframes qbFadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
-    #toast-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 100;
-        display: flex; flex-direction: column; gap: .5rem; align-items: center; }
-    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: .75rem 1.4rem;
-        border-radius: var(--cl-radius-pill); box-shadow: var(--cl-shadow-lg); font-size: .9rem; max-width: 90vw; text-align: center; }
+    #toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100;
+        display: flex; flex-direction: column; gap: .5rem; align-items: center; pointer-events: none; }
+    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: 1.1rem 2rem;
+        border-radius: var(--cl-radius); box-shadow: var(--cl-shadow-lg); font-size: 1.15rem; font-weight: 600; max-width: 90vw; text-align: center; }
     .qb-toast--err { background: var(--cl-err); }
     .qb-toast--ok { background: var(--cl-ok); }
     .toast-enter { animation: qbFadeIn .25s ease-out; }
+    .sv-always-active-toggle { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--cl-muted); margin-top: .5rem; cursor: pointer; }
 
     .sv-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
     .sv-link-btn { background: none; border: none; color: var(--cl-signal); cursor: pointer; font-size: .85rem; text-decoration: underline; padding: 0; }
@@ -153,7 +154,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v30</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v31</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -228,6 +229,10 @@
             <div class="cl-card cl-card--pad sv-scan-card">
                 <label class="cl-label" for="quick-scan-input">EAN scannen</label>
                 <input type="text" id="quick-scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+                <label class="sv-always-active-toggle">
+                    <input type="checkbox" id="quick-scan-always-active-toggle">
+                    Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+                </label>
                 <p id="quick-scan-counter" class="cl-muted" style="margin-top:.5rem;">0 Spiele in dieser Sitzung erfasst.</p>
                 <p id="quick-bgg-queue-status" class="cl-muted" style="font-size:.82rem;"></p>
             </div>
@@ -319,6 +324,22 @@
         </section>
 
         <!-- MODAL: BGSTATS-IMPORT -->
+        <!-- MODAL: PERSÖNLICHE EINSTELLUNGEN (für jeden angemeldeten Nutzer) -->
+        <div id="user-settings-modal-overlay" class="qb-modal-overlay cl-hidden">
+            <div class="cl-card cl-card--pad qb-modal modal-enter">
+                <button type="button" id="settings-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+                <h2 style="margin-top:0;">Einstellungen</h2>
+                <p class="cl-muted" style="font-size:.85rem;">Gilt für dieses Gerät/diesen Browser.</p>
+                <label class="cl-label" for="settings-toast-duration">Anzeigedauer der Scan-Rückmeldung (Sekunden)</label>
+                <input type="number" id="settings-toast-duration" class="cl-input" min="0.5" max="10" step="0.5">
+                <label style="display:flex; align-items:center; gap:.5rem; font-size:.9rem; margin-top: var(--cl-space-3);">
+                    <input type="checkbox" id="settings-scan-sound">
+                    Ton bei erfolgreichem Scan abspielen
+                </label>
+                <button type="button" id="settings-save-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Speichern</button>
+            </div>
+        </div>
+
         <!-- MODAL: SUPERADMIN-EINSTELLUNGEN (nur für SuperAdmin sichtbar) -->
         <div id="superadmin-modal-overlay" class="qb-modal-overlay cl-hidden">
             <div class="cl-card cl-card--pad qb-modal modal-enter">
@@ -410,6 +431,10 @@
                 <p class="cl-muted" style="font-size:.78rem; margin:.3rem 0 0 0;">Meistens automatisch erkannt — nur relevant, wenn von einem Spiel manche Exemplare draußen und manche noch da sind.</p>
                 <label class="cl-label" for="scan-input" style="margin-top:.75rem;">EAN scannen oder eingeben</label>
                 <input type="text" id="scan-input" class="cl-input sv-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+                <label class="sv-always-active-toggle">
+                    <input type="checkbox" id="scan-input-always-active-toggle">
+                    Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+                </label>
                 <div id="scan-result" class="sv-scan-result"></div>
             </div>
 
@@ -577,6 +602,10 @@
             <select id="event-quick-shelf-select" class="cl-select"></select>
             <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
         </div>
+        <label class="sv-always-active-toggle">
+            <input type="checkbox" id="event-quick-scan-always-active-toggle">
+            Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+        </label>
         <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
 
         <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
@@ -654,8 +683,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v30 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v31 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v31 — Fünf neue Features, gelten für Verwaltungstool UND
+//        spieleausleihe-tresen.html:
+//        1) Scan-Rückmeldung (grüner/blauer Toast) von unten in die
+//           Bildschirmmitte verschoben, größer/auffälliger.
+//        2) Neues "⚙️ Einstellungen"-Menü im Header (pro Browser/Gerät):
+//           Anzeigedauer der Rückmeldung einstellbar, Ton bei Scan an/aus.
+//        3) Akustischer Piepton bei jedem erfolgreichen Scan (Web Audio
+//           API, kein Audio-File nötig), abschaltbar in den Einstellungen.
+//        4) Neuer Schieberegler "Scan-Feld immer aktiv halten" unter jedem
+//           Scan-Feld (Schnellerfassung, Ausleihe-Tab, Event-Schnellscan,
+//           Tresen) — standardmäßig aus, holt bei Aktivierung den Fokus
+//           automatisch zurück ins Scan-Feld, sobald er woanders hinwandert
+//           (außer bei bewusster Eingabe in ein anderes Feld).
+//        5) BGG-Logo mit Link auf boardgamegeek.com jetzt auch im Tresen-
+//           Header sowie oben in index.html und sammlung-uebersicht.html.
 //   v30 — Neuer Button "⚙️ Zugangscode" im Header, sichtbar ausschließlich
 //        für andreas.neuhold@gmail.com (SuperAdmin) — öffnet ein Fenster
 //        zum Anzeigen/Ändern des Registrierungs-Zugangscodes direkt im
@@ -900,6 +944,64 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
 
+// --- Einstellungen (pro Browser/Gerät in localStorage gespeichert) ---
+const DEFAULT_TOAST_DURATION_MS = 2200;
+function getScanToastDurationMs() {
+    const v = parseFloat(localStorage.getItem('sv_toast_duration_sec'));
+    return (!isNaN(v) && v > 0) ? Math.round(v * 1000) : DEFAULT_TOAST_DURATION_MS;
+}
+function isScanSoundEnabled() {
+    const v = localStorage.getItem('sv_scan_sound_enabled');
+    return v === null ? true : v === '1';
+}
+let sharedAudioCtx = null;
+// Kurzer synthetischer Piepton (Web Audio API) — kein Audio-File nötig,
+// funktioniert offline. Wird bei jedem erfolgreichen Scan aufgerufen, sofern
+// in den Einstellungen aktiviert.
+function playScanBeep() {
+    if (!isScanSoundEnabled()) return;
+    try {
+        sharedAudioCtx = sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = sharedAudioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.17);
+    } catch (err) { console.error('Beep fehlgeschlagen:', err); }
+}
+// "Scan-Feld immer aktiv halten": holt den Fokus automatisch zurück ins
+// Scan-Feld, sobald er woanders hinwandert (z.B. nach einem Button-Klick) —
+// außer der Nutzer tippt gerade bewusst in ein anderes Textfeld. So landet
+// die nächste Scanner-Eingabe zuverlässig im richtigen Feld, ganz ohne
+// vorher extra reinklicken zu müssen. Standardmäßig aus, pro Feld über den
+// Schieberegler darunter aktivierbar.
+function setupAlwaysActiveScan(inputId, toggleId) {
+    const input = document.getElementById(inputId);
+    const toggle = document.getElementById(toggleId);
+    if (!input || !toggle) return;
+    const storageKey = 'sv_always_active_' + inputId;
+    toggle.checked = localStorage.getItem(storageKey) === '1';
+    toggle.addEventListener('change', () => {
+        localStorage.setItem(storageKey, toggle.checked ? '1' : '0');
+        if (toggle.checked) input.focus();
+    });
+    input.addEventListener('blur', () => {
+        if (!toggle.checked) return;
+        setTimeout(() => {
+            const active = document.activeElement;
+            const isTyping = active && active !== document.body && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+            if (!isTyping) input.focus();
+        }, 150);
+    });
+}
+
 // --- Toast ---
 function showToast(message, isError = false, opts = {}) {
     const container = document.getElementById('toast-container');
@@ -1036,10 +1138,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSuperAdmin = currentUser.email === SUPERADMIN_EMAIL;
             headerActions.innerHTML = `
                 <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
-                ${isSuperAdmin ? '<button type="button" id="superadmin-settings-btn" class="cl-btn cl-btn--ghost cl-btn--sm">⚙️ Zugangscode</button>' : ''}
+                <button type="button" id="user-settings-btn" class="cl-btn cl-btn--ghost cl-btn--sm">⚙️ Einstellungen</button>
+                ${isSuperAdmin ? '<button type="button" id="superadmin-settings-btn" class="cl-btn cl-btn--ghost cl-btn--sm">🔑 Zugangscode</button>' : ''}
                 <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            document.getElementById('user-settings-btn').addEventListener('click', openUserSettingsModal);
             if (isSuperAdmin) {
                 document.getElementById('superadmin-settings-btn').addEventListener('click', openSuperAdminModal);
             }
@@ -1047,6 +1151,28 @@ document.addEventListener('DOMContentLoaded', () => {
             headerActions.innerHTML = '';
         }
     }
+
+    function openUserSettingsModal() {
+        document.getElementById('settings-toast-duration').value = (getScanToastDurationMs() / 1000).toFixed(1);
+        document.getElementById('settings-scan-sound').checked = isScanSoundEnabled();
+        showModal(document.getElementById('user-settings-modal-overlay'));
+    }
+    document.getElementById('settings-modal-close').addEventListener('click', () => hideModal(document.getElementById('user-settings-modal-overlay')));
+    document.getElementById('user-settings-modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'user-settings-modal-overlay') hideModal(e.currentTarget);
+    });
+    document.getElementById('settings-save-btn').addEventListener('click', () => {
+        const sec = parseFloat(document.getElementById('settings-toast-duration').value);
+        localStorage.setItem('sv_toast_duration_sec', (!isNaN(sec) && sec > 0) ? String(sec) : String(DEFAULT_TOAST_DURATION_MS / 1000));
+        localStorage.setItem('sv_scan_sound_enabled', document.getElementById('settings-scan-sound').checked ? '1' : '0');
+        hideModal(document.getElementById('user-settings-modal-overlay'));
+        playScanBeep();
+        showToast('✅ Einstellungen gespeichert', false, { variant: 'ok', duration: getScanToastDurationMs() });
+    });
+
+    setupAlwaysActiveScan('quick-scan-input', 'quick-scan-always-active-toggle');
+    setupAlwaysActiveScan('scan-input', 'scan-input-always-active-toggle');
+    setupAlwaysActiveScan('event-quick-scan-input', 'event-quick-scan-always-active-toggle');
 
     async function openSuperAdminModal() {
         const overlay = document.getElementById('superadmin-modal-overlay');
@@ -1339,7 +1465,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
-        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
+        playScanBeep();
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
         quickScanInput.focus();
     }
 
@@ -2613,7 +2740,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const counterEl = document.getElementById('event-quick-scan-counter');
         const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
         counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
-        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: 1500 });
+        playScanBeep();
+        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
         eventQuickScanInput.focus();
     }
 
@@ -2738,7 +2866,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} ausgeliehen 📖</p>
                     <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
                 </div>`;
-            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
+            playScanBeep();
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`, false, { duration: getScanToastDurationMs() });
         } catch (err) { console.error('Ausleih-Fehler:', err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
 
@@ -2756,7 +2885,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} zurückgelegt ✅</p>
                     <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
                 </div>`;
-            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`);
+            playScanBeep();
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`, false, { duration: getScanToastDurationMs() });
         } catch (err) { console.error('Rückgabe-Fehler:', err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
