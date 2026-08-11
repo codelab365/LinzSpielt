@@ -791,7 +791,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
             showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
             showReturnOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
-            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt.`);
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
