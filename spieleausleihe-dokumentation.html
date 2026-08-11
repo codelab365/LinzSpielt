@@ -54,11 +54,16 @@
 
     <div class="doc-layout">
         <nav class="doc-toc">
+            <h4>Schnellstart</h4>
+            <ul>
+                <li><a href="#schnellstart">⚡ Schnellstartanleitung</a></li>
+            </ul>
             <h4>Grundlagen</h4>
             <ul>
                 <li><a href="#konzept">Systemkonzept</a></li>
                 <li><a href="#zugriff">Zugriff &amp; Anmeldung</a></li>
                 <li><a href="#ablauf">Typischer Ablauf</a></li>
+                <li><a href="#einstellungen">Einstellungen (Ton, Anzeigedauer, Scan-Fokus)</a></li>
             </ul>
             <h4>Spieledatenbank</h4>
             <ul>
@@ -112,6 +117,24 @@
 
         <div class="doc-content">
 
+            <section id="schnellstart">
+                <h2>⚡ Schnellstartanleitung</h2>
+                <p class="cl-muted">Der schnellste Weg zum ersten funktionierenden Event. Für die Details jedes Schritts einfach dem jeweiligen Link folgen.</p>
+                <ol class="doc-step-list">
+                    <li><strong>Anmelden</strong> im <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-verwaltung.html" target="_blank" rel="noopener noreferrer">Verwaltungstool</a>. Kein Konto? → <a href="#zugriff">Registrieren mit Zugangscode</a> (bei der Vereinsleitung erfragen).</li>
+                    <li><strong>Spiele erfassen:</strong> Im Tab <strong>⚡ Schnellerfassung</strong> Zielsammlung(en) anhaken und einfach drauflos scannen — landet automatisch in Datenbank und Sammlung, Titel wird wo möglich automatisch erkannt. → <a href="#schnellerfassung">Details</a></li>
+                    <li><strong>Event anlegen:</strong> Tab <strong>Events</strong> → Name eingeben, Sammlung(en) anhaken, optional gleich "Alle Spiele sofort bereitstellen" ankreuzen → "Event anlegen". → <a href="#events-anlegen">Details</a></li>
+                    <li><strong>Regal(e) anlegen</strong> im geöffneten Event-Fenster, falls nicht schon automatisch geschehen. → <a href="#events-regale">Details</a></li>
+                    <li><strong>Rückgabemeldung einstellen</strong> (manuell bestätigen oder Timer) — einmal pro Event. → <a href="#events-rueckgabemeldung">Details</a></li>
+                    <li><strong>Am Tresen:</strong> "🖥️ Zum Tresen"-Link von der Event-Karte öffnen (oder direkt an einem zweiten Gerät) und dort scannen — läuft ohne Rückfragen, bei Mehrdeutigkeit poppt automatisch eine kurze Auswahl auf. → <a href="#tresen">Details</a></li>
+                    <li><strong>Für Besucher:</strong> "👁️ Ansicht für Besucher:innen"-Link teilen oder als Einbett-Code auf der Vereins-Website einfügen. → <a href="#events-embed">Details</a></li>
+                    <li><strong>Nach dem Event:</strong> Tab <strong>Statistik</strong> → Auswertung ansehen, als CSV exportieren. → <a href="#statistik">Details</a></li>
+                </ol>
+                <div class="doc-callout">
+                    <p>Persönliche Vorlieben wie Ton bei Scan oder Anzeigedauer der Rückmeldung lassen sich jederzeit über <strong>⚙️ Einstellungen</strong> im Header anpassen — siehe <a href="#einstellungen">Einstellungen</a>.</p>
+                </div>
+            </section>
+
             <section id="konzept">
                 <h2>Systemkonzept</h2>
                 <p>Das System besteht aus vier aufeinander aufbauenden Ebenen. Wer das Prinzip einmal verstanden hat, findet sich in allen Tabs zurecht:</p>
@@ -152,6 +175,25 @@
                     <li><a href="#events-embed">Einbett-Code</a> auf der Vereins-Website einfügen, damit Besucher live sehen, was verfügbar ist.</li>
                     <li>Nach dem Event: <a href="#statistik">Statistik auswerten, als CSV exportieren</a> und im Zeitverlaufs-Diagramm ansehen, für die nächste Planung.</li>
                 </ol>
+            </section>
+
+            <section id="einstellungen">
+                <h2>Einstellungen (Ton, Anzeigedauer, Scan-Fokus)</h2>
+                <p>Button <strong>"⚙️ Einstellungen"</strong> im Header — sowohl im Verwaltungstool als auch am Ausleihe-Tresen, für jeden angemeldeten Nutzer verfügbar. Die Einstellungen gelten pro Browser/Gerät (nicht pro Firebase-Konto) — wer an einem anderen Rechner arbeitet, stellt sie dort separat ein. Sind Verwaltungstool und Tresen im selben Browser geöffnet, teilen sie sich automatisch dieselben Einstellungen.</p>
+                <ul class="doc-step-list">
+                    <li><strong>Anzeigedauer der Scan-Rückmeldung (Sekunden):</strong> Wie lange die große Rückmeldung in der Bildschirmmitte sichtbar bleibt, bevor sie von selbst verschwindet (z.B. "Catan erfasst"). Kürzer für zügiges Scannen im Stapel, länger falls mehr Zeit zum Lesen gewünscht ist.</li>
+                    <li><strong>Ton bei erfolgreichem Scan:</strong> Ein kurzer Piepton bestätigt akustisch jeden erfolgreichen Scan — praktisch, wenn man nicht ständig auf den Bildschirm schauen kann. Ein-/ausschaltbar, standardmäßig an.</li>
+                </ul>
+                <h3>Scan-Feld immer aktiv halten</h3>
+                <p>Unter jedem Scan-Feld (Schnellerfassung, Ausleihe-Tab, Event-Schnellscan, Ausleihe-Tresen) gibt es einen eigenen Schieberegler <strong>"Scan-Feld immer aktiv halten"</strong> — standardmäßig <strong>aus</strong>, pro Feld einzeln einstellbar.</p>
+                <ul class="doc-step-list">
+                    <li>USB-Barcodescanner tippen den Code dorthin, wo gerade der Bildschirm-Cursor steht — klickt man aus Versehen woanders hin, landet der nächste Scan im Leeren.</li>
+                    <li>Ist der Regler aktiviert, holt sich das Scan-Feld den Fokus automatisch zurück, sobald er verloren geht (z.B. nach einem Klick auf einen Button) — der nächste Scan trifft wieder zuverlässig ins richtige Feld.</li>
+                    <li><strong>Ausnahme:</strong> Tippt man bewusst in ein anderes Textfeld (z.B. die Suche), wird der Fokus dort belassen — es wird also nicht mitten im Tippen weggeschnappt.</li>
+                </ul>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Browser können Tastatur-Eingaben aus Sicherheitsgründen nicht komplett unabhängig vom Bildschirm-Cursor abfangen — die Funktion deckt den Alltagsfall gut ab, garantiert aber keine 100%ige Erfassung in jeder denkbaren Situation.</p>
+                </div>
             </section>
 
             <section id="stufe1">
@@ -236,7 +278,8 @@ Hier sind meine EAN-Codes:
                 <ul class="doc-step-list">
                     <li>Einmal einstellen: Häkchen bei den Ziel-<strong>Sammlungen</strong> setzen, optional ein <strong>Regal</strong> des aktiven Events wählen.</li>
                     <li>Danach nur noch scannen — jeder Scan trägt <strong>sofort ohne Rückfrage</strong> ein: neu in die Datenbank (mit automatischem GTNM-Titel-Vorschlag), in die angehakten Sammlungen, und falls ein Regal gewählt ist, direkt ins aktive Event.</li>
-                    <li>Nach jedem Scan blendet sich kurz eine <strong>grüne Bestätigung</strong> ein ("✅ [Spielname] erfasst") und verschwindet nach ca. 1,5 Sekunden von selbst — ideal beim zügigen Durchscannen einer ganzen Sammlung.</li>
+                    <li>Nach jedem Scan erscheint kurz eine <strong>Bestätigung in der Bildschirmmitte</strong> ("✅ [Spielname] erfasst", optional mit Ton) und verschwindet von selbst wieder — Dauer und Ton einstellbar unter <a href="#einstellungen">Einstellungen</a>. Ideal beim zügigen Durchscannen einer ganzen Sammlung.</li>
+                    <li>Unter dem Scan-Feld der Schieberegler "Scan-Feld immer aktiv halten" (siehe <a href="#einstellungen">Einstellungen</a>) — hilfreich, falls der Fokus beim Scannen öfter mal verloren geht.</li>
                     <li>BGG-Anreicherung läuft dabei <strong>im Hintergrund</strong> (5-Sek.-Takt, eigene Warteschlangen-Anzeige), damit das Scan-Tempo nicht ausgebremst wird.</li>
                     <li>Scannst du eine EAN, die in der Sammlung/im Event schon existiert, wird der bestehende Datenbank-Eintrag <strong>nicht verändert</strong> — es wird lediglich die <strong>Stückzahl um 1 erhöht</strong>, genau der Mehrfach-Exemplare-Fall.</li>
                     <li>Ein Protokoll unten zeigt zusätzlich jeden Scan mit Ergebnis im Verlauf.</li>
@@ -383,14 +426,13 @@ Hier sind meine EAN-Codes:
                 <h2>Ausleihe-Tresen</h2>
                 <p>Datei <code>spieleausleihe-tresen.html</code> — eine schlanke, eigenständige Seite speziell für den Betrieb am Ausleihtisch während der Veranstaltung, ohne den restlichen Verwaltungstrubel.</p>
                 <ul class="doc-step-list">
-                    <li>Aufruf über den Link aus dem Event-Fenster (<code>?event=EVENT_ID</code> in der URL) oder ohne Parameter mit Event-Auswahl beim Start.</li>
-                    <li>Login erforderlich (dieselben Konten wie im Verwaltungstool).</li>
+                    <li>Aufruf über den Link aus dem Event-Fenster bzw. der Event-Karte ("🖥️ Zum Tresen", <code>?event=EVENT_ID</code> in der URL) oder ohne Parameter mit Event-Auswahl beim Start.</li>
+                    <li>Login erforderlich (dieselben Konten wie im Verwaltungstool). Im Header außerdem das BGG-Logo (verlinkt zu boardgamegeek.com) sowie <strong>"⚙️ Einstellungen"</strong> (siehe <a href="#einstellungen">Einstellungen</a>) und <strong>"📖 Dokumentation"</strong>.</li>
                     <li>Immer sichtbar: eine Zeile mit der Anzahl <strong>gerade ausgeliehener Spiel-Exemplare</strong>.</li>
-                    <li>Darunter eingeklappt der Button <strong>"📊 Statistik anzeigen"</strong> — öffnet bei Bedarf die volle Kennzahlen-Übersicht (Spiele gesamt, verfügbar, Exemplare draußen, verschiedene Spiele draußen). Bewusst nicht permanent sichtbar, um am Tresen nicht abzulenken.</li>
-                    <li>Großes Scan-Feld, Scannen <strong>ohne Rückfrage</strong> in den allermeisten Fällen (siehe <a href="#ausleihe-logik">Ausleihe/Rückgabe-Logik</a>).</li>
-                    <li>Unter dem Scan-Feld ein <strong>immer sichtbares grünes/blaues Ergebnis-Feld</strong>, das anzeigt, was zuletzt passiert ist ("Spiel X ausgeliehen" bzw. "Spiel X zurückgelegt") — genau wie im Verwaltungstool.</li>
+                    <li>Darunter eingeklappt der Button <strong>"📊 Statistik anzeigen"</strong> — öffnet bei Bedarf die volle Kennzahlen-Übersicht. Bewusst nicht permanent sichtbar, um am Tresen nicht abzulenken.</li>
+                    <li>Großes Scan-Feld, darunter der Schieberegler "Scan-Feld immer aktiv halten" (siehe <a href="#einstellungen">Einstellungen</a>). Scannen läuft <strong>ohne Rückfrage</strong> in den allermeisten Fällen (siehe <a href="#ausleihe-logik">Ausleihe/Rückgabe-Logik</a>) — bei Erfolg piepst es kurz (falls aktiviert) und in der Bildschirmmitte erscheint eine Rückmeldung.</li>
                     <li>Bei Rückgabe erscheint zusätzlich die große Regal-Hinweis-Karte, Verhalten je nach <a href="#events-rueckgabemeldung">Einstellung</a> dieses Events.</li>
-                    <li>Live-Liste "Aktuell ausgeliehen" mit Stückzahl draußen und direktem Ein-Klick-Rückgabe-Button.</li>
+                    <li><strong>Spieleliste</strong>: zeigt immer alle Spiele des Events (nicht nur ausgeliehene), mit Suchfeld und einklappbarem <strong>"🔍 Filter &amp; Sortierung"</strong>-Panel — Spielerzahl, Komplexität, Bewertung, Sortierung, Status (Alle / Nur verfügbar / Nur ausgeliehen). Damit lassen sich Besucherfragen wie "Spiel für 2 Personen?" direkt am Tresen beantworten. Ein-Klick-Rückgabe-Button erscheint dort, wo etwas ausgeliehen ist.</li>
                     <li>Manuelle Suche als Fallback, falls der Scanner ausfällt.</li>
                     <li>Kein Zugriff auf Datenbank-Verwaltung, Sammlungen o.ä. — bewusst reduziert auf den reinen Tresen-Betrieb.</li>
                 </ul>
@@ -411,7 +453,7 @@ Hier sind meine EAN-Codes:
                 <h2>Ausleihe im Verwaltungstool</h2>
                 <p>Tab <strong>Ausleihe/Rückgabe</strong> — dieselbe Funktion und dieselbe Logik wie am Tresen, aber innerhalb des vollständigen Verwaltungstools und immer bezogen auf das oben gewählte aktive Event. Praktisch, wenn ohnehin schon im Tool gearbeitet wird und kein separates Tresen-Gerät nötig ist.</p>
                 <ul class="doc-step-list">
-                    <li><strong>Scannen:</strong> EAN ins obere Feld scannen (oder eintippen + Enter).</li>
+                    <li><strong>Scannen:</strong> EAN ins obere Feld scannen (oder eintippen + Enter). Darunter der Schieberegler "Scan-Feld immer aktiv halten" (siehe <a href="#einstellungen">Einstellungen</a>).</li>
                     <li><strong>Manuelle Suche:</strong> Falls der Scanner ausfällt, Spielname im zweiten Feld eintippen, Treffer anklicken.</li>
                     <li><strong>Unbekannte EAN:</strong> Ist das Spiel gar nicht in der Datenbank, bietet das Tool an, es direkt anzulegen. Ist es in der Datenbank, aber diesem Event noch nicht zugeordnet, bietet es an, es dem Event hinzuzufügen.</li>
                     <li>Die Tabelle "Aktuell ausgeliehen" zeigt alle offenen Ausleihen mit Regal und Stückzahl draußen, inkl. direktem Rückgabe-Button.</li>
@@ -443,9 +485,11 @@ Hier sind meine EAN-Codes:
                 <ul class="doc-step-list">
                     <li>Aufruf mit <code>?event=EVENT_ID</code> in der URL zeigt direkt dieses Event (so ist auch der Einbett-Code aufgebaut).</li>
                     <li>Ohne Event-Parameter zeigt die Seite ein Dropdown zur Auswahl unter allen vorhandenen Events.</li>
+                    <li>Oben neben dem Titel das BGG-Logo (verlinkt zu boardgamegeek.com) als Herkunftsnachweis der Spieledaten.</li>
                     <li>Standardmäßig sichtbar ist nur das <strong>Suchfeld</strong> plus ein Button <strong>"🔍 Filter &amp; Sortierung"</strong> — Platz sparend, besonders wichtig, wenn die Seite schmal eingebettet ist.</li>
                     <li>Klick auf den Button öffnet ein kompaktes, mehrspaltiges Panel mit: Regal-Filter, Spielerzahl-Filter, Status-Filter, <strong>Komplexität</strong> ("Leicht", "Mittel", "Anspruchsvoll") und <strong>Bewertung</strong> ("Gut bewertet ab 7", "Sehr gut bewertet ab 8") statt roher BGG-Zahlenskalen, sowie Sortierung nach Name, Beliebtheit (BGG-Bewertung) oder Komplexität (auf- oder absteigend).</li>
                     <li>Der Button zeigt eine kleine Zahl, sobald Filter aktiv sind, auch wenn das Panel gerade eingeklappt ist. Ein "Filter zurücksetzen"-Button im Panel setzt alles auf Standard zurück.</li>
+                    <li>Die Tabelle zeigt neben Spieleranzahl, Alter, Dauer und Bewertung auch die <strong>Komplexität</strong> direkt als eigene Spalte.</li>
                     <li>Jede Zeile der Ergebnistabelle ist anklickbar und öffnet eine Detailkarte mit größerem Bild, Beschreibung, Kategorie und einem direkten Link zur BGG-Seite des Spiels.</li>
                     <li>Bei Mehrfach-Exemplaren zeigt der Status z.B. "verfügbar (2/3)".</li>
                     <li>Kein Login nötig, keine Bearbeitung möglich — reine Live-Ansicht.</li>
@@ -458,7 +502,8 @@ Hier sind meine EAN-Codes:
                 <ul class="doc-step-list">
                     <li>Aufruf mit <code>?collection=SAMMLUNG_ID</code> zeigt direkt diese eine Sammlung (Link dazu im Sammlungsfenster, siehe <a href="#sammlung-link">Öffentlicher Link zur Sammlung</a>).</li>
                     <li>Ohne Parameter: Dropdown zur Auswahl unter allen vorhandenen Sammlungen.</li>
-                    <li>Gleiches Suchfeld, gleiches einklappbare Filter-&amp;-Sortierungs-Panel wie bei der Event-Übersicht (Spielerzahl, Komplexität, Bewertung, Sortierung inkl. "Stückzahl, meiste zuerst") — bewusst dieselbe Bedienung wie gewohnt.</li>
+                    <li>Oben neben dem Titel ebenfalls das BGG-Logo mit Link zu boardgamegeek.com.</li>
+                    <li>Gleiches Suchfeld, gleiches einklappbare Filter-&amp;-Sortierungs-Panel wie bei der Event-Übersicht (Spielerzahl, Komplexität, Bewertung, Sortierung inkl. "Stückzahl, meiste zuerst") — bewusst dieselbe Bedienung wie gewohnt. Die Tabelle zeigt Komplexität ebenfalls als eigene Spalte.</li>
                     <li>Kein Regal- und kein Status-Filter, da Sammlungen keine Verfügbarkeit im Ausleihsinn kennen — stattdessen zeigt die Tabelle je Spiel die <strong>Stückzahl</strong> ("2×" usw.).</li>
                     <li>Zeile anklicken öffnet dieselbe Detailkarte wie bei der Event-Übersicht (Bild, Beschreibung, BGG-Link).</li>
                     <li>Bild, Bewertung, Komplexität usw. werden live aus der zentralen Spieledatenbank nachgeladen — steht ein Spiel dort noch ohne Titel/BGG-Daten ("Offen"), zeigt die Sammlung-Übersicht entsprechend weniger an.</li>
