@@ -154,7 +154,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v31</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v36</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -232,6 +232,10 @@
                 <label class="sv-always-active-toggle">
                     <input type="checkbox" id="quick-scan-always-active-toggle">
                     Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+                </label>
+                <label class="sv-always-active-toggle">
+                    <input type="checkbox" id="quick-scan-sound-toggle">
+                    🔊 Ton bei erfolgreichem Scan
                 </label>
                 <p id="quick-scan-counter" class="cl-muted" style="margin-top:.5rem;">0 Spiele in dieser Sitzung erfasst.</p>
                 <p id="quick-bgg-queue-status" class="cl-muted" style="font-size:.82rem;"></p>
@@ -435,6 +439,10 @@
                     <input type="checkbox" id="scan-input-always-active-toggle">
                     Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
                 </label>
+                <label class="sv-always-active-toggle">
+                    <input type="checkbox" id="scan-input-sound-toggle">
+                    🔊 Ton bei erfolgreichem Scan
+                </label>
                 <div id="scan-result" class="sv-scan-result"></div>
             </div>
 
@@ -606,6 +614,10 @@
             <input type="checkbox" id="event-quick-scan-always-active-toggle">
             Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
         </label>
+        <label class="sv-always-active-toggle">
+            <input type="checkbox" id="event-quick-scan-sound-toggle">
+            🔊 Ton bei erfolgreichem Scan
+        </label>
         <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
 
         <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
@@ -652,6 +664,13 @@
             <input type="number" id="return-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
         </div>
 
+        <label class="cl-label">Ausleihe-Meldung am Tresen</label>
+        <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
+            <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-confirm" value="confirm"> Manuell bestätigen</label>
+            <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-timer" value="timer"> Automatisch ausblenden nach</label>
+            <input type="number" id="borrow-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+        </div>
+
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
             <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
             <div style="display:flex; gap:.5rem;">
@@ -683,8 +702,30 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v31 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v36 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v36 — Neue, eigenständige "Ausleihe-Meldung am Tresen"-Einstellung pro
+//        Event (Event-Fenster, neben der bestehenden Rückgabe-Meldung):
+//        Manuell bestätigen oder automatisch ausblenden nach X Sek. Bei
+//        Ausleihe erscheint jetzt dasselbe große Overlay wie bei Rückgabe
+//        (Icon, Titel, Regal grün hervorgehoben), mit eigenem Timing statt
+//        nur dem kleinen Toast.
+//   v35 — Tresen: doppelte Rückmeldung bei Rückgabe behoben — der
+//        zentrierte Toast erschien redundant über dem Regal-Overlay, das
+//        dieselbe Info schon zeigt. Bei Rückgabe jetzt nur noch das
+//        Overlay, bei Ausleihe weiterhin nur der Toast.
+//   v34 — Tresen-Spieleliste: neben "1 zurückgeben" jetzt auch ein "1
+//        ausleihen"-Button direkt in der Tabelle, für Spiele mit
+//        verfügbaren Exemplaren — Ausleihe geht damit auch ohne Scannen.
+//   v33 — Bugfix Tresen: Das große Regal-Overlay (mit langer, event-
+//        spezifischer Anzeigedauer) erschien fälschlich auch bei Ausleihen,
+//        nicht nur bei Rückgaben, wo es eigentlich hingehört (Regal-
+//        Hinweis). Bei Ausleihen reicht die dezente Inline-Box + der
+//        zentrierte Toast — kein störendes Overlay mehr.
+//   v32 — Schnellzugriff-Ton-Regler ("🔊 Ton bei erfolgreichem Scan") jetzt
+//        direkt unter jedem Scan-Feld (Schnellerfassung, Ausleihe-Tab,
+//        Event-Schnellscan, Tresen) — nicht mehr nur im Einstellungen-
+//        Fenster erreichbar. Bleibt überall synchron mit den Einstellungen.
 //   v31 — Fünf neue Features, gelten für Verwaltungstool UND
 //        spieleausleihe-tresen.html:
 //        1) Scan-Rückmeldung (grüner/blauer Toast) von unten in die
@@ -1164,7 +1205,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-save-btn').addEventListener('click', () => {
         const sec = parseFloat(document.getElementById('settings-toast-duration').value);
         localStorage.setItem('sv_toast_duration_sec', (!isNaN(sec) && sec > 0) ? String(sec) : String(DEFAULT_TOAST_DURATION_MS / 1000));
-        localStorage.setItem('sv_scan_sound_enabled', document.getElementById('settings-scan-sound').checked ? '1' : '0');
+        const soundOn = document.getElementById('settings-scan-sound').checked;
+        localStorage.setItem('sv_scan_sound_enabled', soundOn ? '1' : '0');
+        syncQuickSoundToggles(soundOn);
         hideModal(document.getElementById('user-settings-modal-overlay'));
         playScanBeep();
         showToast('✅ Einstellungen gespeichert', false, { variant: 'ok', duration: getScanToastDurationMs() });
@@ -1173,6 +1216,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAlwaysActiveScan('quick-scan-input', 'quick-scan-always-active-toggle');
     setupAlwaysActiveScan('scan-input', 'scan-input-always-active-toggle');
     setupAlwaysActiveScan('event-quick-scan-input', 'event-quick-scan-always-active-toggle');
+
+    // Schnellzugriff-Ton-Regler direkt unter jedem Scan-Feld — greifen auf
+    // denselben localStorage-Wert zu wie das "⚙️ Einstellungen"-Fenster und
+    // halten sich beim Ändern gegenseitig synchron.
+    const quickSoundToggleIds = ['quick-scan-sound-toggle', 'scan-input-sound-toggle', 'event-quick-scan-sound-toggle'];
+    function syncQuickSoundToggles(checked) {
+        quickSoundToggleIds.forEach(id => { const el = document.getElementById(id); if (el) el.checked = checked; });
+    }
+    quickSoundToggleIds.forEach(id => {
+        const el = document.getElementById(id);
+        el.checked = isScanSoundEnabled();
+        el.addEventListener('change', () => {
+            localStorage.setItem('sv_scan_sound_enabled', el.checked ? '1' : '0');
+            syncQuickSoundToggles(el.checked);
+            if (el.checked) playScanBeep();
+        });
+    });
 
     async function openSuperAdminModal() {
         const overlay = document.getElementById('superadmin-modal-overlay');
@@ -2389,6 +2449,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('return-msg-confirm').checked = mode === 'confirm';
         document.getElementById('return-msg-timer').checked = mode === 'timer';
         document.getElementById('return-msg-seconds').value = ev.returnMessageSeconds ?? 5;
+        const borrowMode = ev.borrowMessageMode === 'timer' ? 'timer' : 'confirm';
+        document.getElementById('borrow-msg-confirm').checked = borrowMode === 'confirm';
+        document.getElementById('borrow-msg-timer').checked = borrowMode === 'timer';
+        document.getElementById('borrow-msg-seconds').value = ev.borrowMessageSeconds ?? 5;
         renderEventShelfGrid();
         renderEventGamesTable();
         updateSetActiveEventBtnLabel();
@@ -2423,6 +2487,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('return-msg-confirm').addEventListener('change', saveReturnMessageSettings);
     document.getElementById('return-msg-timer').addEventListener('change', saveReturnMessageSettings);
     document.getElementById('return-msg-seconds').addEventListener('change', saveReturnMessageSettings);
+
+    async function saveBorrowMessageSettings() {
+        if (!currentEventId) return;
+        const mode = document.getElementById('borrow-msg-timer').checked ? 'timer' : 'confirm';
+        const seconds = Math.max(1, Math.min(60, parseInt(document.getElementById('borrow-msg-seconds').value) || 5));
+        try { await updateDoc(doc(db, 'events', currentEventId), { borrowMessageMode: mode, borrowMessageSeconds: seconds }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); }
+    }
+    document.getElementById('borrow-msg-confirm').addEventListener('change', saveBorrowMessageSettings);
+    document.getElementById('borrow-msg-timer').addEventListener('change', saveBorrowMessageSettings);
+    document.getElementById('borrow-msg-seconds').addEventListener('change', saveBorrowMessageSettings);
 
     function updateSetActiveEventBtnLabel() {
         const btn = document.getElementById('set-active-event-btn');
