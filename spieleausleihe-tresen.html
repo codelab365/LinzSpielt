@@ -45,6 +45,12 @@
     .td-scan-result img { width: 56px; height: 56px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
     .td-scan-result__title { font-weight: 700; font-size: 1.05rem; margin: 0 0 .2rem 0; }
     .td-scan-input { font-size: 1.4rem; text-align: center; letter-spacing: .05em; padding: 1.1rem !important; }
+    .td-activity-log__list { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); }
+    .td-activity-log__item { display: flex; align-items: center; gap: .5rem; padding: .45rem .6rem; font-size: .84rem; border-bottom: 1px solid var(--cl-line); }
+    .td-activity-log__item:last-child { border-bottom: none; }
+    .td-activity-log__item--out { color: var(--cl-signal); }
+    .td-activity-log__item--in { color: var(--cl-ok); }
+    .td-activity-log__time { color: var(--cl-muted); font-size: .76rem; margin-left: auto; white-space: nowrap; }
     .td-manual-search { position: relative; margin-top: var(--cl-space-3); }
     .td-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
         margin-top: .3rem; max-height: 260px; overflow-y: auto; }
@@ -172,6 +178,10 @@
                 🔊 Ton bei erfolgreichem Scan
             </label>
             <div id="desk-scan-result" class="td-scan-result"></div>
+            <div id="desk-activity-log" class="td-activity-log cl-hidden">
+                <p class="cl-muted" style="font-size:.78rem; margin:.75rem 0 .3rem 0;">📝 Letzte Aktionen (nur diese Sitzung)</p>
+                <div id="desk-activity-log-list" class="td-activity-log__list"></div>
+            </div>
             <label class="td-confirm-toggle">
                 <input type="checkbox" id="require-confirm-toggle"> Vor jeder Aktion bestätigen (langsamer, aber sicherer)
             </label>
@@ -305,16 +315,23 @@ function playScanBeep() {
         sharedAudioCtx = sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
         const ctx = sharedAudioCtx;
         if (ctx.state === 'suspended') ctx.resume();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.17);
+        // Zweitöniger "Erfolgs"-Klang statt eines einzelnen kurzen Pieptons —
+        // deutlich länger, lauter und mit Dreieckswelle (mehr Obertöne, setzt
+        // sich in lauter Umgebung wie einem Brettspiel-Event besser durch).
+        const now = ctx.currentTime;
+        [{ freq: 659.25, start: 0, dur: 0.11 }, { freq: 987.77, start: 0.10, dur: 0.22 }].forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = n.freq;
+            const t0 = now + n.start;
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(0.45, t0 + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + n.dur + 0.02);
+        });
     } catch (err) { console.error('Beep fehlgeschlagen:', err); }
 }
 function setupAlwaysActiveScan(inputId, toggleId) {
@@ -781,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mode = currentEvent?.borrowMessageMode === 'timer' ? 'timer' : 'confirm';
             const seconds = currentEvent?.borrowMessageSeconds ?? 5;
             showActionOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: shelfName(eg.shelfId), borrowMode: true, mode, seconds });
+            logActivity('out', liveGameName(eg), shelfName(eg.shelfId));
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
 
@@ -795,6 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
             const seconds = currentEvent?.returnMessageSeconds ?? 5;
             showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false, mode, seconds });
+            logActivity('in', liveGameName(eg), shelfName(eg.shelfId));
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
@@ -820,6 +839,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const eg = allEventGames.find(g => g.id === item.dataset.id);
         if (eg) { processEventGameAction(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
     });
+
+    // --- Kleines Sitzungs-Protokoll: nur im Browser-Speicher, wird nirgends
+    // in Firestore abgelegt — reine Gedächtnisstütze für den Tresen. ---
+    let activityLog = [];
+    function logActivity(type, gameName, shelf) {
+        activityLog.unshift({ type, gameName, shelf, time: new Date() });
+        if (activityLog.length > 10) activityLog.length = 10;
+        renderActivityLog();
+    }
+    function renderActivityLog() {
+        const wrap = document.getElementById('desk-activity-log');
+        const list = document.getElementById('desk-activity-log-list');
+        if (activityLog.length === 0) { wrap.classList.add('cl-hidden'); return; }
+        wrap.classList.remove('cl-hidden');
+        list.innerHTML = activityLog.map(entry => {
+            const timeStr = entry.time.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+            const icon = entry.type === 'out' ? '📖' : '✅';
+            const verb = entry.type === 'out' ? 'ausgeliehen' : 'zurückgelegt';
+            return `<div class="td-activity-log__item td-activity-log__item--${entry.type}">
+                <span>${icon}</span>
+                <span>${escapeHTML(entry.gameName)} ${verb}${entry.shelf ? ` (${escapeHTML(entry.shelf)})` : ''}</span>
+                <span class="td-activity-log__time">${timeStr}</span>
+            </div>`;
+        }).join('');
+    }
 
     // --- Rückgabe-/Ausleihe-Meldung (je Event separat konfigurierbar) ---
     const returnOverlay = document.getElementById('return-overlay');
