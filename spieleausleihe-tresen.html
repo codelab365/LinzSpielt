@@ -595,7 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
                 <td><span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${statusLabel}</span></td>
-                <td>${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}</td>
+                <td>
+                    ${avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
+                    ${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
+                </td>
             </tr>`;
         }).join('');
         updateDeskFilterCount();
@@ -629,10 +632,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.getElementById('desk-list-body').addEventListener('click', (e) => {
-        const btn = e.target.closest('.td-return-btn');
-        if (!btn) return;
-        const eg = allEventGames.find(g => g.id === btn.dataset.id);
-        if (eg) { returnOne(eg); playScanBeep(); }
+        const returnBtn = e.target.closest('.td-return-btn');
+        if (returnBtn) {
+            const eg = allEventGames.find(g => g.id === returnBtn.dataset.id);
+            if (eg) { returnOne(eg); playScanBeep(); }
+            return;
+        }
+        const borrowBtn = e.target.closest('.td-borrow-btn');
+        if (borrowBtn) {
+            const eg = allEventGames.find(g => g.id === borrowBtn.dataset.id);
+            if (eg) { borrowOne(eg); playScanBeep(); }
+        }
     });
 
     const statsToggleBtn = document.getElementById('desk-stats-toggle-btn');
