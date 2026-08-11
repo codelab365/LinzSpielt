@@ -161,7 +161,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v40</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v41</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -732,8 +732,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v40 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v41 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v41 — Bugfix Scan-Ton: der Zweiton-Klang klang manchmal wie nur ein
+//        einzelner Ton, weil die Töne eingeplant wurden, bevor der
+//        AudioContext sauber "aufgewacht" war. playScanBeep wartet jetzt
+//        korrekt auf ctx.resume(), bevor beide Töne eingeplant werden.
 //   v40 — Event-Seite optisch überarbeitet: alle Bereiche stecken jetzt in
 //        klar abgegrenzten Karten (wie am Ausleihe-Tresen), statt als
 //        ununterbrochener Fließtext untereinander zu stehen.
@@ -1046,17 +1050,21 @@ let sharedAudioCtx = null;
 // Kurzer synthetischer Piepton (Web Audio API) — kein Audio-File nötig,
 // funktioniert offline. Wird bei jedem erfolgreichen Scan aufgerufen, sofern
 // in den Einstellungen aktiviert.
-function playScanBeep() {
+async function playScanBeep() {
     if (!isScanSoundEnabled()) return;
     try {
         sharedAudioCtx = sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
         const ctx = sharedAudioCtx;
-        if (ctx.state === 'suspended') ctx.resume();
+        // Wichtig: resume() abwarten, bevor Töne eingeplant werden — sonst
+        // kann es passieren, dass ctx.currentTime beim Einplanen noch nicht
+        // korrekt vorgerückt ist und beide Töne übereinander/verkürzt
+        // abgespielt werden (klingt dann fälschlich wie nur ein Ton).
+        if (ctx.state === 'suspended') await ctx.resume();
         // Zweitöniger "Erfolgs"-Klang statt eines einzelnen kurzen Pieptons —
         // deutlich länger, lauter und mit Dreieckswelle (mehr Obertöne, setzt
         // sich in lauter Umgebung wie einem Brettspiel-Event besser durch).
         const now = ctx.currentTime;
-        [{ freq: 659.25, start: 0, dur: 0.11 }, { freq: 987.77, start: 0.10, dur: 0.22 }].forEach(n => {
+        [{ freq: 659.25, start: 0, dur: 0.11 }, { freq: 987.77, start: 0.13, dur: 0.22 }].forEach(n => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'triangle';
