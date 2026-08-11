@@ -92,7 +92,7 @@
                 <li><a href="#events-bulk-laden">Ganze Sammlung / Datenbank ins Event laden</a></li>
                 <li><a href="#events-schnellscan">Schnellscan im Event-Fenster</a></li>
                 <li><a href="#events-embed">Einbett-Code &amp; Tresen-Link</a></li>
-                <li><a href="#events-rueckgabemeldung">Rückgabemeldung einstellen</a></li>
+                <li><a href="#events-rueckgabemeldung">Ausleihe- &amp; Rückgabemeldung einstellen</a></li>
                 <li><a href="#events-aktiv">Aktives Event setzen/deaktivieren</a></li>
             </ul>
             <h4>Betrieb</h4>
@@ -125,7 +125,7 @@
                     <li><strong>Spiele erfassen:</strong> Im Tab <strong>⚡ Schnellerfassung</strong> Zielsammlung(en) anhaken und einfach drauflos scannen — landet automatisch in Datenbank und Sammlung, Titel wird wo möglich automatisch erkannt. → <a href="#schnellerfassung">Details</a></li>
                     <li><strong>Event anlegen:</strong> Tab <strong>Events</strong> → Name eingeben, Sammlung(en) anhaken, optional gleich "Alle Spiele sofort bereitstellen" ankreuzen → "Event anlegen". → <a href="#events-anlegen">Details</a></li>
                     <li><strong>Regal(e) anlegen</strong> im geöffneten Event-Fenster, falls nicht schon automatisch geschehen. → <a href="#events-regale">Details</a></li>
-                    <li><strong>Rückgabemeldung einstellen</strong> (manuell bestätigen oder Timer) — einmal pro Event. → <a href="#events-rueckgabemeldung">Details</a></li>
+                    <li><strong>Ausleihe- & Rückgabemeldung einstellen</strong> (manuell bestätigen oder Timer, je Aktion) — einmal pro Event. → <a href="#events-rueckgabemeldung">Details</a></li>
                     <li><strong>Am Tresen:</strong> "🖥️ Zum Tresen"-Link von der Event-Karte öffnen (oder direkt an einem zweiten Gerät) und dort scannen — läuft ohne Rückfragen, bei Mehrdeutigkeit poppt automatisch eine kurze Auswahl auf. → <a href="#tresen">Details</a></li>
                     <li><strong>Für Besucher:</strong> "👁️ Ansicht für Besucher:innen"-Link teilen oder als Einbett-Code auf der Vereins-Website einfügen. → <a href="#events-embed">Details</a></li>
                     <li><strong>Nach dem Event:</strong> Tab <strong>Statistik</strong> → Auswertung ansehen, als CSV exportieren. → <a href="#statistik">Details</a></li>
@@ -401,13 +401,14 @@ Hier sind meine EAN-Codes:
             </section>
 
             <section id="events-rueckgabemeldung">
-                <h2>Rückgabemeldung einstellen</h2>
-                <p>Im Event-Fenster unter "Rückgabe-Meldung am Tresen" legst du pro Event fest, wie die große Regal-Hinweis-Karte am Ausleihe-Tresen sich verhält, wenn ein Spiel zurückgegeben wird:</p>
+                <h2>Ausleihe- &amp; Rückgabemeldung einstellen</h2>
+                <p>Im Event-Fenster legst du getrennt für <strong>Ausleihe</strong> und <strong>Rückgabe</strong> fest, wie sich die große Bestätigungskarte am Ausleihe-Tresen verhält:</p>
                 <ul class="doc-step-list">
-                    <li><strong>Manuell bestätigen</strong>: bleibt stehen, bis jemand auf "OK" klickt.</li>
-                    <li><strong>Automatisch ausblenden nach X Sekunden</strong>: verschwindet von selbst, keine Berührung nötig — Sekundenzahl frei einstellbar.</li>
+                    <li><strong>"Rückgabe-Meldung am Tresen"</strong>: gilt für die Karte bei Rückgaben (zeigt zusätzlich, in welches Regal einzuräumen ist).</li>
+                    <li><strong>"Ausleihe-Meldung am Tresen"</strong>: gilt für die Karte bei Ausleihen (zeigt, aus welchem Regal das Spiel stammt, sowie "Viel Spaß!").</li>
+                    <li>Für beide jeweils: <strong>Manuell bestätigen</strong> (bleibt stehen, bis jemand auf "OK" klickt) oder <strong>Automatisch ausblenden nach X Sekunden</strong> (verschwindet von selbst, Sekundenzahl frei einstellbar) — unabhängig voneinander wählbar.</li>
                 </ul>
-                <p class="cl-muted">Die Einstellung wirkt sich nur auf die große Regal-Karte am Ausleihe-Tresen aus (erscheint nur bei Rückgaben). Das kleine, immer sichtbare Ergebnis-Feld unter dem Scan-Feld (siehe <a href="#tresen">Ausleihe-Tresen</a>) bleibt davon unberührt und zeigt einfach dauerhaft die letzte Aktion.</p>
+                <p class="cl-muted">Das kleine, immer sichtbare Ergebnis-Feld unter dem Scan-Feld (siehe <a href="#tresen">Ausleihe-Tresen</a>) bleibt von beiden Einstellungen unberührt und zeigt weiterhin dauerhaft die letzte Aktion.</p>
             </section>
 
             <section id="events-aktiv">
