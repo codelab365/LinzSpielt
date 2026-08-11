@@ -161,7 +161,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v39</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v40</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -603,84 +603,100 @@
         </div>
         <div class="qb-modal--fullpage-inner">
 
-        <h3>Verknüpfte Sammlungen</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Nur Spiele aus den hier angehakten Sammlungen lassen sich diesem Event hinzufügen. Kann jederzeit nachträglich geändert werden.</p>
-        <div id="event-edit-collections" class="sv-checkbox-list"></div>
-        <button type="button" id="event-save-collections-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Sammlungen speichern</button>
-        <p id="event-collections-feedback" class="qb-feedback"></p>
-
-        <h3 style="margin-top: var(--cl-space-4);">Regale für dieses Event</h3>
-        <div id="event-shelf-grid" class="sv-shelf-grid"></div>
-        <div class="sv-toolbar" style="margin-bottom: var(--cl-space-3);">
-            <input type="text" id="new-event-shelf-name" class="cl-input" placeholder="z.B. Regal A">
-            <button type="button" id="add-event-shelf-btn" class="cl-btn cl-btn--signal">Regal anlegen</button>
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Verknüpfte Sammlungen</h3>
+            <p class="cl-muted" style="font-size:.85rem;">Nur Spiele aus den hier angehakten Sammlungen lassen sich diesem Event hinzufügen. Kann jederzeit nachträglich geändert werden.</p>
+            <div id="event-edit-collections" class="sv-checkbox-list"></div>
+            <button type="button" id="event-save-collections-btn" class="cl-btn cl-btn--signal" style="margin-top:.5rem;">Sammlungen speichern</button>
+            <p id="event-collections-feedback" class="qb-feedback"></p>
         </div>
 
-        <h3>⚡ Schnellscan direkt ins Regal</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Regal wählen, dann scannen — jedes Spiel wird sofort ohne Rückfrage in Datenbank, Sammlung(en) dieses Events und dieses Regal eingetragen. Bereits vorhandenes Spiel wird per Scan einfach in der Stückzahl erhöht.</p>
-        <div class="sv-toolbar">
-            <select id="event-quick-shelf-select" class="cl-select"></select>
-            <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
-        </div>
-        <label class="sv-always-active-toggle">
-            <input type="checkbox" id="event-quick-scan-always-active-toggle">
-            Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
-        </label>
-        <label class="sv-always-active-toggle">
-            <input type="checkbox" id="event-quick-scan-sound-toggle">
-            🔊 Ton bei erfolgreichem Scan
-        </label>
-        <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
-
-        <h3 style="margin-top: var(--cl-space-3);">📦 Ganze Sammlung ins Event laden</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung — oder wahlweise die gesamte Spieledatenbank — auf einmal in ein Regal dieses Events, mit der jeweiligen Stückzahl. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
-        <div class="sv-toolbar">
-            <select id="event-bulk-collection-select" class="cl-select"></select>
-            <select id="event-bulk-shelf-select" class="cl-select"></select>
-            <button type="button" id="event-bulk-load-btn" class="cl-btn cl-btn--signal">Sammlung laden</button>
-        </div>
-        <p id="event-bulk-load-status" class="cl-muted" style="font-size:.85rem;"></p>
-
-        <h3 style="margin-top: var(--cl-space-3);">Spiele manuell suchen</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung.</p>
-        <label class="cl-label" for="event-add-search">Name oder EAN</label>
-        <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
-        <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
-
-        <h3 style="margin-top: var(--cl-space-3);">Spiele bei diesem Event</h3>
-        <div class="sv-table-wrap">
-            <table class="sv-table">
-                <thead><tr><th></th><th>Name</th><th>Regal</th><th>Status</th><th></th></tr></thead>
-                <tbody id="event-games-body"></tbody>
-            </table>
-            <p id="event-games-empty" class="sv-empty cl-hidden">Noch keine Spiele bei diesem Event.</p>
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Regale für dieses Event</h3>
+            <div id="event-shelf-grid" class="sv-shelf-grid"></div>
+            <div class="sv-toolbar" style="margin-bottom:0;">
+                <input type="text" id="new-event-shelf-name" class="cl-input" placeholder="z.B. Regal A">
+                <button type="button" id="add-event-shelf-btn" class="cl-btn cl-btn--signal">Regal anlegen</button>
+            </div>
         </div>
 
-        <h3 style="margin-top: var(--cl-space-3);">Einbettungs-Code für die Website</h3>
-        <div class="sv-embed-box">
-            <textarea id="event-embed-code" class="cl-input" rows="3" readonly></textarea>
-            <button type="button" id="copy-embed-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Code kopieren</button>
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">⚡ Schnellscan direkt ins Regal</h3>
+            <p class="cl-muted" style="font-size:.85rem;">Regal wählen, dann scannen — jedes Spiel wird sofort ohne Rückfrage in Datenbank, Sammlung(en) dieses Events und dieses Regal eingetragen. Bereits vorhandenes Spiel wird per Scan einfach in der Stückzahl erhöht.</p>
+            <div class="sv-toolbar">
+                <select id="event-quick-shelf-select" class="cl-select"></select>
+                <input type="text" id="event-quick-scan-input" class="cl-input sv-scan-input" style="flex:1; min-width:200px;" placeholder="Barcode scannen…" autocomplete="off">
+            </div>
+            <label class="sv-always-active-toggle">
+                <input type="checkbox" id="event-quick-scan-always-active-toggle">
+                Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+            </label>
+            <label class="sv-always-active-toggle">
+                <input type="checkbox" id="event-quick-scan-sound-toggle">
+                🔊 Ton bei erfolgreichem Scan
+            </label>
+            <p id="event-quick-scan-counter" class="cl-muted" style="font-size:.85rem;"></p>
         </div>
 
-        <h3 style="margin-top: var(--cl-space-3);">Ausleihe-Tresen für dieses Event</h3>
-        <p class="cl-muted" style="font-size:.85rem;">Eigene, schlanke Seite für den Ausleihtresen — Live-Statistik, Live-Liste der ausgeliehenen Spiele, Scannen ohne Rückfrage.</p>
-        <div class="sv-embed-box" style="margin-bottom: var(--cl-space-3);">
-            <textarea id="event-desk-link" class="cl-input" rows="2" readonly></textarea>
-            <button type="button" id="copy-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Link kopieren</button>
-            <button type="button" id="open-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Öffnen</button>
-        </div>
-        <label class="cl-label">Rückgabe-Meldung am Tresen</label>
-        <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
-            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-confirm" value="confirm"> Manuell bestätigen</label>
-            <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-timer" value="timer"> Automatisch ausblenden nach</label>
-            <input type="number" id="return-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">📦 Ganze Sammlung ins Event laden</h3>
+            <p class="cl-muted" style="font-size:.85rem;">Lädt alle Spiele einer Sammlung — oder wahlweise die gesamte Spieledatenbank — auf einmal in ein Regal dieses Events, mit der jeweiligen Stückzahl. Bereits vorhandene Spiele werden nicht doppelt angelegt, sondern in der Stückzahl erhöht.</p>
+            <div class="sv-toolbar">
+                <select id="event-bulk-collection-select" class="cl-select"></select>
+                <select id="event-bulk-shelf-select" class="cl-select"></select>
+                <button type="button" id="event-bulk-load-btn" class="cl-btn cl-btn--signal">Sammlung laden</button>
+            </div>
+            <p id="event-bulk-load-status" class="cl-muted" style="font-size:.85rem;"></p>
         </div>
 
-        <label class="cl-label">Ausleihe-Meldung am Tresen</label>
-        <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
-            <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-confirm" value="confirm"> Manuell bestätigen</label>
-            <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-timer" value="timer"> Automatisch ausblenden nach</label>
-            <input type="number" id="borrow-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Spiele manuell suchen</h3>
+            <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung.</p>
+            <label class="cl-label" for="event-add-search">Name oder EAN</label>
+            <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
+            <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
+        </div>
+
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Spiele bei diesem Event</h3>
+            <div class="sv-table-wrap">
+                <table class="sv-table">
+                    <thead><tr><th></th><th>Name</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="event-games-body"></tbody>
+                </table>
+                <p id="event-games-empty" class="sv-empty cl-hidden">Noch keine Spiele bei diesem Event.</p>
+            </div>
+        </div>
+
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Einbettungs-Code für die Website</h3>
+            <div class="sv-embed-box">
+                <textarea id="event-embed-code" class="cl-input" rows="3" readonly></textarea>
+                <button type="button" id="copy-embed-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Code kopieren</button>
+            </div>
+        </div>
+
+        <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
+            <h3 style="margin-top:0;">Ausleihe-Tresen für dieses Event</h3>
+            <p class="cl-muted" style="font-size:.85rem;">Eigene, schlanke Seite für den Ausleihtresen — Live-Statistik, Live-Liste der ausgeliehenen Spiele, Scannen ohne Rückfrage.</p>
+            <div class="sv-embed-box" style="margin-bottom: var(--cl-space-3);">
+                <textarea id="event-desk-link" class="cl-input" rows="2" readonly></textarea>
+                <button type="button" id="copy-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Link kopieren</button>
+                <button type="button" id="open-desk-link-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.4rem;">Öffnen</button>
+            </div>
+            <label class="cl-label">Rückgabe-Meldung am Tresen</label>
+            <div class="sv-checkbox-list" style="margin-bottom:.5rem;">
+                <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-confirm" value="confirm"> Manuell bestätigen</label>
+                <label class="sv-checkbox-chip"><input type="radio" name="return-msg-mode" id="return-msg-timer" value="timer"> Automatisch ausblenden nach</label>
+                <input type="number" id="return-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+            </div>
+
+            <label class="cl-label">Ausleihe-Meldung am Tresen</label>
+            <div class="sv-checkbox-list" style="margin-bottom:0;">
+                <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-confirm" value="confirm"> Manuell bestätigen</label>
+                <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-timer" value="timer"> Automatisch ausblenden nach</label>
+                <input type="number" id="borrow-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
+            </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
@@ -716,8 +732,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v39 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v40 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v40 — Event-Seite optisch überarbeitet: alle Bereiche stecken jetzt in
+//        klar abgegrenzten Karten (wie am Ausleihe-Tresen), statt als
+//        ununterbrochener Fließtext untereinander zu stehen.
 //   v39 — Event-Fenster ist jetzt eine vollflächige Seiten-Ansicht statt
 //        eines kleinen Popups — der Inhalt ist mittlerweile umfangreich
 //        genug, dass ein enges Overlay nicht mehr praktikabel war. Oben
