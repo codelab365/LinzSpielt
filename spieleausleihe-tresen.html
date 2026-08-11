@@ -167,6 +167,10 @@
                 <input type="checkbox" id="desk-scan-always-active-toggle">
                 Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
             </label>
+            <label class="td-always-active-toggle">
+                <input type="checkbox" id="desk-scan-sound-toggle">
+                🔊 Ton bei erfolgreichem Scan
+            </label>
             <div id="desk-scan-result" class="td-scan-result"></div>
             <label class="td-confirm-toggle">
                 <input type="checkbox" id="require-confirm-toggle"> Vor jeder Aktion bestätigen (langsamer, aber sicherer)
@@ -406,12 +410,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-save-btn').addEventListener('click', () => {
         const sec = parseFloat(document.getElementById('settings-toast-duration').value);
         localStorage.setItem('sv_toast_duration_sec', (!isNaN(sec) && sec > 0) ? String(sec) : String(DEFAULT_TOAST_DURATION_MS / 1000));
-        localStorage.setItem('sv_scan_sound_enabled', document.getElementById('settings-scan-sound').checked ? '1' : '0');
+        const soundOn = document.getElementById('settings-scan-sound').checked;
+        localStorage.setItem('sv_scan_sound_enabled', soundOn ? '1' : '0');
+        document.getElementById('desk-scan-sound-toggle').checked = soundOn;
         document.getElementById('user-settings-modal-overlay').classList.add('cl-hidden');
         playScanBeep();
         showToast('✅ Einstellungen gespeichert', false, { variant: 'ok', duration: getScanToastDurationMs() });
     });
     setupAlwaysActiveScan('desk-scan-input', 'desk-scan-always-active-toggle');
+
+    // Schnellzugriff-Ton-Regler direkt unterm Scan-Feld — greift auf denselben
+    // localStorage-Wert zu wie das "⚙️ Einstellungen"-Fenster, bleibt also
+    // immer synchron, egal wo man den Ton umschaltet.
+    const quickSoundToggle = document.getElementById('desk-scan-sound-toggle');
+    quickSoundToggle.checked = isScanSoundEnabled();
+    quickSoundToggle.addEventListener('change', () => {
+        localStorage.setItem('sv_scan_sound_enabled', quickSoundToggle.checked ? '1' : '0');
+        if (quickSoundToggle.checked) playScanBeep();
+    });
 
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
@@ -752,7 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
             showScanResultBox({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
-            showReturnOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: '', borrowMode: true });
             showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
