@@ -29,9 +29,6 @@
     .td-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
 
     .td-scan-card { text-align: center; }
-    .td-confirm-toggle { display: flex; align-items: center; justify-content: center; gap: .4rem; margin-top: .75rem;
-        font-size: .82rem; color: var(--cl-muted); cursor: pointer; }
-    .td-confirm-toggle input { margin: 0; }
 
     .td-always-stat { font-size: 1.15rem; font-weight: 700; margin-bottom: .6rem; }
     .td-always-stat span { color: var(--cl-signal); }
@@ -182,9 +179,6 @@
                 <p class="cl-muted" style="font-size:.78rem; margin:.75rem 0 .3rem 0;">📝 Letzte Aktionen (nur diese Sitzung)</p>
                 <div id="desk-activity-log-list" class="td-activity-log__list"></div>
             </div>
-            <label class="td-confirm-toggle">
-                <input type="checkbox" id="require-confirm-toggle"> Vor jeder Aktion bestätigen (langsamer, aber sicherer)
-            </label>
         </div>
 
         <div class="cl-card cl-card--pad td-manual-search">
@@ -267,10 +261,6 @@
         <div id="confirm-action-choice-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
             <button type="button" id="confirm-action-choice-borrow-btn" class="cl-btn cl-btn--signal">📖 Ausleihen</button>
             <button type="button" id="confirm-action-choice-return-btn" class="cl-btn cl-btn--signal" style="background:var(--cl-ok); border-color:var(--cl-ok);">↩️ Rückgabe</button>
-        </div>
-        <div id="confirm-action-single-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
-            <button type="button" id="confirm-action-cancel-btn" class="cl-btn cl-btn--ghost">Abbrechen</button>
-            <button type="button" id="confirm-action-ok-btn" class="cl-btn cl-btn--signal">Bestätigen</button>
         </div>
         <button type="button" id="confirm-action-choice-cancel-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.6rem;">Abbrechen</button>
     </div>
@@ -669,15 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
         statsToggleBtn.textContent = nowHidden ? '📊 Statistik anzeigen' : '📊 Statistik verbergen';
     });
 
-    // --- Optionale Vorab-Bestätigung ---
-    let requireConfirm = localStorage.getItem('td_require_confirm') === '1';
-    const confirmToggle = document.getElementById('require-confirm-toggle');
-    confirmToggle.checked = requireConfirm;
-    confirmToggle.addEventListener('change', () => {
-        requireConfirm = confirmToggle.checked;
-        localStorage.setItem('td_require_confirm', requireConfirm ? '1' : '0');
-    });
-
     // --- Immer sichtbares Ergebnis-Feld unterhalb des Scan-Felds ---
     const scanResultBox = document.getElementById('desk-scan-result');
     function showScanResultBox({ icon, title, sub, cls }) {
@@ -725,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function processEventGameAction(eg) {
         const action = resolveScanAction(eg);
         if (action === 'ambiguous') { showChoicePopup(eg); return; }
-        performOrConfirm(eg, action);
+        commitAction(eg, action);
     }
 
     function showChoicePopup(eg) {
@@ -733,11 +714,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('confirm-action-title').textContent = liveGameName(eg);
         document.getElementById('confirm-action-sub').textContent = 'Manche Exemplare sind draußen, manche verfügbar — was ist das hier?';
         document.getElementById('confirm-action-choice-buttons').classList.remove('cl-hidden');
-        document.getElementById('confirm-action-single-buttons').classList.add('cl-hidden');
-        document.getElementById('confirm-action-choice-cancel-btn').classList.remove('cl-hidden');
         document.getElementById('confirm-action-overlay').classList.add('is-visible');
         pendingAction = eg;
     }
+    let pendingAction = null;
     document.getElementById('confirm-action-choice-borrow-btn').addEventListener('click', () => {
         document.getElementById('confirm-action-overlay').classList.remove('is-visible');
         if (pendingAction) commitAction(pendingAction, 'borrow');
@@ -751,32 +731,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirm-action-choice-cancel-btn').addEventListener('click', () => {
         document.getElementById('confirm-action-overlay').classList.remove('is-visible');
         pendingAction = null;
-        scanInput.focus();
-    });
-
-    function performOrConfirm(eg, action) {
-        if (!requireConfirm) { commitAction(eg, action); return; }
-        const isReturn = action === 'return';
-        document.getElementById('confirm-action-icon').textContent = isReturn ? '↩️' : '📖';
-        document.getElementById('confirm-action-title').textContent = `${isReturn ? 'Rückgabe' : 'Ausleihe'} bestätigen: ${liveGameName(eg)}?`;
-        document.getElementById('confirm-action-sub').textContent = '';
-        document.getElementById('confirm-action-choice-buttons').classList.add('cl-hidden');
-        document.getElementById('confirm-action-single-buttons').classList.remove('cl-hidden');
-        document.getElementById('confirm-action-choice-cancel-btn').classList.add('cl-hidden');
-        document.getElementById('confirm-action-overlay').classList.add('is-visible');
-        pendingAction = eg;
-        pendingActionType = action;
-    }
-    let pendingAction = null;
-    let pendingActionType = null;
-    document.getElementById('confirm-action-ok-btn').addEventListener('click', () => {
-        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
-        if (pendingAction) commitAction(pendingAction, pendingActionType);
-        pendingAction = null; pendingActionType = null;
-    });
-    document.getElementById('confirm-action-cancel-btn').addEventListener('click', () => {
-        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
-        pendingAction = null; pendingActionType = null;
         scanInput.focus();
     });
 
