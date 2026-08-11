@@ -778,7 +778,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
             showScanResultBox({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
-            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`);
+            const mode = currentEvent?.borrowMessageMode === 'timer' ? 'timer' : 'confirm';
+            const seconds = currentEvent?.borrowMessageSeconds ?? 5;
+            showActionOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: shelfName(eg.shelfId), borrowMode: true, mode, seconds });
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
     }
 
@@ -790,7 +792,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
             showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
-            showReturnOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false });
+            const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
+            const seconds = currentEvent?.returnMessageSeconds ?? 5;
+            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false, mode, seconds });
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
@@ -817,10 +821,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eg) { processEventGameAction(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
     });
 
-    // --- Rückgabe-/Ausleihe-Meldung (konfigurierbar pro Event) ---
+    // --- Rückgabe-/Ausleihe-Meldung (je Event separat konfigurierbar) ---
     const returnOverlay = document.getElementById('return-overlay');
     const returnCard = document.getElementById('return-card');
-    function showReturnOverlay({ icon, title, sub, shelf, borrowMode }) {
+    let activeOverlayMode = 'confirm';
+    function showActionOverlay({ icon, title, sub, shelf, borrowMode, mode, seconds }) {
         if (returnTimerHandle) { clearTimeout(returnTimerHandle); returnTimerHandle = null; }
         document.getElementById('return-icon').textContent = icon;
         document.getElementById('return-title').textContent = title;
@@ -830,13 +835,12 @@ document.addEventListener('DOMContentLoaded', () => {
         returnCard.classList.toggle('td-return-card--borrow', !!borrowMode);
         returnOverlay.classList.add('is-visible');
 
-        const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
-        const seconds = currentEvent?.returnMessageSeconds ?? 5;
+        activeOverlayMode = mode === 'timer' ? 'timer' : 'confirm';
         const okBtn = document.getElementById('return-ok-btn');
         const timerText = document.getElementById('return-timer-text');
-        if (mode === 'timer') {
+        if (activeOverlayMode === 'timer') {
             okBtn.classList.add('cl-hidden');
-            let remaining = seconds;
+            let remaining = seconds ?? 5;
             timerText.textContent = `Schließt automatisch in ${remaining} Sek. …`;
             const tick = () => {
                 remaining--;
@@ -856,7 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scanInput.focus();
     }
     document.getElementById('return-ok-btn').addEventListener('click', hideReturnOverlay);
-    returnOverlay.addEventListener('click', (e) => { if (e.target === returnOverlay && currentEvent?.returnMessageMode !== 'timer') hideReturnOverlay(); });
+    returnOverlay.addEventListener('click', (e) => { if (e.target === returnOverlay && activeOverlayMode !== 'timer') hideReturnOverlay(); });
 });
 </script>
 </body>
