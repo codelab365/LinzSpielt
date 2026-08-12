@@ -162,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v44</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v47</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -306,7 +306,6 @@
                 </select>
                 <button type="button" id="open-add-game-btn" class="cl-btn cl-btn--signal">(+) Spiel manuell anlegen</button>
                 <button type="button" id="backfill-desc-btn" class="cl-btn cl-btn--ghost">🔄 Fehlende Beschreibungen nachholen</button>
-                <button type="button" id="sync-all-names-btn" class="cl-btn cl-btn--ghost">🔄 Sammlungen/Events mit aktuellen Namen abgleichen</button>
             </div>
             <div class="sv-table-wrap">
                 <table class="sv-table">
@@ -739,8 +738,32 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v44 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v47 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v47 — Großer Schritt gegen unnötige Firestore-Lesevorgänge auf den
+//        öffentlichen Seiten (index.html, sammlung-uebersicht.html):
+//        Dauerhafte Live-Listener auf eventGames/eventShelves bzw.
+//        collectionItems ersetzt durch periodische Aktualisierung (alle 60
+//        Sek.) + manuellen "🔄 Jetzt aktualisieren"-Button. Bisher löste
+//        JEDE einzelne Ausleihe/Rückgabe am Tresen sofort ein Update bei
+//        JEDER offenen Besucher-Seite aus — bei vielen gleichzeitig
+//        geöffneten Seiten und viel Tresen-Betrieb vermutlich der größte
+//        Kostentreiber. Zusätzlich: Besucher-Filter auf das Nötigste
+//        reduziert — Spielerzahl, Komplexität, (bei Events) Status,
+//        einfache Sortierung. Regal-Filter und Bewertungs-Filter entfernt
+//        (Regal/Bewertung bleiben aber als Tabellenspalten sichtbar).
+//   v46 — Öffentliche Übersichten (index.html, sammlung-uebersicht.html):
+//        neue Pagination, 50 Spiele pro Seite, "← Zurück"/"Weiter →"
+//        OBERHALB der Tabelle statt darunter. Springt bei Such-/
+//        Filteränderung automatisch auf Seite 1. WICHTIG: reduziert nur
+//        die Render-Arbeit im Browser, nicht die Firestore-Lesevorgänge —
+//        Suche und Filter laufen weiterhin über die komplette geladene
+//        Event-/Sammlungsliste, damit sie zuverlässig alles finden.
+//   v45 — Button "🔄 Sammlungen/Events mit aktuellen Namen abgleichen"
+//        entfernt (einmaliger Nachzieh-Abgleich für den Altbestand nach
+//        v44, war nach Ausführung nicht mehr laufend nötig). Die
+//        automatische Weitergabe (propagateGameUpdate) bei jeder
+//        Spiel-Bearbeitung bleibt unverändert bestehen.
 //   v44 — Grundlegende Architekturänderung gegen unnötige Firestore-
 //        Lesevorgänge: collectionItems und eventGames tragen jetzt IMMER
 //        vollständige Anzeige-Daten (Titel, Bild, Spieleranzahl, Alter,
@@ -1926,33 +1949,6 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
-    document.getElementById('sync-all-names-btn').addEventListener('click', () => {
-        const withNames = allGames.filter(g => g.name);
-        if (withNames.length === 0) { showToast('Keine Spiele mit Titel vorhanden.', true); return; }
-        const okBtn = document.getElementById('confirm-modal-ok');
-        okBtn.textContent = 'Ja, abgleichen';
-        okBtn.style.background = '';
-        okBtn.style.borderColor = '';
-        showConfirm(
-            'Sammlungen/Events abgleichen?',
-            `Schreibt den aktuellen Titel (und Bild/Spieleranzahl/Alter/Dauer/Bewertung/Komplexität/Kategorie) aller ${withNames.length} Spiele mit Titel in alle Sammlungs- und Event-Einträge zurück, die darauf verweisen. Sinnvoll einmalig nach der Einführung dieser Funktion, um ältere Einträge nachzuziehen — danach hält sich das automatisch aktuell. Kann bei vielen Spielen etwas dauern.`,
-            async () => {
-                resetConfirmModalStyle();
-                showToast('Gleiche ab …');
-                let done = 0;
-                for (const g of withNames) {
-                    await propagateGameUpdate(g.id, {
-                        gameName: g.name, bggId: g.bggId ?? null, bggImageUrl: g.bggImageUrl ?? null,
-                        minPlayers: g.minPlayers ?? null, maxPlayers: g.maxPlayers ?? null, minAge: g.minAge ?? null,
-                        Duration: g.Duration ?? null, rating: g.rating ?? null, complexity: g.complexity ?? null, category: g.category ?? null,
-                        description: g.description ?? null
-                    });
-                    done++;
-                }
-                showToast(`✅ ${done} Spiele abgeglichen`, false, { variant: 'ok', duration: 3000 });
-            }
-        );
-    });
     const gameModalOverlay = document.getElementById('game-modal-overlay');
     const gameModalTitle = document.getElementById('game-modal-title');
     const gameForm = document.getElementById('game-form');
