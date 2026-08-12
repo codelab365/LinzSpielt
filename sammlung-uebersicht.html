@@ -158,7 +158,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
@@ -191,7 +191,7 @@ function complexityBucket(c) {
 // Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank (g.name)
 // vor der ggf. veralteten Momentaufnahme im Sammlungseintrag (g.gameName,
 // die beim Scannen entstand, bevor der Titel bekannt war).
-function displayName(g) { return g.name || g.gameName || ''; }
+function displayName(g) { return g.gameName || g.ean || ''; }
 
 let allCollections = [];
 let itemsUnsub = null;
@@ -280,32 +280,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (itemsUnsub) itemsUnsub();
 
-        itemsUnsub = onSnapshot(query(collection(db, 'collectionItems'), where('collectionId', '==', collectionId)), async (snap) => {
-            const rawItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            // collectionItems selbst enthalten nur EAN + Menge + Name — die
-            // restlichen Details (Bild, Bewertung, Komplexität, Beschreibung
-            // usw.) stehen in der zentralen Spieledatenbank (games/{ean}).
-            const gameDocs = await Promise.all(rawItems.map(async item => {
-                try {
-                    const gSnap = await getGameOnce(item.ean);
-                    return { ...item, ...(gSnap || {}) };
-                } catch (err) { return item; }
-            }));
-            currentItems = gameDocs;
+        itemsUnsub = onSnapshot(query(collection(db, 'collectionItems'), where('collectionId', '==', collectionId)), (snap) => {
+            currentItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             render();
         }, err => console.error('collectionItems onSnapshot Fehler:', err));
-    }
-
-    // Einmaliges Nachladen der Spieledetails aus der zentralen Datenbank.
-    // Kein eigener Live-Listener pro Spiel nötig — Detaildaten ändern sich
-    // selten, und die Sammlung selbst bleibt live aktuell (Menge, Zusammensetzung).
-    const gameCache = new Map();
-    async function getGameOnce(ean) {
-        if (gameCache.has(ean)) return gameCache.get(ean);
-        const snap = await getDoc(doc(db, 'games', ean));
-        const data = snap.exists() ? snap.data() : null;
-        gameCache.set(ean, data);
-        return data;
     }
 
     function render() {
