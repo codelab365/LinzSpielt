@@ -194,15 +194,17 @@ function complexityBucket(c) {
     if (c <= 3.5) return 'medium';
     return 'hard';
 }
-// Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank (g.name)
-// vor der ggf. veralteten Momentaufnahme im Event-Eintrag (g.gameName, die
-// beim Scannen entstand, bevor der Titel bekannt war).
+// eventGames enthält schon vollständige Anzeige-Daten als Momentaufnahme
+// (Name, Bild, Spieleranzahl, Bewertung, ...). Das Verwaltungstool hält diese
+// Momentaufnahme automatisch aktuell, sobald ein Spiel bearbeitet wird
+// (siehe propagateGameUpdate dort) — ein zusätzlicher Live-Nachschlag hier
+// wäre unnötig und würde bei vielen gleichzeitigen Besucher:innen unnötig
+// viele Firestore-Lesevorgänge kosten.
 function displayName(g) {
-    return allGames.find(x => x.id === g.ean)?.name || g.gameName || g.ean;
+    return g.gameName || g.ean;
 }
 
 let allEvents = [];
-let allGames = [];
 let eventGamesUnsub = null;
 let eventShelvesUnsub = null;
 let currentEventGames = [];
@@ -253,11 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
         filterCount.textContent = n;
         filterCount.classList.toggle('cl-hidden', n === 0);
     }
-
-    onSnapshot(collection(db, 'games'), (snap) => {
-        allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        render();
-    }, err => console.error('games onSnapshot Fehler:', err));
 
     onSnapshot(collection(db, 'events'), (snap) => {
         allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
