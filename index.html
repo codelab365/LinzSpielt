@@ -24,6 +24,7 @@
         margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
     .ov-filter-panel .cl-select { width: 100%; }
     .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    .ov-pagination { display: flex; align-items: center; justify-content: center; gap: var(--cl-space-3); margin-bottom: var(--cl-space-2); }
     table.ov-table { width: 100%; border-collapse: collapse; min-width: 620px; }
     table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
     table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
@@ -83,7 +84,11 @@
             </svg>
         </a>
     </div>
-    <p class="ov-sub cl-muted" id="ov-event-title">Live-Stand der Spielothek — was ist gerade verfügbar, was ist ausgeliehen.</p>
+    <p class="ov-sub cl-muted" id="ov-event-title">Stand der Spielothek — was ist gerade verfügbar, was ist ausgeliehen.</p>
+    <div style="display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem;">
+        <button type="button" id="ov-refresh-btn" class="cl-btn cl-btn--ghost cl-btn--sm">🔄 Jetzt aktualisieren</button>
+        <span id="ov-last-refresh" class="cl-muted" style="font-size:.78rem;"></span>
+    </div>
 
     <div class="ov-event-picker cl-hidden" id="ov-event-picker-wrap">
         <label class="cl-label" for="ov-event-picker">Event auswählen</label>
@@ -99,16 +104,10 @@
         </div>
 
         <div id="ov-filter-panel" class="ov-filter-panel cl-hidden">
-            <select id="ov-shelf-filter" class="cl-select"><option value="all">Alle Regale</option></select>
             <select id="ov-players-filter" class="cl-select">
                 <option value="0">Jede Spielerzahl</option>
                 <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
                 <option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option>
-            </select>
-            <select id="ov-status-filter" class="cl-select">
-                <option value="all">Alle Status</option>
-                <option value="verfügbar">Nur verfügbar</option>
-                <option value="ausgeliehen">Nur ausgeliehen</option>
             </select>
             <select id="ov-complexity-filter" class="cl-select">
                 <option value="all">Jede Komplexität</option>
@@ -116,20 +115,23 @@
                 <option value="medium">Mittel</option>
                 <option value="hard">Anspruchsvoll (Experten)</option>
             </select>
-            <select id="ov-rating-filter" class="cl-select">
-                <option value="all">Jede Bewertung</option>
-                <option value="7">Gut bewertet (ab 7)</option>
-                <option value="8">Sehr gut bewertet (ab 8)</option>
+            <select id="ov-status-filter" class="cl-select">
+                <option value="all">Alle Status</option>
+                <option value="verfügbar">Nur verfügbar</option>
+                <option value="ausgeliehen">Nur ausgeliehen</option>
             </select>
             <select id="ov-sort" class="cl-select">
                 <option value="name">Sortieren: Name (A–Z)</option>
-                <option value="rating">Sortieren: Beliebtheit (BGG-Bewertung)</option>
-                <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
-                <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
+                <option value="rating">Sortieren: Beliebtheit</option>
             </select>
             <button type="button" id="ov-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
         </div>
 
+        <div id="ov-pagination" class="ov-pagination cl-hidden">
+            <button type="button" id="ov-page-prev" class="cl-btn cl-btn--ghost cl-btn--sm">← Zurück</button>
+            <span id="ov-page-info" class="cl-muted" style="font-size:.85rem;"></span>
+            <button type="button" id="ov-page-next" class="cl-btn cl-btn--ghost cl-btn--sm">Weiter →</button>
+        </div>
         <div class="ov-table-wrap">
             <table class="ov-table">
                 <thead>
@@ -164,7 +166,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
@@ -205,8 +207,6 @@ function displayName(g) {
 }
 
 let allEvents = [];
-let eventGamesUnsub = null;
-let eventShelvesUnsub = null;
 let currentEventGames = [];
 let currentEventShelves = [];
 let selectedEventId = new URLSearchParams(location.search).get('event') || '';
@@ -219,18 +219,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventTitleEl = document.getElementById('ov-event-title');
 
     const searchInput = document.getElementById('ov-search');
-    const shelfFilter = document.getElementById('ov-shelf-filter');
     const playersFilter = document.getElementById('ov-players-filter');
     const statusFilter = document.getElementById('ov-status-filter');
     const complexityFilter = document.getElementById('ov-complexity-filter');
-    const ratingFilter = document.getElementById('ov-rating-filter');
     const sortSelect = document.getElementById('ov-sort');
     const tableBody = document.getElementById('ov-table-body');
     const emptyEl = document.getElementById('ov-empty');
     const statsEl = document.getElementById('ov-stats');
 
-    [searchInput, shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('input', render));
-    [shelfFilter, playersFilter, statusFilter, complexityFilter, ratingFilter, sortSelect].forEach(el => el.addEventListener('change', render));
+    const PAGE_SIZE = 50;
+    let currentPage = 1;
+    function renderFromPage1() { currentPage = 1; render(); }
+
+    [searchInput, playersFilter, statusFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('input', renderFromPage1));
+    [playersFilter, statusFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
+    document.getElementById('ov-page-prev').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    document.getElementById('ov-page-next').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
     // --- Kompaktes Filter-Panel: eingeklappt per Default, zeigt Anzahl aktiver Filter ---
     const filterToggle = document.getElementById('ov-filter-toggle');
@@ -240,17 +244,15 @@ document.addEventListener('DOMContentLoaded', () => {
         filterPanel.classList.toggle('cl-hidden');
     });
     document.getElementById('ov-filter-reset').addEventListener('click', () => {
-        shelfFilter.value = 'all'; playersFilter.value = '0'; statusFilter.value = 'all';
-        complexityFilter.value = 'all'; ratingFilter.value = 'all'; sortSelect.value = 'name';
-        render();
+        playersFilter.value = '0'; statusFilter.value = 'all';
+        complexityFilter.value = 'all'; sortSelect.value = 'name';
+        renderFromPage1();
     });
     function updateFilterCount() {
         let n = 0;
-        if (shelfFilter.value !== 'all') n++;
         if (playersFilter.value !== '0') n++;
         if (statusFilter.value !== 'all') n++;
         if (complexityFilter.value !== 'all') n++;
-        if (ratingFilter.value !== 'all') n++;
         if (sortSelect.value !== 'name') n++;
         filterCount.textContent = n;
         filterCount.classList.toggle('cl-hidden', n === 0);
@@ -291,26 +293,38 @@ document.addEventListener('DOMContentLoaded', () => {
         loadEvent(selectedEventId);
     });
 
+    const REFRESH_INTERVAL_MS = 60000; // 60 Sek. — Kompromiss aus Aktualität und Lesevorgängen
+    let refreshTimer = null;
+
     function loadEvent(eventId) {
         const ev = allEvents.find(e => e.id === eventId);
-        eventTitleEl.textContent = ev ? `Live-Stand für "${ev.name}"${ev.date ? ' · ' + ev.date : ''}` : 'Live-Stand der Spielothek';
+        eventTitleEl.textContent = ev ? `Stand für "${ev.name}"${ev.date ? ' · ' + ev.date : ''} — aktualisiert sich automatisch` : 'Stand der Spielothek';
         mainEl.classList.remove('cl-hidden');
 
-        if (eventGamesUnsub) eventGamesUnsub();
-        if (eventShelvesUnsub) eventShelvesUnsub();
+        if (refreshTimer) clearInterval(refreshTimer);
 
-        eventShelvesUnsub = onSnapshot(query(collection(db, 'eventShelves'), where('eventId', '==', eventId)), (snap) => {
-            currentEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
-            const prev = shelfFilter.value;
-            shelfFilter.innerHTML = '<option value="all">Alle Regale</option>' + currentEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
-            if ([...shelfFilter.options].some(o => o.value === prev)) shelfFilter.value = prev;
-            render();
-        }, err => console.error('eventShelves onSnapshot Fehler:', err));
+        async function fetchData() {
+            try {
+                const [shelvesSnap, gamesSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'eventShelves'), where('eventId', '==', eventId))),
+                    getDocs(query(collection(db, 'eventGames'), where('eventId', '==', eventId)))
+                ]);
+                currentEventShelves = shelvesSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                currentEventGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                render();
+                const refreshEl = document.getElementById('ov-last-refresh');
+                if (refreshEl) refreshEl.textContent = 'Stand: ' + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+            } catch (err) { console.error('Aktualisieren fehlgeschlagen:', err); }
+        }
 
-        eventGamesUnsub = onSnapshot(query(collection(db, 'eventGames'), where('eventId', '==', eventId)), (snap) => {
-            currentEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            render();
-        }, err => console.error('eventGames onSnapshot Fehler:', err));
+        // Statt eines dauerhaften Live-Listeners (der bei jedem einzelnen
+        // Scan am Tresen sofort an JEDE offene Besucher-Seite ein Update
+        // schickt — bei vielen gleichzeitig offenen Seiten der größte
+        // Kostentreiber) wird nur noch periodisch neu geladen. Das senkt die
+        // Lesevorgänge drastisch, bei nur geringfügig weniger Aktualität.
+        fetchData();
+        refreshTimer = setInterval(fetchData, REFRESH_INTERVAL_MS);
+        document.getElementById('ov-refresh-btn').onclick = fetchData;
     }
 
     function shelfName(id) {
@@ -322,41 +336,41 @@ document.addEventListener('DOMContentLoaded', () => {
     function render() {
         updateFilterCount();
         const term = searchInput.value.trim().toLowerCase();
-        const shelfVal = shelfFilter.value;
         const playersVal = parseInt(playersFilter.value, 10);
         const statusVal = statusFilter.value;
         const complexityVal = complexityFilter.value;
-        const ratingVal = ratingFilter.value === 'all' ? 0 : parseFloat(ratingFilter.value);
         const sortVal = sortSelect.value;
 
         let filtered = currentEventGames.filter(g => {
             const avail = g.availableQuantity ?? (g.quantity ?? 1);
             const nameMatch = !term || displayName(g).toLowerCase().includes(term);
-            const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
             const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
             const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
-            const ratingMatch = ratingVal === 0 || (g.rating != null && g.rating >= ratingVal);
             let playersMatch = true;
             if (playersVal > 0) {
                 if (g.minPlayers != null && g.maxPlayers != null) {
                     playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
                 } else { playersMatch = false; }
             }
-            return nameMatch && shelfMatch && statusMatch && complexityMatch && ratingMatch && playersMatch;
+            return nameMatch && statusMatch && complexityMatch && playersMatch;
         });
 
         if (sortVal === 'rating') {
             filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else if (sortVal === 'complexity-asc') {
-            filtered.sort((a, b) => (a.complexity ?? Infinity) - (b.complexity ?? Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
-        } else if (sortVal === 'complexity-desc') {
-            filtered.sort((a, b) => (b.complexity ?? -Infinity) - (a.complexity ?? -Infinity) || displayName(a).localeCompare(displayName(b), 'de'));
         } else {
             filtered.sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
         }
 
+        // Pagination: nur PAGE_SIZE Zeilen auf einmal anzeigen — bei großen
+        // Sammlungen (100+ Spiele) deutlich angenehmer zu überblicken.
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        const startIdx = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
-        tableBody.innerHTML = filtered.map(g => {
+        tableBody.innerHTML = pageItems.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
             return `<tr data-id="${g.id}">
@@ -379,6 +393,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="ov-stat"><strong>${total}</strong> Spiele gesamt</span>
             <span class="ov-stat"><strong>${available}</strong> verfügbar</span>
             <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>`;
+
+        document.getElementById('ov-pagination').classList.toggle('cl-hidden', filtered.length <= PAGE_SIZE);
+        document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
+        document.getElementById('ov-page-prev').disabled = currentPage <= 1;
+        document.getElementById('ov-page-next').disabled = currentPage >= totalPages;
     }
 
     tableBody.addEventListener('click', (e) => {
