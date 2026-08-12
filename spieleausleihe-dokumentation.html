@@ -107,6 +107,7 @@
             <h4>Firestore</h4>
             <ul>
                 <li><a href="#firestore-regeln">Sicherheitsregeln</a></li>
+                <li><a href="#firestore-lesevorgaenge">Lesevorgänge im Blick behalten</a></li>
             </ul>
             <h4>Sonstiges</h4>
             <ul>
@@ -446,7 +447,6 @@ Hier sind meine EAN-Codes:
                     <li>Hat ein Spiel nur <strong>ein Exemplar</strong>, ist der nächste Scan eindeutig: verfügbar → wird ausgeliehen, ausgeliehen → wird zurückgegeben. Kein Klicken, keine Rückfrage.</li>
                     <li>Hat ein Spiel <strong>mehrere Exemplare</strong>, aber gerade sind alle verfügbar oder alle draußen, ist es ebenfalls eindeutig und läuft automatisch.</li>
                     <li>Nur wenn ein Spiel mehrere Exemplare hat und <strong>gleichzeitig manche verfügbar und manche draußen</strong> sind, ist ein Scan wirklich mehrdeutig — dann erscheint ein kurzes Pop-up mit zwei Buttons ("📖 Ausleihen" / "↩️ Rückgabe"), einmal antippen, fertig.</li>
-                    <li>Zusätzlich gibt es die Option "Vor jeder Aktion bestätigen" (standardmäßig aus) — schaltet man sie ein, erscheint vor <strong>jeder</strong> Buchung ein Bestätigungs-Pop-up, unabhängig von der Mehrdeutigkeit. Praktisch für ruhigere Momente oder neue Team-Mitglieder.</li>
                 </ul>
             </section>
 
@@ -531,6 +531,30 @@ Hier sind meine EAN-Codes:
                 <div class="doc-callout doc-callout--warn">
                     <p>Fehlt bei einer dieser Collections die öffentliche Leseberechtigung, bleibt die jeweils betroffene öffentliche Seite leer oder zeigt nur unvollständige Daten (z.B. Mengen ohne Bilder/Bewertungen), obwohl im Verwaltungstool selbst alles korrekt aussieht — dort ist man ja immer angemeldet.</p>
                 </div>
+            </section>
+
+            <section id="firestore-lesevorgaenge">
+                <h2>Firestore-Lesevorgänge im Blick behalten</h2>
+                <p>Firestore rechnet <strong>pro gelesenem Dokument</strong> ab. Das kostenlose Kontingent (Spark-Tarif) ist großzügig, wächst aber nicht automatisch mit — je mehr Spiele in der Datenbank und je mehr Besucher:innen gleichzeitig eine Seite offen haben, desto wichtiger wird es, Abfragen bewusst klein zu halten. Zwei Grundprinzipien stecken im System:</p>
+
+                <h3>1. Datenbank-Änderungen weitergeben, statt bei jedem Aufruf live nachzulesen</h3>
+                <p>Ursprünglich haben die öffentlichen Seiten (<code>index.html</code>, <code>sammlung-uebersicht.html</code>, der Tresen) bei jedem Seitenaufruf zusätzlich in der zentralen Spieledatenbank nachgelesen, um sicherzustellen, dass Titel/Bild/Bewertung aktuell sind. Das kostete bei vielen gleichzeitigen Besucher:innen unnötig viele Lesevorgänge — genau das war die Ursache für einen spürbaren Anstieg im Firebase-Kontrollzentrum.</p>
+                <p>Die Lösung: <strong>Sammlungs- und Event-Einträge (<code>collectionItems</code>, <code>eventGames</code>) tragen von Anfang an alle Anzeige-Daten vollständig in sich</strong> (Titel, Bild, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität, Kategorie, Beschreibung) — nicht nur EAN und Menge. Bearbeitet ein Admin ein Spiel im Verwaltungstool (Titel korrigieren, BGG neu abgleichen, Beschreibung nachtragen, …), schreibt das Tool die aktuellen Daten automatisch in <strong>alle</strong> Sammlungs- und Event-Einträge zurück, die auf diese EAN verweisen — einmalig, im Hintergrund, ohne dass Besucher:innen etwas davon merken.</p>
+                <p>Ergebnis: Die öffentlichen Seiten müssen nur noch das lesen, was sie ohnehin schon live abonniert haben (die Sammlung bzw. das Event selbst) — kein zusätzlicher Lesevorgang pro Spiel, egal wie viele Besucher:innen gleichzeitig zuschauen.</p>
+                <div class="doc-callout">
+                    <p>Für Einträge, die vor Einführung dieser Funktion angelegt wurden, gibt es im Tab Spieledatenbank den Button <strong>"🔄 Sammlungen/Events mit aktuellen Namen abgleichen"</strong> — einmalig ausführen, danach hält sich alles von selbst aktuell.</p>
+                </div>
+
+                <h3>2. Abfragen begrenzen und Listen paginieren</h3>
+                <p>Wo immer möglich, sollten Datenbankabfragen von vornherein klein gehalten werden, statt unbegrenzt zu wachsen:</p>
+                <ul class="doc-step-list">
+                    <li><strong>Gezielt statt vollständig:</strong> Auf Sammlung oder Event beschränkte Abfragen (<code>where('eventId', '==', …)</code>) statt eines Listeners auf die komplette Collection — die öffentlichen Seiten machen das für <code>eventGames</code>/<code>collectionItems</code> bereits konsequent.</li>
+                    <li><strong>UI-Pagination bei großen Listen:</strong> Die Spieledatenbank-Tabelle im Verwaltungstool zeigt maximal 50 Zeilen gleichzeitig, mit Seitenumschaltung darunter. Wichtig: Das spart Browser-Rechenleistung, <strong>nicht</strong> Firestore-Lesevorgänge — Suche und Filter laufen weiterhin über den kompletten, bereits geladenen Datenbestand (siehe <a href="#datenbank-tabelle">Datenbank durchsuchen &amp; bearbeiten</a>).</li>
+                    <li><strong>Bewusste Ausnahme:</strong> Das Verwaltungstool selbst lädt beim Login weiterhin die komplette Spieledatenbank und alle Sammlungseinträge unbegrenzt — das ist nötig, damit Team-Mitglieder per Volltext über die ganze Datenbank suchen können. Das ist unkritisch, weil nur angemeldete Team-Mitglieder das Tool öffnen (nicht beliebige Besucher:innen) und die Zugriffszahl klein bleibt, unabhängig vom Besucherstrom eines Events.</li>
+                </ul>
+
+                <h3>Ausblick: Umzug auf einen eigenen Webserver</h3>
+                <p>Aktuell läuft die Website über GitHub Pages. Ein späterer Umzug auf einen eigenen Webserver ist geplant — dann steht auch zur Diskussion, ob Firestore als Datenbank beibehalten wird oder eine andere Lösung zum Einsatz kommt. Die hier beschriebenen Prinzipien (Daten weitergeben statt live nachlesen, Abfragen gezielt halten) bleiben unabhängig von der konkreten Datenbank-Technologie sinnvoll.</p>
             </section>
 
             <section id="glossar">
