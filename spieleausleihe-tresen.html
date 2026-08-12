@@ -369,7 +369,6 @@ let currentEvent = null;
 let currentEventId = new URLSearchParams(location.search).get('event') || '';
 let allEventGames = [];
 let allEventShelves = [];
-let allGames = [];
 let allEvents = [];
 let unsubs = [];
 let returnTimerHandle = null;
@@ -460,14 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startUp() {
-        // Einmaliger Live-Listener auf die zentrale Spieledatenbank, damit
-        // überall der aktuelle Titel angezeigt wird statt der ggf.
-        // veralteten Momentaufnahme in eventGames.gameName.
-        onSnapshot(collection(db, 'games'), (snap) => {
-            allGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderDesk();
-        }, err => console.error('games onSnapshot Fehler:', err));
-
         if (currentEventId) {
             openDesk(currentEventId);
         } else {
@@ -494,11 +485,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = allEventShelves.find(s => s.id === shelfId);
         return s ? s.name : '—';
     }
-    // Bevorzugt den aktuellen Namen aus der zentralen Spieledatenbank vor der
-    // ggf. veralteten Momentaufnahme im Event-Eintrag (eg.gameName, die beim
-    // Scannen entstand, bevor der Titel bekannt war).
+    // eventGames.gameName wird vom Verwaltungstool automatisch aktuell
+    // gehalten, sobald ein Spiel bearbeitet wird (siehe propagateGameUpdate
+    // dort) — kein zusätzlicher Live-Nachschlag pro EAN nötig.
     function liveGameName(eg) {
-        return allGames.find(g => g.id === eg.ean)?.name || eg.gameName || eg.ean;
+        return eg.gameName || eg.ean;
     }
 
     function openDesk(eventId) {
@@ -569,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let list = allEventGames.filter(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
-            const game = allGames.find(x => x.id === g.ean);
+            const game = g;
             const nameMatch = !term || liveGameName(g).toLowerCase().includes(term);
             const statusMatch = statusVal === 'all' || (statusVal === 'borrowed' ? avail < qty : avail > 0);
             const complexityMatch = complexityVal === 'all' || complexityBucketDesk(game?.complexity) === complexityVal;
@@ -584,11 +575,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (sortVal === 'rating') {
-            list.sort((a, b) => ((allGames.find(x => x.id === b.ean)?.rating) ?? -1) - ((allGames.find(x => x.id === a.ean)?.rating) ?? -1) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+            list.sort((a, b) => ((b.rating) ?? -1) - ((a.rating) ?? -1) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
         } else if (sortVal === 'complexity-asc') {
-            list.sort((a, b) => ((allGames.find(x => x.id === a.ean)?.complexity) ?? Infinity) - ((allGames.find(x => x.id === b.ean)?.complexity) ?? Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+            list.sort((a, b) => ((a.complexity) ?? Infinity) - ((b.complexity) ?? Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
         } else if (sortVal === 'complexity-desc') {
-            list.sort((a, b) => ((allGames.find(x => x.id === b.ean)?.complexity) ?? -Infinity) - ((allGames.find(x => x.id === a.ean)?.complexity) ?? -Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+            list.sort((a, b) => ((b.complexity) ?? -Infinity) - ((a.complexity) ?? -Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
         } else {
             list.sort((a, b) => liveGameName(a).localeCompare(liveGameName(b), 'de'));
         }
@@ -597,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
         body.innerHTML = list.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
-            const game = allGames.find(x => x.id === g.ean);
+            const game = g;
             const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
             return `<tr>
                 <td>${escapeHTML(liveGameName(g))}</td>
