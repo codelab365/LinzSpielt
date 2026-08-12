@@ -96,6 +96,7 @@
     .sv-toolbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); align-items: center; justify-content: space-between; margin-bottom: var(--cl-space-3); }
     .sv-toolbar .cl-input, .sv-toolbar .cl-select { min-width: 180px; }
     .sv-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+    .sv-pagination { display: flex; align-items: center; justify-content: center; gap: var(--cl-space-3); margin-top: var(--cl-space-3); }
 
     .qb-bgg-panel { margin-top: .5rem; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm);
         background: var(--cl-surface-2); max-height: 220px; overflow-y: auto; }
@@ -161,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v41</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v44</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -305,6 +306,7 @@
                 </select>
                 <button type="button" id="open-add-game-btn" class="cl-btn cl-btn--signal">(+) Spiel manuell anlegen</button>
                 <button type="button" id="backfill-desc-btn" class="cl-btn cl-btn--ghost">🔄 Fehlende Beschreibungen nachholen</button>
+                <button type="button" id="sync-all-names-btn" class="cl-btn cl-btn--ghost">🔄 Sammlungen/Events mit aktuellen Namen abgleichen</button>
             </div>
             <div class="sv-table-wrap">
                 <table class="sv-table">
@@ -312,6 +314,11 @@
                     <tbody id="games-table-body"></tbody>
                 </table>
                 <p id="games-empty" class="sv-empty cl-hidden">Keine Spiele gefunden.</p>
+            </div>
+            <div id="games-pagination" class="sv-pagination cl-hidden">
+                <button type="button" id="games-page-prev" class="cl-btn cl-btn--ghost cl-btn--sm">← Zurück</button>
+                <span id="games-page-info" class="cl-muted" style="font-size:.85rem;"></span>
+                <button type="button" id="games-page-next" class="cl-btn cl-btn--ghost cl-btn--sm">Weiter →</button>
             </div>
         </section>
 
@@ -732,8 +739,33 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v41 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v44 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v44 — Grundlegende Architekturänderung gegen unnötige Firestore-
+//        Lesevorgänge: collectionItems und eventGames tragen jetzt IMMER
+//        vollständige Anzeige-Daten (Titel, Bild, Spieleranzahl, Alter,
+//        Dauer, Bewertung, Komplexität, Kategorie, Beschreibung). Ändert
+//        ein Admin ein Spiel, werden diese Daten automatisch in alle
+//        passenden Sammlungs-/Event-Einträge zurückgeschrieben
+//        (propagateGameUpdate). Dadurch müssen index.html,
+//        sammlung-uebersicht.html und der Tresen NICHT MEHR live in der
+//        zentralen Spieledatenbank nachlesen — auch nicht mehr gezielt pro
+//        EAN. Neuer Button "🔄 Sammlungen/Events mit aktuellen Namen
+//        abgleichen" gleicht einmalig ältere, vor dieser Funktion
+//        angelegte Einträge nach.
+//   v43 — Spieledatenbank-Tabelle: neue UI-Pagination, 50 Zeilen pro Seite
+//        (nur ab mehr als 50 Treffern sichtbar). Betrifft nur die Anzeige,
+//        nicht die Firestore-Lesevorgänge — die Suche durchsucht weiterhin
+//        alle geladenen Spiele, gerendert wird aber immer nur die aktuelle
+//        Seite. Hält die Tabelle auch bei einer großen Datenbank flüssig.
+//   v42 — Wichtiger Kostenfix: index.html und spieleausleihe-tresen.html
+//        hatten seit dem Namens-Bugfix einen Live-Listener auf die
+//        KOMPLETTE games-Collection — kostete bei jedem Seitenaufruf einen
+//        Firestore-Lesevorgang pro Spiel in der ganzen Datenbank, unabhängig
+//        davon, ob es überhaupt bei diesem Event dabei war. Umgestellt auf
+//        gezieltes Nachladen nur der tatsächlich benötigten Spiele pro EAN,
+//        mit Zwischenspeicher (wie schon in sammlung-uebersicht.html) —
+//        senkt die Lesevorgänge drastisch.
 //   v41 — Bugfix Scan-Ton: der Zweiton-Klang klang manchmal wie nur ein
 //        einzelner Ton, weil die Töne eingeplant wurden, bevor der
 //        AudioContext sauber "aufgewacht" war. playScanBeep wartet jetzt
@@ -950,6 +982,39 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Schreibt Anzeige-Daten eines Spiels (Titel, Bild, Spieleranzahl, Alter,
+// Dauer, Bewertung, Komplexität, Kategorie) in alle Sammlungs- und Event-
+// Einträge zurück, die auf diese EAN verweisen. Läuft nur, wenn ein Admin
+// tatsächlich ein Spiel bearbeitet/anreichert — dadurch bleiben die
+// Momentaufnahmen in collectionItems/eventGames aktuell, OHNE dass die
+// öffentlichen Seiten (index.html, sammlung-uebersicht.html, Tresen) bei
+// jedem Besuch live in der zentralen Datenbank nachlesen müssten. Das ist
+// der entscheidende Hebel gegen unnötig viele Firestore-Lesevorgänge bei
+// vielen gleichzeitigen Besucher:innen während eines Events.
+// Baut die Anzeige-Felder, die zusätzlich zu Name/Menge in Sammlungs- und
+// Event-Einträgen gespeichert werden, aus einem Spiel-Objekt der zentralen
+// Datenbank — damit sammlung-uebersicht.html & Co. ohne zusätzlichen
+// Live-Nachschlag auskommen.
+function gameDisplayFields(game) {
+    return {
+        bggId: game?.bggId ?? null, bggImageUrl: game?.bggImageUrl ?? null,
+        minPlayers: game?.minPlayers ?? null, maxPlayers: game?.maxPlayers ?? null, minAge: game?.minAge ?? null,
+        Duration: game?.Duration ?? null, rating: game?.rating ?? null, complexity: game?.complexity ?? null,
+        category: game?.category ?? null, description: game?.description ?? null
+    };
+}
+
+async function propagateGameUpdate(ean, fields) {
+    try {
+        const colSnap = await getDocs(query(collection(db, 'collectionItems'), where('ean', '==', ean)));
+        await Promise.all(colSnap.docs.map(d => updateDoc(d.ref, fields)));
+        const evSnap = await getDocs(query(collection(db, 'eventGames'), where('ean', '==', ean)));
+        await Promise.all(evSnap.docs.map(d => updateDoc(d.ref, fields)));
+    } catch (err) {
+        console.error('Weitergabe an Sammlungen/Events fehlgeschlagen für', ean, err);
+    }
+}
 
 // --- BoardGameGeek (BGG) Integration ---
 // Hinweis: Der Token liegt im Klartext im Quellcode (Ansicht -> Seitenquelltext).
@@ -1523,12 +1588,19 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const match = await bggSearchAndFetchBest(titleGuess);
                 if (match) {
+                    const fields = {
+                        gameName: titleGuess || match.bggName, bggId: match.bggId, bggImageUrl: match.bggImageUrl,
+                        minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
+                        Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity, category: match.bggCategory,
+                        description: match.bggDescription
+                    };
                     await updateDoc(gameRef, {
                         name: titleGuess || match.bggName, bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
                         minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
                         Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
                         category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
                     });
+                    propagateGameUpdate(ean, fields);
                 } else {
                     await updateDoc(gameRef, { enrichStatus: 'not_found', updatedAt: serverTimestamp() });
                 }
@@ -1565,7 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
                     incrementedInCollections++;
                 } else {
-                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, ...gameDisplayFields(game), quantity: 1, addedAt: serverTimestamp() });
                     addedToCollections++;
                 }
             } catch (err) { console.error(err); }
@@ -1634,14 +1706,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (titleGuess) {
                     const match = await bggSearchAndFetchBest(titleGuess);
                     if (match) {
+                        const finalName = titleGuess || match.bggName;
                         await updateDoc(gameRef, {
-                            name: titleGuess || match.bggName, titleSource,
+                            name: finalName, titleSource,
                             bggId: match.bggId, bggImageUrl: match.bggImageUrl, bggYear: match.bggYear,
                             minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
                             Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity,
                             category: match.bggCategory, description: match.bggDescription, enrichStatus: 'done', updatedAt: serverTimestamp()
                         });
-                        logLine(`${ean}: ${titleGuess || match.bggName}`, true);
+                        propagateGameUpdate(ean, {
+                            gameName: finalName, bggId: match.bggId, bggImageUrl: match.bggImageUrl,
+                            minPlayers: match.minPlayers, maxPlayers: match.maxPlayers, minAge: match.minAge,
+                            Duration: match.duration, rating: match.bggRating, complexity: match.bggComplexity, category: match.bggCategory,
+                            description: match.bggDescription
+                        });
+                        logLine(`${ean}: ${finalName}`, true);
                     } else {
                         await updateDoc(gameRef, { name: titleGuess, titleSource, enrichStatus: 'not_found', updatedAt: serverTimestamp() });
                         logLine(`${ean}: kein BGG-Treffer für "${titleGuess}"`, false);
@@ -1755,8 +1834,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbStatusFilter = document.getElementById('db-status-filter');
     const gamesTableBody = document.getElementById('games-table-body');
     const gamesEmpty = document.getElementById('games-empty');
-    dbSearchInput.addEventListener('input', renderDatenbankTab);
-    dbStatusFilter.addEventListener('change', renderDatenbankTab);
+    dbSearchInput.addEventListener('input', () => { gamesCurrentPage = 1; renderDatenbankTab(); });
+    dbStatusFilter.addEventListener('change', () => { gamesCurrentPage = 1; renderDatenbankTab(); });
 
     function enrichBadge(status) {
         const map = { done: ['Fertig', 'done'], pending: ['Offen', 'pending'], not_found: ['Kein Treffer', 'not_found'], error: ['Fehler', 'error'] };
@@ -1768,6 +1847,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const map = { gtnm: 'GTNM-Referenz', manual: 'manuell', 'stage2-import': 'Recherche-Import' };
         return source ? (map[source] || source) : null;
     }
+
+    const GAMES_PAGE_SIZE = 50;
+    let gamesCurrentPage = 1;
 
     function renderDatenbankTab() {
         const total = allGames.length;
@@ -1791,8 +1873,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return nameMatch && statusMatch;
         }).sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || '', 'de'));
 
+        // UI-Pagination: alle Treffer werden weiterhin durchsucht/gefiltert,
+        // aber pro Seite nur GAMES_PAGE_SIZE Zeilen tatsächlich gerendert —
+        // hält die Tabelle auch bei einer großen Datenbank flüssig.
+        const totalPages = Math.max(1, Math.ceil(filtered.length / GAMES_PAGE_SIZE));
+        if (gamesCurrentPage > totalPages) gamesCurrentPage = totalPages;
+        if (gamesCurrentPage < 1) gamesCurrentPage = 1;
+        const startIdx = (gamesCurrentPage - 1) * GAMES_PAGE_SIZE;
+        const pageItems = filtered.slice(startIdx, startIdx + GAMES_PAGE_SIZE);
+
         gamesEmpty.classList.toggle('cl-hidden', filtered.length > 0);
-        gamesTableBody.innerHTML = filtered.map(g => `
+        gamesTableBody.innerHTML = pageItems.map(g => `
             <tr data-id="${g.id}" class="sv-clickable-row">
                 <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
                 <td>${escapeHTML(g.name || '(ohne Titel)')}${titleSourceLabel(g.titleSource) ? `<br><span class="cl-muted" style="font-size:.75rem;">Quelle: ${escapeHTML(titleSourceLabel(g.titleSource))}</span>` : ''}</td>
@@ -1803,7 +1894,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-edit-game-btn" data-id="${g.id}">Bearbeiten</button>
                 </td>
             </tr>`).join('');
+
+        const paginationEl = document.getElementById('games-pagination');
+        paginationEl.classList.toggle('cl-hidden', filtered.length <= GAMES_PAGE_SIZE);
+        document.getElementById('games-page-info').textContent = `Seite ${gamesCurrentPage} von ${totalPages} (${filtered.length} Treffer)`;
+        document.getElementById('games-page-prev').disabled = gamesCurrentPage <= 1;
+        document.getElementById('games-page-next').disabled = gamesCurrentPage >= totalPages;
     }
+    document.getElementById('games-page-prev').addEventListener('click', () => { gamesCurrentPage--; renderDatenbankTab(); document.getElementById('games-table-body').closest('.sv-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    document.getElementById('games-page-next').addEventListener('click', () => { gamesCurrentPage++; renderDatenbankTab(); document.getElementById('games-table-body').closest('.sv-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     gamesTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr[data-id]');
         if (!row) return;
@@ -1827,7 +1926,33 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
-    // --- Game Modal (Master-Datenbank) ---
+    document.getElementById('sync-all-names-btn').addEventListener('click', () => {
+        const withNames = allGames.filter(g => g.name);
+        if (withNames.length === 0) { showToast('Keine Spiele mit Titel vorhanden.', true); return; }
+        const okBtn = document.getElementById('confirm-modal-ok');
+        okBtn.textContent = 'Ja, abgleichen';
+        okBtn.style.background = '';
+        okBtn.style.borderColor = '';
+        showConfirm(
+            'Sammlungen/Events abgleichen?',
+            `Schreibt den aktuellen Titel (und Bild/Spieleranzahl/Alter/Dauer/Bewertung/Komplexität/Kategorie) aller ${withNames.length} Spiele mit Titel in alle Sammlungs- und Event-Einträge zurück, die darauf verweisen. Sinnvoll einmalig nach der Einführung dieser Funktion, um ältere Einträge nachzuziehen — danach hält sich das automatisch aktuell. Kann bei vielen Spielen etwas dauern.`,
+            async () => {
+                resetConfirmModalStyle();
+                showToast('Gleiche ab …');
+                let done = 0;
+                for (const g of withNames) {
+                    await propagateGameUpdate(g.id, {
+                        gameName: g.name, bggId: g.bggId ?? null, bggImageUrl: g.bggImageUrl ?? null,
+                        minPlayers: g.minPlayers ?? null, maxPlayers: g.maxPlayers ?? null, minAge: g.minAge ?? null,
+                        Duration: g.Duration ?? null, rating: g.rating ?? null, complexity: g.complexity ?? null, category: g.category ?? null,
+                        description: g.description ?? null
+                    });
+                    done++;
+                }
+                showToast(`✅ ${done} Spiele abgeglichen`, false, { variant: 'ok', duration: 3000 });
+            }
+        );
+    });
     const gameModalOverlay = document.getElementById('game-modal-overlay');
     const gameModalTitle = document.getElementById('game-modal-title');
     const gameForm = document.getElementById('game-form');
@@ -1983,6 +2108,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 await setDoc(doc(db, 'games', ean), { ...payload, addedAt: serverTimestamp() });
                 showToast('Spiel angelegt.');
             }
+            propagateGameUpdate(ean, {
+                gameName: payload.name, bggId: payload.bggId, bggImageUrl: payload.bggImageUrl,
+                minPlayers: payload.minPlayers, maxPlayers: payload.maxPlayers, minAge: payload.minAge,
+                Duration: payload.Duration, rating: payload.rating, complexity: payload.complexity, category: payload.category,
+                description: payload.description
+            });
             hideModal(gameModalOverlay);
         } catch (err) {
             console.error('Speichern fehlgeschlagen:', err);
@@ -2163,8 +2294,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let imported = 0, skipped = 0, newGamesCreated = 0;
 
             for (const m of bgstatsMatched) {
+                const matchedGame = allGames.find(g => g.id === m.ean);
                 await setDoc(doc(db, 'collectionItems', `${colId}_${m.ean}`), {
-                    collectionId: colId, ean: m.ean, gameName: m.gameName, quantity: m.quantity, addedAt: serverTimestamp()
+                    collectionId: colId, ean: m.ean, gameName: m.gameName, ...gameDisplayFields(matchedGame), quantity: m.quantity, addedAt: serverTimestamp()
                 });
                 imported++;
             }
@@ -2183,8 +2315,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     newGamesCreated++;
                 }
                 const gameName = existingGame ? (existingGame.name || u.name) : u.name;
+                // Für neu angelegte Spiele die frisch von BGStats gelieferten
+                // Felder verwenden (allGames hat den neuen Eintrag hier noch
+                // nicht), sonst die bereits bekannten Daten aus der Datenbank.
+                const displayFields = existingGame ? gameDisplayFields(existingGame) : gameDisplayFields({
+                    bggId: u.bggId, bggImageUrl: u.bggImageUrl, minPlayers: u.minPlayers, maxPlayers: u.maxPlayers,
+                    minAge: u.minAge, Duration: u.duration, rating: null, complexity: null, category: null
+                });
                 await setDoc(doc(db, 'collectionItems', `${colId}_${u.ean}`), {
-                    collectionId: colId, ean: u.ean, gameName, quantity: u.quantity, addedAt: serverTimestamp()
+                    collectionId: colId, ean: u.ean, gameName, ...displayFields, quantity: u.quantity, addedAt: serverTimestamp()
                 });
                 imported++;
             }
@@ -2331,7 +2470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
                 showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
             } else {
-                await setDoc(doc(db, 'collectionItems', citemId), { collectionId: currentCollectionId, ean, gameName: name, quantity: 1, addedAt: serverTimestamp() });
+                await setDoc(doc(db, 'collectionItems', citemId), { collectionId: currentCollectionId, ean, gameName: name, ...gameDisplayFields(allGames.find(g => g.id === ean)), quantity: 1, addedAt: serverTimestamp() });
                 showToast(`"${name}" zur Sammlung hinzugefügt.`);
             }
             collectionAddSearch.value = '';
@@ -2863,7 +3002,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (allCollectionItems.some(ci => ci.id === citemId)) {
                     await updateDoc(doc(db, 'collectionItems', citemId), { quantity: increment(1) });
                 } else {
-                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, quantity: 1, addedAt: serverTimestamp() });
+                    await setDoc(doc(db, 'collectionItems', citemId), { collectionId: cid, ean, gameName: game.name || ean, ...gameDisplayFields(game), quantity: 1, addedAt: serverTimestamp() });
                 }
             } catch (err) { console.error(err); }
         }
