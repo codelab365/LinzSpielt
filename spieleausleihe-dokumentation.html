@@ -173,7 +173,7 @@
                     <li>Pro Event die <a href="#events-rueckgabemeldung">Rückgabemeldung</a> einstellen (manuell bestätigen oder Timer).</li>
                     <li>Event als <a href="#events-aktiv">aktiv</a> setzen (optional, nur für die Ausleihe-Funktion im Verwaltungstool nötig).</li>
                     <li>Während der Veranstaltung: am Ausleihtresen die eigene <a href="#tresen">Tresen-Seite</a> für dieses Event öffnen und darüber scannen.</li>
-                    <li><a href="#events-embed">Einbett-Code</a> auf der Vereins-Website einfügen, damit Besucher live sehen, was verfügbar ist.</li>
+                    <li><a href="#events-embed">Einbett-Code</a> auf der Vereins-Website einfügen, damit Besucher sehen, was verfügbar ist (aktualisiert sich automatisch alle 60 Sek.).</li>
                     <li>Nach dem Event: <a href="#statistik">Statistik auswerten, als CSV exportieren</a> und im Zeitverlaufs-Diagramm ansehen, für die nächste Planung.</li>
                 </ol>
             </section>
@@ -396,7 +396,7 @@ Hier sind meine EAN-Codes:
                 <h2>Einbett-Code &amp; Tresen-Link</h2>
                 <p>Jedes Event hat im geöffneten Event-Fenster zwei fertige Links:</p>
                 <ul class="doc-step-list">
-                    <li><strong>Einbettungs-Code für die Website</strong>: ein <code>&lt;iframe&gt;</code>-Schnipsel, "Code kopieren" und in die Vereins-Website einfügen — zeigt Besuchern live den Ausleihstatus dieses Events, ganz ohne Login.</li>
+                    <li><strong>Einbettungs-Code für die Website</strong>: ein <code>&lt;iframe&gt;</code>-Schnipsel, "Code kopieren" und in die Vereins-Website einfügen — zeigt Besuchern den Ausleihstatus dieses Events (alle 60 Sek. automatisch aktualisiert, plus manueller "Jetzt aktualisieren"-Button), ganz ohne Login.</li>
                     <li><strong>Ausleihe-Tresen für dieses Event</strong>: direkter Link zur eigenen Tresen-Seite (<a href="#tresen">siehe unten</a>), zum Kopieren oder direkt "Öffnen".</li>
                 </ul>
             </section>
@@ -487,13 +487,15 @@ Hier sind meine EAN-Codes:
                     <li>Aufruf mit <code>?event=EVENT_ID</code> in der URL zeigt direkt dieses Event (so ist auch der Einbett-Code aufgebaut).</li>
                     <li>Ohne Event-Parameter zeigt die Seite ein Dropdown zur Auswahl unter allen vorhandenen Events.</li>
                     <li>Oben neben dem Titel das BGG-Logo (verlinkt zu boardgamegeek.com) als Herkunftsnachweis der Spieledaten.</li>
+                    <li><strong>Nicht mehr live, sondern periodisch aktuell:</strong> Die Seite lädt sich automatisch alle 60 Sekunden neu, plus ein Button <strong>"🔄 Jetzt aktualisieren"</strong> für sofortiges Nachladen. Eine kleine Anzeige ("Stand: HH:MM Uhr") zeigt, wie aktuell der gezeigte Stand ist. Details und Hintergrund dazu unter <a href="#firestore-lesevorgaenge">Firestore-Lesevorgänge im Blick behalten</a>.</li>
                     <li>Standardmäßig sichtbar ist nur das <strong>Suchfeld</strong> plus ein Button <strong>"🔍 Filter &amp; Sortierung"</strong> — Platz sparend, besonders wichtig, wenn die Seite schmal eingebettet ist.</li>
-                    <li>Klick auf den Button öffnet ein kompaktes, mehrspaltiges Panel mit: Regal-Filter, Spielerzahl-Filter, Status-Filter, <strong>Komplexität</strong> ("Leicht", "Mittel", "Anspruchsvoll") und <strong>Bewertung</strong> ("Gut bewertet ab 7", "Sehr gut bewertet ab 8") statt roher BGG-Zahlenskalen, sowie Sortierung nach Name, Beliebtheit (BGG-Bewertung) oder Komplexität (auf- oder absteigend).</li>
+                    <li>Klick auf den Button öffnet ein kompaktes Panel mit den für Besucher:innen wichtigsten Fragen: <strong>Spielerzahl</strong>, <strong>Komplexität</strong> ("Leicht", "Mittel", "Anspruchsvoll"), <strong>Status</strong> (Alle / Nur verfügbar / Nur ausgeliehen) sowie einer einfachen Sortierung (Name oder Beliebtheit). Regal- und Bewertungs-Filter wurden bewusst entfernt, um die Auswahl übersichtlich zu halten — die Werte selbst stehen aber weiterhin als Spalten in der Tabelle.</li>
                     <li>Der Button zeigt eine kleine Zahl, sobald Filter aktiv sind, auch wenn das Panel gerade eingeklappt ist. Ein "Filter zurücksetzen"-Button im Panel setzt alles auf Standard zurück.</li>
-                    <li>Die Tabelle zeigt neben Spieleranzahl, Alter, Dauer und Bewertung auch die <strong>Komplexität</strong> direkt als eigene Spalte.</li>
+                    <li>Die Tabelle zeigt neben Spieleranzahl, Alter, Dauer, Bewertung und Komplexität auch das Regal — beides weiterhin sichtbar, auch ohne eigenen Filter dafür.</li>
+                    <li><strong>Pagination:</strong> Bei mehr als 50 Treffern erscheinen "← Zurück"/"Weiter →"-Pfeile oberhalb der Tabelle. Betrifft nur die Anzeige im Browser, nicht die Lesevorgänge — Suche und Filter laufen weiterhin über die komplette geladene Liste, damit sie zuverlässig alles finden.</li>
                     <li>Jede Zeile der Ergebnistabelle ist anklickbar und öffnet eine Detailkarte mit größerem Bild, Beschreibung, Kategorie und einem direkten Link zur BGG-Seite des Spiels.</li>
                     <li>Bei Mehrfach-Exemplaren zeigt der Status z.B. "verfügbar (2/3)".</li>
-                    <li>Kein Login nötig, keine Bearbeitung möglich — reine Live-Ansicht.</li>
+                    <li>Kein Login nötig, keine Bearbeitung möglich.</li>
                 </ul>
             </section>
 
@@ -504,10 +506,11 @@ Hier sind meine EAN-Codes:
                     <li>Aufruf mit <code>?collection=SAMMLUNG_ID</code> zeigt direkt diese eine Sammlung (Link dazu im Sammlungsfenster, siehe <a href="#sammlung-link">Öffentlicher Link zur Sammlung</a>).</li>
                     <li>Ohne Parameter: Dropdown zur Auswahl unter allen vorhandenen Sammlungen.</li>
                     <li>Oben neben dem Titel ebenfalls das BGG-Logo mit Link zu boardgamegeek.com.</li>
-                    <li>Gleiches Suchfeld, gleiches einklappbare Filter-&amp;-Sortierungs-Panel wie bei der Event-Übersicht (Spielerzahl, Komplexität, Bewertung, Sortierung inkl. "Stückzahl, meiste zuerst") — bewusst dieselbe Bedienung wie gewohnt. Die Tabelle zeigt Komplexität ebenfalls als eigene Spalte.</li>
-                    <li>Kein Regal- und kein Status-Filter, da Sammlungen keine Verfügbarkeit im Ausleihsinn kennen — stattdessen zeigt die Tabelle je Spiel die <strong>Stückzahl</strong> ("2×" usw.).</li>
+                    <li>Ebenfalls periodische Aktualisierung (alle 60 Sekunden) statt Live-Listener, plus "🔄 Jetzt aktualisieren"-Button und "Stand: HH:MM Uhr"-Anzeige — siehe <a href="#firestore-lesevorgaenge">Firestore-Lesevorgänge im Blick behalten</a>.</li>
+                    <li>Gleiches Suchfeld, gleiches einklappbares Filter-&amp;-Sortierungs-Panel wie bei der Event-Übersicht, ebenfalls auf das Nötigste reduziert: <strong>Spielerzahl</strong>, <strong>Komplexität</strong>, Sortierung nach Name, Beliebtheit oder Stückzahl. Kein Bewertungs-Filter mehr, kein Status-/Regal-Filter (Sammlungen kennen keine Verfügbarkeit im Ausleihsinn).</li>
+                    <li>Die Tabelle zeigt je Spiel die <strong>Stückzahl</strong> ("2×" usw.) statt eines Ausleihstatus.</li>
+                    <li><strong>Pagination:</strong> ab mehr als 50 Treffern "← Zurück"/"Weiter →" oberhalb der Tabelle, wie bei der Event-Übersicht.</li>
                     <li>Zeile anklicken öffnet dieselbe Detailkarte wie bei der Event-Übersicht (Bild, Beschreibung, BGG-Link).</li>
-                    <li>Bild, Bewertung, Komplexität usw. werden live aus der zentralen Spieledatenbank nachgeladen — steht ein Spiel dort noch ohne Titel/BGG-Daten ("Offen"), zeigt die Sammlung-Übersicht entsprechend weniger an.</li>
                     <li>Kein Login nötig, keine Bearbeitung möglich.</li>
                 </ul>
             </section>
@@ -535,26 +538,31 @@ Hier sind meine EAN-Codes:
 
             <section id="firestore-lesevorgaenge">
                 <h2>Firestore-Lesevorgänge im Blick behalten</h2>
-                <p>Firestore rechnet <strong>pro gelesenem Dokument</strong> ab. Das kostenlose Kontingent (Spark-Tarif) ist großzügig, wächst aber nicht automatisch mit — je mehr Spiele in der Datenbank und je mehr Besucher:innen gleichzeitig eine Seite offen haben, desto wichtiger wird es, Abfragen bewusst klein zu halten. Zwei Grundprinzipien stecken im System:</p>
+                <p>Firestore rechnet <strong>pro gelesenem Dokument</strong> ab. Das kostenlose Kontingent (Spark-Tarif) ist großzügig, wächst aber nicht automatisch mit — je mehr Spiele in der Datenbank und je mehr Besucher:innen gleichzeitig eine Seite offen haben, desto wichtiger wird es, Abfragen bewusst klein zu halten. Drei Grundprinzipien stecken im System:</p>
 
                 <h3>1. Datenbank-Änderungen weitergeben, statt bei jedem Aufruf live nachzulesen</h3>
                 <p>Ursprünglich haben die öffentlichen Seiten (<code>index.html</code>, <code>sammlung-uebersicht.html</code>, der Tresen) bei jedem Seitenaufruf zusätzlich in der zentralen Spieledatenbank nachgelesen, um sicherzustellen, dass Titel/Bild/Bewertung aktuell sind. Das kostete bei vielen gleichzeitigen Besucher:innen unnötig viele Lesevorgänge — genau das war die Ursache für einen spürbaren Anstieg im Firebase-Kontrollzentrum.</p>
                 <p>Die Lösung: <strong>Sammlungs- und Event-Einträge (<code>collectionItems</code>, <code>eventGames</code>) tragen von Anfang an alle Anzeige-Daten vollständig in sich</strong> (Titel, Bild, Spieleranzahl, Alter, Dauer, Bewertung, Komplexität, Kategorie, Beschreibung) — nicht nur EAN und Menge. Bearbeitet ein Admin ein Spiel im Verwaltungstool (Titel korrigieren, BGG neu abgleichen, Beschreibung nachtragen, …), schreibt das Tool die aktuellen Daten automatisch in <strong>alle</strong> Sammlungs- und Event-Einträge zurück, die auf diese EAN verweisen — einmalig, im Hintergrund, ohne dass Besucher:innen etwas davon merken.</p>
-                <p>Ergebnis: Die öffentlichen Seiten müssen nur noch das lesen, was sie ohnehin schon live abonniert haben (die Sammlung bzw. das Event selbst) — kein zusätzlicher Lesevorgang pro Spiel, egal wie viele Besucher:innen gleichzeitig zuschauen.</p>
-                <div class="doc-callout">
-                    <p>Für Einträge, die vor Einführung dieser Funktion angelegt wurden, gibt es im Tab Spieledatenbank den Button <strong>"🔄 Sammlungen/Events mit aktuellen Namen abgleichen"</strong> — einmalig ausführen, danach hält sich alles von selbst aktuell.</p>
+                <p>Ergebnis: Die öffentlichen Seiten müssen nur noch das lesen, was sie ohnehin schon für sich selbst brauchen (die Sammlung bzw. das Event) — kein zusätzlicher Lesevorgang pro Spiel, egal wie viele Besucher:innen gleichzeitig zuschauen.</p>
+
+                <h3>2. Periodische Aktualisierung statt dauerhaftem Live-Listener</h3>
+                <p>Der ursprüngliche Ansatz nutzte auf den öffentlichen Seiten einen <strong>dauerhaften Live-Listener</strong> auf <code>eventGames</code>/<code>collectionItems</code> — jede noch so kleine Änderung (jede einzelne Ausleihe, jede Rückgabe am Tresen) hat sofort ein Update an <strong>jede</strong> gerade offene Besucher-Seite geschickt. Bei einem gut besuchten Event mit vielen offenen Handys und viel Tresen-Betrieb war das vermutlich der größte einzelne Kostentreiber — jeder Scan × jede offene Seite.</p>
+                <p>Die Lösung: <code>index.html</code> und <code>sammlung-uebersicht.html</code> laden ihre Spieldaten nicht mehr live, sondern <strong>alle 60 Sekunden neu</strong> (einstellbar über die Konstante <code>REFRESH_INTERVAL_MS</code> im Quellcode), zusätzlich über den Button <strong>"🔄 Jetzt aktualisieren"</strong> jederzeit sofort. Eine kleine Anzeige ("Stand: HH:MM Uhr") zeigt Besucher:innen, wie aktuell der gezeigte Stand gerade ist.</p>
+                <div class="doc-callout doc-callout--warn">
+                    <p><strong>Bewusster Kompromiss:</strong> Die Ansicht kann bis zu 60 Sekunden hinter dem tatsächlichen Stand zurückliegen — ein Spiel könnte gerade erst ausgeliehen worden sein, obwohl es noch als verfügbar angezeigt wird. Der Ausleihe-Tresen selbst bleibt davon unberührt und weiterhin live (er wird nur von wenigen Geräten gleichzeitig genutzt, nicht von potenziell vielen Besucher:innen).</p>
                 </div>
 
-                <h3>2. Abfragen begrenzen und Listen paginieren</h3>
+                <h3>3. Abfragen begrenzen, Listen paginieren und Filter aufs Nötigste reduzieren</h3>
                 <p>Wo immer möglich, sollten Datenbankabfragen von vornherein klein gehalten werden, statt unbegrenzt zu wachsen:</p>
                 <ul class="doc-step-list">
                     <li><strong>Gezielt statt vollständig:</strong> Auf Sammlung oder Event beschränkte Abfragen (<code>where('eventId', '==', …)</code>) statt eines Listeners auf die komplette Collection — die öffentlichen Seiten machen das für <code>eventGames</code>/<code>collectionItems</code> bereits konsequent.</li>
-                    <li><strong>UI-Pagination bei großen Listen:</strong> Die Spieledatenbank-Tabelle im Verwaltungstool zeigt maximal 50 Zeilen gleichzeitig, mit Seitenumschaltung darunter. Wichtig: Das spart Browser-Rechenleistung, <strong>nicht</strong> Firestore-Lesevorgänge — Suche und Filter laufen weiterhin über den kompletten, bereits geladenen Datenbestand (siehe <a href="#datenbank-tabelle">Datenbank durchsuchen &amp; bearbeiten</a>).</li>
+                    <li><strong>UI-Pagination bei großen Listen:</strong> Sowohl die öffentlichen Übersichten (50 Spiele pro Seite, Pfeile oberhalb der Tabelle) als auch die Spieledatenbank-Tabelle im Verwaltungstool zeigen nur einen Ausschnitt gleichzeitig. Wichtig: Das spart Browser-Rechenleistung, <strong>nicht</strong> Firestore-Lesevorgänge — Suche und Filter laufen weiterhin über den kompletten, bereits geladenen Datenbestand, damit sie zuverlässig alles finden (siehe <a href="#datenbank-tabelle">Datenbank durchsuchen &amp; bearbeiten</a>).</li>
+                    <li><strong>Filter aufs Wesentliche reduziert:</strong> Für Besucher:innen zählen in der Praxis vor allem zwei Fragen — "Wie viele sind wir?" und "Ist es leicht genug?". Die öffentlichen Übersichten bieten deshab bewusst nur noch Spielerzahl, Komplexität, (bei Events) Status und eine einfache Sortierung an. Regal- und Bewertungs-Filter wurden entfernt — beide Werte bleiben aber weiterhin als Tabellenspalten sichtbar, nur eben nicht mehr extra filterbar. Für die Administration (Verwaltungstool) bleiben alle Filter erhalten, die dort für den Betrieb nötig sind.</li>
                     <li><strong>Bewusste Ausnahme:</strong> Das Verwaltungstool selbst lädt beim Login weiterhin die komplette Spieledatenbank und alle Sammlungseinträge unbegrenzt — das ist nötig, damit Team-Mitglieder per Volltext über die ganze Datenbank suchen können. Das ist unkritisch, weil nur angemeldete Team-Mitglieder das Tool öffnen (nicht beliebige Besucher:innen) und die Zugriffszahl klein bleibt, unabhängig vom Besucherstrom eines Events.</li>
                 </ul>
 
                 <h3>Ausblick: Umzug auf einen eigenen Webserver</h3>
-                <p>Aktuell läuft die Website über GitHub Pages. Ein späterer Umzug auf einen eigenen Webserver ist geplant — dann steht auch zur Diskussion, ob Firestore als Datenbank beibehalten wird oder eine andere Lösung zum Einsatz kommt. Die hier beschriebenen Prinzipien (Daten weitergeben statt live nachlesen, Abfragen gezielt halten) bleiben unabhängig von der konkreten Datenbank-Technologie sinnvoll.</p>
+                <p>Aktuell läuft die Website über GitHub Pages. Ein späterer Umzug auf einen eigenen Webserver ist geplant — dann steht auch zur Diskussion, ob Firestore als Datenbank beibehalten wird oder eine andere Lösung zum Einsatz kommt. Die hier beschriebenen Prinzipien (Daten weitergeben statt live nachlesen, periodisch statt dauerhaft live aktualisieren, Abfragen gezielt und Filter schlank halten) bleiben unabhängig von der konkreten Datenbank-Technologie sinnvoll.</p>
             </section>
 
             <section id="glossar">
