@@ -162,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v47</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v48</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -657,10 +657,16 @@
 
         <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
             <h3 style="margin-top:0;">Spiele manuell suchen</h3>
-            <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung.</p>
+            <p class="cl-muted" style="font-size:.85rem;">Sucht zuerst in den verknüpften Sammlungen, danach zusätzlich in der gesamten Spieledatenbank — praktisch auch für Events ganz ohne verknüpfte Sammlung, oder um vorab (z.B. ohne Scanner zur Hand) mehrere Spiele auf einmal einzuplanen.</p>
             <label class="cl-label" for="event-add-search">Name oder EAN</label>
             <input type="text" id="event-add-search" class="cl-input" placeholder="Name oder EAN suchen…" autocomplete="off">
             <div id="event-add-results" class="sv-manual-results cl-hidden"></div>
+            <div id="event-add-bulk-bar" class="cl-hidden" style="display:flex; gap:.5rem; align-items:center; margin-top:.75rem; flex-wrap:wrap;">
+                <select id="event-add-bulk-shelf" class="cl-select" style="flex:1; min-width:160px;"></select>
+                <button type="button" id="event-add-bulk-btn" class="cl-btn cl-btn--signal">
+                    <span id="event-add-bulk-count">0</span> ausgewählte Spiele hinzufügen
+                </button>
+            </div>
         </div>
 
         <div class="cl-card cl-card--pad" style="margin-bottom: var(--cl-space-4);">
@@ -738,8 +744,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v47 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v48 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v48 — Event-Fenster, "Spiele manuell suchen": jedes Suchergebnis hat
+//        jetzt zusätzlich ein Kontrollkästchen. Mehrere Spiele markieren,
+//        Regal wählen, "X ausgewählte Spiele hinzufügen" — praktisch für
+//        die Vorab-Planung eines Events ohne Barcode-Scanner zur Hand. Der
+//        bisherige Einzel-Button "+ hinzufügen" bleibt für den schnellen
+//        Einzelfall unverändert bestehen.
 //   v47 — Großer Schritt gegen unnötige Firestore-Lesevorgänge auf den
 //        öffentlichen Seiten (index.html, sammlung-uebersicht.html):
 //        Dauerhafte Live-Listener auf eventGames/eventShelves bzw.
@@ -2734,14 +2746,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
         const quickSelect = document.getElementById('event-quick-shelf-select');
         const bulkSelect = document.getElementById('event-bulk-shelf-select');
+        const addBulkSelect = document.getElementById('event-add-bulk-shelf');
         const prevQuick = quickSelect.value;
         const prevBulk = bulkSelect.value;
+        const prevAddBulk = addBulkSelect.value;
         if (shelves.length === 0) {
             grid.innerHTML = '<p class="sv-empty">Noch keine Regale für dieses Event.</p>';
             quickSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
             quickSelect.disabled = true;
             bulkSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
             bulkSelect.disabled = true;
+            addBulkSelect.innerHTML = '<option value="">— erst ein Regal anlegen —</option>';
+            addBulkSelect.disabled = true;
             return;
         }
         grid.innerHTML = shelves.map(s => {
@@ -2757,6 +2773,9 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkSelect.disabled = false;
         bulkSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
         if ([...bulkSelect.options].some(o => o.value === prevBulk)) bulkSelect.value = prevBulk;
+        addBulkSelect.disabled = false;
+        addBulkSelect.innerHTML = shelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...addBulkSelect.options].some(o => o.value === prevAddBulk)) addBulkSelect.value = prevAddBulk;
     }
     document.getElementById('add-event-shelf-btn').addEventListener('click', async () => {
         if (!currentEventId) return;
@@ -2837,6 +2856,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const eventAddSearch = document.getElementById('event-add-search');
     const eventAddResults = document.getElementById('event-add-results');
+    const eventAddBulkBar = document.getElementById('event-add-bulk-bar');
+    const eventAddBulkCount = document.getElementById('event-add-bulk-count');
+    let eventAddSelection = new Map(); // ean -> { ean, collectionId, name }
+
+    function updateBulkBar() {
+        eventAddBulkCount.textContent = eventAddSelection.size;
+        eventAddBulkBar.classList.toggle('cl-hidden', eventAddSelection.size === 0);
+    }
+
     eventAddSearch.addEventListener('input', () => {
         const term = eventAddSearch.value.trim().toLowerCase();
         eventAddResults.classList.toggle('cl-hidden', !term);
@@ -2866,22 +2894,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 const colName = allCollections.find(c => c.id === ci.collectionId)?.name || '';
                 const already = allEventGames.some(g => g.eventId === currentEventId && g.ean === ci.ean);
                 const liveName = allGames.find(g => g.id === ci.ean)?.name || ci.gameName || ci.ean;
+                const checked = eventAddSelection.has(ci.ean) ? 'checked' : '';
                 return `<div class="sv-manual-result-item" data-ean="${ci.ean}" data-collection="${ci.collectionId}" data-name="${escapeHTML(liveName)}">
-                    <span>${escapeHTML(liveName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span></span>
-                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                    <label style="display:flex; align-items:center; gap:.5rem; flex:1; cursor:pointer;">
+                        <input type="checkbox" class="event-add-checkbox" ${checked}>
+                        ${escapeHTML(liveName)} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(colName)})</span>
+                    </label>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm sv-single-add">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
                 </div>`;
             }),
             ...fromDatabase.slice(0, 15).map(g => {
                 const already = allEventGames.some(eg => eg.eventId === currentEventId && eg.ean === g.id);
+                const checked = eventAddSelection.has(g.id) ? 'checked' : '';
                 return `<div class="sv-manual-result-item" data-ean="${g.id}" data-collection="" data-name="${escapeHTML(g.name || g.id)}">
-                    <span>${escapeHTML(g.name || g.id)} <span class="cl-muted" style="font-size:.8rem;">(aus Gesamtdatenbank, keine Sammlung)</span></span>
-                    <span class="cl-btn cl-btn--ghost cl-btn--sm">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
+                    <label style="display:flex; align-items:center; gap:.5rem; flex:1; cursor:pointer;">
+                        <input type="checkbox" class="event-add-checkbox" ${checked}>
+                        ${escapeHTML(g.name || g.id)} <span class="cl-muted" style="font-size:.8rem;">(aus Gesamtdatenbank, keine Sammlung)</span>
+                    </label>
+                    <span class="cl-btn cl-btn--ghost cl-btn--sm sv-single-add">${already ? '+1 Exemplar' : '+ hinzufügen'}</span>
                 </div>`;
             })
         ];
         eventAddResults.innerHTML = rows.length ? rows.join('') : '<div class="qb-bgg-hint">Keine Treffer.</div>';
     });
+
+    eventAddResults.addEventListener('change', (e) => {
+        if (!e.target.classList.contains('event-add-checkbox')) return;
+        const item = e.target.closest('.sv-manual-result-item');
+        const ean = item.dataset.ean, collectionId = item.dataset.collection || null, name = item.dataset.name;
+        if (e.target.checked) eventAddSelection.set(ean, { ean, collectionId, name });
+        else eventAddSelection.delete(ean);
+        updateBulkBar();
+    });
+
     eventAddResults.addEventListener('click', async (e) => {
+        if (e.target.tagName === 'INPUT') return; // Checkbox-Klicks laufen über 'change', nicht hier
+        const btn = e.target.closest('.sv-single-add');
+        if (!btn) return;
         const item = e.target.closest('.sv-manual-result-item');
         if (!item || !currentEventId) return;
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
@@ -2895,6 +2944,29 @@ document.addEventListener('DOMContentLoaded', () => {
             eventAddResults.classList.add('cl-hidden');
             showToast(result === 'incremented' ? `Ein weiteres Exemplar von "${name}" ergänzt.` : `"${name}" zum Event hinzugefügt.`);
         } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
+    });
+
+    // Mehrfachauswahl: mehrere per Kontrollkästchen markierte Spiele auf
+    // einmal ins Event übernehmen — praktisch für die Vorab-Planung eines
+    // Events ohne Barcode-Scanner zur Hand.
+    document.getElementById('event-add-bulk-btn').addEventListener('click', async () => {
+        if (!currentEventId || eventAddSelection.size === 0) return;
+        const shelfId = document.getElementById('event-add-bulk-shelf').value;
+        if (!shelfId) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
+        let added = 0, incremented = 0, failed = 0;
+        for (const { ean, collectionId, name } of eventAddSelection.values()) {
+            const g = allGames.find(g => g.id === ean);
+            try {
+                const existing = allEventGames.find(eg => eg.eventId === currentEventId && eg.ean === ean);
+                const result = await addOrIncrementEventGame(currentEventId, ean, existing ? existing.shelfId : shelfId, collectionId, g, name);
+                if (result === 'added') added++; else if (result === 'incremented') incremented++;
+            } catch (err) { console.error(err); failed++; }
+        }
+        eventAddSelection.clear();
+        updateBulkBar();
+        eventAddSearch.value = '';
+        eventAddResults.classList.add('cl-hidden');
+        showToast(`✅ ${added} neu eingeräumt, ${incremented} in Stückzahl erhöht${failed > 0 ? `, ${failed} fehlgeschlagen` : ''}`, false, { variant: 'ok', duration: 3000 });
     });
 
     function renderEventGamesTable() {
