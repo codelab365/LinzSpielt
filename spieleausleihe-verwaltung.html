@@ -162,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v49</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v51</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -744,8 +744,22 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v49 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v51 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v51 — Möglicher Bugfix für fehlende BGG-Vorschaubilder auf manchen
+//        Mobilgeräten: Alle <img>-Tags mit BGG-Bildern (Verwaltungstool,
+//        index.html, sammlung-uebersicht.html) senden jetzt
+//        referrerpolicy="no-referrer" — verhindert, dass BGGs Server die
+//        Anfrage anhand der mitgeschickten Herkunfts-URL blockiert.
+//        Ursache war vermutlich eine Kombination aus Referrer + mobilem
+//        User-Agent, die auf manchen Geräten offenbar blockiert wurde
+//        (Desktop-Modus im Handy-Browser hat das Bild sofort gezeigt).
+//   v50 — index.html und sammlung-uebersicht.html: Spiele ohne BGG-Bild
+//        zeigen jetzt einen sichtbaren Platzhalter (🎲) statt einer leeren
+//        Zelle. Grund: leere Zellen bei vielen noch nicht angereicherten
+//        ("Offen") Spielen wirkten wie ein Anzeigefehler, obwohl fertig
+//        angereicherte Spiele ihr Bild korrekt zeigen — der Platzhalter
+//        macht diesen Unterschied jetzt sofort sichtbar.
 //   v49 — Bugfix: Im Spiel-Formular gab es das Feld "description" doppelt
 //        im Speicher-Objekt. Die zweite (überflüssige) Zeile hat den Text
 //        aus dem editierbaren Beschreibungsfeld beim Speichern immer mit
@@ -1926,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gamesEmpty.classList.toggle('cl-hidden', filtered.length > 0);
         gamesTableBody.innerHTML = pageItems.map(g => `
             <tr data-id="${g.id}" class="sv-clickable-row">
-                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}</td>
                 <td>${escapeHTML(g.name || '(ohne Titel)')}${titleSourceLabel(g.titleSource) ? `<br><span class="cl-muted" style="font-size:.75rem;">Quelle: ${escapeHTML(titleSourceLabel(g.titleSource))}</span>` : ''}</td>
                 <td style="font-family: monospace; font-size:.8rem;">${escapeHTML(g.id)}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
@@ -2077,7 +2091,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderBggMatchPreview(match, isExisting) {
         const el = document.getElementById('bgg-match-preview');
         el.innerHTML = `
-            ${match.bggImageUrl ? `<img src="${escapeHTML(match.bggImageUrl)}" alt="">` : ''}
+            ${match.bggImageUrl ? `<img src="${escapeHTML(match.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}
             <div class="qb-bgg-match__body">
                 <div class="qb-bgg-match__title">${escapeHTML(match.bggName || '')}</div>
                 <div class="qb-bgg-match__badges">
@@ -2263,7 +2277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         wrap.classList.remove('cl-hidden');
         body.innerHTML = bgstatsUnmatched.map((bg, i) => `
             <tr>
-                <td>${bg.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(bg.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${bg.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(bg.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}</td>
                 <td>${escapeHTML(bg.name)}</td>
                 <td>${bg.minPlayers && bg.maxPlayers ? `${bg.minPlayers}–${bg.maxPlayers}` : '—'}</td>
                 <td>${bg.quantity}×</td>
@@ -2424,7 +2438,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const g = allGames.find(g => g.id === ci.ean);
             const qty = ci.quantity ?? 1;
             return `<tr>
-                <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${g?.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}</td>
                 <td>${escapeHTML(g?.name || ci.gameName || ci.ean)}</td>
                 <td style="font-family:monospace; font-size:.8rem;">${escapeHTML(ci.ean)}</td>
                 <td>
@@ -2984,7 +2998,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             const canRemove = avail >= qty;
             return `<tr>
-                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}</td>
                 <td>${escapeHTML(liveGameName(g))}</td>
                 <td>
                     <select class="cl-select sv-event-game-shelf-select" data-id="${g.id}" style="min-width:100px;">
@@ -3210,7 +3224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const restLeft = (eg.availableQuantity ?? 1) - 1;
             scanResult.className = 'sv-scan-result is-visible sv-result--out';
             scanResult.innerHTML = `
-                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}
                 <div class="sv-scan-result__body">
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} ausgeliehen 📖</p>
                     <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
@@ -3229,7 +3243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
             scanResult.className = 'sv-scan-result is-visible sv-result--in';
             scanResult.innerHTML = `
-                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="">` : ''}
+                ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}
                 <div class="sv-scan-result__body">
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} zurückgelegt ✅</p>
                     <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
