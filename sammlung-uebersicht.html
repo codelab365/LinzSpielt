@@ -32,6 +32,8 @@
     table.ov-table tbody tr { cursor: pointer; }
     table.ov-table tbody tr:hover { background: var(--cl-surface-2); }
     table.ov-table img.ov-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .ov-thumb--placeholder { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; background: var(--cl-surface-2); font-size: 1.2rem; opacity: .5; }
     .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
     .ov-badge--qty { background: color-mix(in srgb, var(--cl-signal) 16%, transparent); color: var(--cl-signal); }
     .ov-rating { color: var(--cl-warn); font-weight: 600; white-space: nowrap; }
@@ -341,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
         tableBody.innerHTML = pageItems.map(g => `
             <tr data-id="${g.id}">
-                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : ''}</td>
+                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
                 <td>${escapeHTML(displayName(g))}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
