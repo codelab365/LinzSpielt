@@ -154,7 +154,7 @@
     <div class="ov-modal">
         <button type="button" id="ov-modal-close" class="ov-modal-close" aria-label="Schließen">&times;</button>
         <div class="ov-modal-head">
-            <img id="ov-modal-img" src="" alt="" style="display:none;">
+            <img id="ov-modal-img" src="" alt="" referrerpolicy="no-referrer" style="display:none;">
             <div>
                 <p class="ov-modal-title" id="ov-modal-title"></p>
                 <div class="ov-modal-badges" id="ov-modal-badges"></div>
@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
             const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
             return `<tr data-id="${g.id}">
-                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
+                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
                 <td>${escapeHTML(displayName(g))}</td>
                 <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
                 <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
