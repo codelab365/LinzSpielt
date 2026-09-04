@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preistraeger-Uebersicht – Linz Spielt</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    body { background: transparent; }
+    .ov-wrap { padding: var(--cl-space-3); max-width: 78rem; margin: 0 auto; }
+    .ov-title { margin: 0 0 .2rem 0; }
+    .ov-sub { margin: 0 0 var(--cl-space-3) 0; }
+    .ov-event-picker { margin-bottom: var(--cl-space-3); }
+    .ov-stats { display: flex; flex-wrap: wrap; gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
+    .ov-stat { font-size: .9rem; color: var(--cl-muted); }
+    .ov-stat strong { color: var(--cl-text); font-size: 1.1rem; }
+    .ov-searchbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-2); }
+    .ov-searchbar .cl-input { flex: 1; min-width: 160px; }
+    .ov-searchbar .cl-btn { white-space: nowrap; position: relative; }
+    .ov-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
+        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
+    .ov-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--cl-space-2);
+        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
+    .ov-filter-panel .cl-select { width: 100%; }
+    .ov-pagination { display: flex; align-items: center; justify-content: center; gap: var(--cl-space-3); margin-bottom: var(--cl-space-2); }
+    .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    table.ov-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.ov-table tbody tr:last-child td { border-bottom: none; }
+    table.ov-table tbody tr.ov-row-avail { background: color-mix(in srgb, var(--cl-ok) 6%, transparent); }
+    .ov-year { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ov-cat-badge { font-size: .72rem; font-weight: 600; padding: .18rem .55rem; border-radius: var(--cl-radius-pill); white-space: nowrap; display: inline-block; }
+    .ov-cat-badge--sdj { background: color-mix(in srgb, #c0392b 16%, transparent); color: #c0392b; }
+    .ov-cat-badge--kenner { background: color-mix(in srgb, #2c3e50 16%, transparent); color: #2c3e50; }
+    .ov-cat-badge--kinder { background: color-mix(in srgb, #2980b9 16%, transparent); color: #2980b9; }
+    .ov-cat-badge--kinder-vor { background: color-mix(in srgb, var(--cl-muted) 20%, transparent); color: var(--cl-muted); }
+    .ov-cat-badge--dsp { background: color-mix(in srgb, #8e44ad 16%, transparent); color: #8e44ad; }
+    .ov-cat-badge--at { background: color-mix(in srgb, #e67e22 18%, transparent); color: #e67e22; }
+    .ov-avail-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .ov-avail-badge--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .ov-avail-badge--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .ov-avail-badge--fehlt { background: color-mix(in srgb, var(--cl-muted) 16%, transparent); color: var(--cl-muted); }
+    .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+    .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
+    .bgg-attribution { display: inline-flex; align-items: center; opacity: .88; transition: opacity .15s ease; padding: .15rem; border-radius: var(--cl-radius-sm); flex-shrink: 0; }
+    @media (max-width: 640px) { .ov-filter-panel { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="ov-wrap">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+        <h2 class="ov-title">🏆 Preistraeger-Uebersicht</h2>
+    </div>
+    <p class="ov-sub cl-muted" id="ov-event-title">Spiel des Jahres, Kennerspiel, Kinderspiel, Deutscher &amp; Oesterreichischer Spielepreis – und was davon bei diesem Event verfuegbar ist.</p>
+    <div style="display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem;">
+        <button type="button" id="ov-refresh-btn" class="cl-btn cl-btn--ghost cl-btn--sm">🔄 Jetzt aktualisieren</button>
+        <span id="ov-last-refresh" class="cl-muted" style="font-size:.78rem;"></span>
+    </div>
+
+    <div class="ov-event-picker" id="ov-event-picker-wrap">
+        <label class="cl-label" for="ov-event-picker">Event auswaehlen</label>
+        <select id="ov-event-picker" class="cl-select" style="width:100%; max-width:24rem;"></select>
+    </div>
+
+    <div id="ov-main">
+        <div class="ov-stats" id="ov-stats"></div>
+
+        <div class="ov-searchbar">
+            <input type="text" id="ov-search" class="cl-input" placeholder="Titel suchen…" autocomplete="off">
+            <button type="button" id="ov-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="ov-filter-count" class="ov-filter-count cl-hidden">0</span></button>
+        </div>
+
+        <div id="ov-filter-panel" class="ov-filter-panel cl-hidden">
+            <select id="ov-cat-filter" class="cl-select">
+                <option value="all">Alle Kategorien</option>
+                <option value="sdj">Spiel des Jahres</option>
+                <option value="kenner">Kennerspiel des Jahres</option>
+                <option value="kinder">Kinderspiel des Jahres</option>
+                <option value="kinder-vor">Sonderpreis Kinderspiel (bis 2000)</option>
+                <option value="dsp">Deutscher Spielepreis</option>
+                <option value="at">Oesterreichischer Spielepreis</option>
+            </select>
+            <select id="ov-avail-filter" class="cl-select">
+                <option value="all">Alle</option>
+                <option value="verfuegbar">Nur verfuegbar</option>
+                <option value="vorhanden">Vorhanden (verfuegbar o. ausgeliehen)</option>
+                <option value="fehlt">Nicht in der Sammlung</option>
+            </select>
+            <select id="ov-sort" class="cl-select">
+                <option value="year-desc">Sortieren: Jahr, neueste zuerst</option>
+                <option value="year-asc">Sortieren: Jahr, aelteste zuerst</option>
+                <option value="name">Sortieren: Titel (A–Z)</option>
+            </select>
+            <button type="button" id="ov-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zuruecksetzen</button>
+        </div>
+
+        <div id="ov-pagination" class="ov-pagination cl-hidden">
+            <button type="button" id="ov-page-prev" class="cl-btn cl-btn--ghost cl-btn--sm">← Zurueck</button>
+            <span id="ov-page-info" class="cl-muted" style="font-size:.85rem;"></span>
+            <button type="button" id="ov-page-next" class="cl-btn cl-btn--ghost cl-btn--sm">Weiter →</button>
+        </div>
+        <div class="ov-table-wrap">
+            <table class="ov-table">
+                <thead>
+                    <tr><th>Jahr</th><th>Titel</th><th>Kategorie</th><th>Regal</th><th>Status</th></tr>
+                </thead>
+                <tbody id="ov-table-body"></tbody>
+            </table>
+            <p id="ov-empty" class="ov-empty cl-hidden">Keine Eintraege gefunden.</p>
+        </div>
+        <p class="ov-footer-note">Preistraeger-Daten manuell gepflegt (Quelle: Wikipedia). Verfuegbarkeit bezieht sich auf das oben gewaehlte Event und wird per Titel-Abgleich ermittelt — bei abweichenden Editionen/Schreibweisen kann das im Einzelfall daneben liegen.</p>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
+    authDomain: "linzspielt.firebaseapp.com",
+    projectId: "linzspielt",
+    storageBucket: "linzspielt.firebasestorage.app",
+    messagingSenderId: "41406614659",
+    appId: "1:41406614659:web:876b294dd2bf25cad85fb6",
+    measurementId: "G-5X66HE5YLY"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+function normTitle(s) {
+    return (s || '').toLowerCase()
+        .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Preistraeger-Datenbestand — manuell gepflegt (Quelle: Wikipedia-Tabellen),
+// aus dem separaten "Spiel des Jahres"-Projekt uebernommen.
+const WINNERS = [{"year": 2026, "title": "Die Insel der Mookies", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2026, "title": "Dito!", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2026, "title": "Rebirth: Aufbruch in eine neue Zeit", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2026, "title": "Take Time", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2025, "title": "Bomb Busters", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2025, "title": "Endeavor: Die Tiefsee", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2025, "title": "Gloomies", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2025, "title": "SETI: Search for Extraterrestrial Intelligence", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2025, "title": "Topp die Torte", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2024, "title": "Die magischen Schlüssel", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2024, "title": "Forest Shuffle", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2024, "title": "Mycelia", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2024, "title": "Sky Team", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2024, "title": "e-Mission", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2023, "title": "Café del Gatto", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2023, "title": "Challengers!", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2023, "title": "Dorfromantik – Das Brettspiel", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Dorfromantik The Board Game"}, {"year": 2023, "title": "Mysterium Kids", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2023, "title": "Planet Unknown", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2022, "title": "Ark Nova", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2022, "title": "Cascadia", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2022, "title": "Living Forest", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2022, "title": "Wonder Book", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2022, "title": "Zauberberg", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2021, "title": "Die verlorenen Ruinen von Arnak", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Lost Ruins of Arnak"}, {"year": 2021, "title": "Dragomino", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2021, "title": "Flyin’ Goblin", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2021, "title": "MicroMacro: Crime City", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2021, "title": "Paleo", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2020, "title": "Die Crew", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2020, "title": "Die Crew", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "The Crew Quest for Planet Nine"}, {"year": 2020, "title": "Pictures", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2020, "title": "Smart 10", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2020, "title": "Speedy Roll", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2019, "title": "Flügelschlag", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2019, "title": "Flügelschlag", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Wingspan"}, {"year": 2019, "title": "Forbidden Sky", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2019, "title": "Just One", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2019, "title": "Tal der Wikinger", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2018, "title": "Azul", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2018, "title": "Azul", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2018, "title": "Die Quacksalber von Quedlinburg", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2018, "title": "Funkelschatz", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2018, "title": "Istanbul – Das Würfelspiel", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": "Istanbul The Dice Game"}, {"year": 2017, "title": "Bärenpark", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2017, "title": "Exit", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2017, "title": "Icecool", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2017, "title": "Kingdomino", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2017, "title": "Terraforming Mars", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2016, "title": "Codenames", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2016, "title": "Isle of Skye", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2016, "title": "Kerala: Der Weg der Elefanten", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2016, "title": "Mombasa", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2016, "title": "Stone Age Junior", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2015, "title": "Auf den Spuren von Marco Polo", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "The Voyages of Marco Polo"}, {"year": 2015, "title": "Broom Service", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2015, "title": "Colt Express", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2015, "title": "Mmm!", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2015, "title": "Spinderella", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2014, "title": "Abluxxen", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2014, "title": "Camel Up", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2014, "title": "Geister, Geister, Schatzsuchmeister!", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2014, "title": "Istanbul", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2014, "title": "Russian Railroads", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2013, "title": "Der verzauberte Turm", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2013, "title": "Die Legenden von Andor", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2013, "title": "Golden Horn: Von Venedig nach Konstantinopel", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2013, "title": "Hanabi", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2013, "title": "Terra Mystica", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2012, "title": "Kingdom Builder", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2012, "title": "Santa Cruz", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2012, "title": "Schnappt Hubi!", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2012, "title": "Village", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2012, "title": "Village", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2011, "title": "7 Wonders", "catKey": "kenner", "catLabel": "Kennerspiel des Jahres", "altTitle": null}, {"year": 2011, "title": "7 Wonders", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2011, "title": "Asara", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2011, "title": "Da ist der Wurm drin", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2011, "title": "Qwirkle", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2010, "title": "Atlantis", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2010, "title": "Diego Drachenzahn", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2010, "title": "Dixit", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2010, "title": "Fresco", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2009, "title": "Das magische Labyrinth", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2009, "title": "Dominion", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2009, "title": "Dominion", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2009, "title": "Ramses Pyramid", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2008, "title": "Agricola", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2008, "title": "Keltis", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2008, "title": "Suleika", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2008, "title": "Wer war's?", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2007, "title": "Beppo der Bock", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2007, "title": "Die Säulen der Erde", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "The Pillars of the Earth board game"}, {"year": 2007, "title": "Extreme Activity", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2007, "title": "Zooloretto", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2006, "title": "Caylus", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2006, "title": "Der schwarze Pirat", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2006, "title": "Tal der Abenteuer", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2006, "title": "Thurn und Taxis", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2005, "title": "Das kleine Gespenst", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2005, "title": "Louis XIV", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2005, "title": "Niagara", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2005, "title": "Trans Europa", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2004, "title": "Einfach Genial", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": "Ingenious board game"}, {"year": 2004, "title": "Geistertreppe", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2004, "title": "Sankt Petersburg", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Saint Petersburg board game"}, {"year": 2004, "title": "Zug um Zug", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Ticket to Ride"}, {"year": 2003, "title": "Alhambra", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2003, "title": "Amun-Re", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2003, "title": "King Arthur", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2003, "title": "Viva Topo!", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2002, "title": "Maskenball der Käfer", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2002, "title": "Pueblo", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": null}, {"year": 2002, "title": "Puerto Rico", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2002, "title": "Villa Paletti", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2001, "title": "Carcassonne", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 2001, "title": "Carcassonne", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 2001, "title": "Die neuen Entdecker", "catKey": "at", "catLabel": "Österreichischer Spielepreis", "altTitle": "Entdecker Exploring New Horizons"}, {"year": 2001, "title": "Klondike", "catKey": "kinder", "catLabel": "Kinderspiel des Jahres", "altTitle": null}, {"year": 2000, "title": "Arbos", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 2000, "title": "Tadsch Mahal", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Taj Mahal board game"}, {"year": 2000, "title": "Torres", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1999, "title": "Kayanak", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1999, "title": "Tikal", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1999, "title": "Tikal", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1998, "title": "Elfenland", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1998, "title": "Euphrat und Tigris", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Tigris and Euphrates"}, {"year": 1998, "title": "Zicke Zacke Hühnerkacke", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": "Chicken Cha Cha Cha"}, {"year": 1997, "title": "Leinen los!", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1997, "title": "Löwenherz", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1997, "title": "Mississippi Queen", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1996, "title": "El Grande", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1996, "title": "El Grande", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1996, "title": "Vier zu mir!", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": "Noahs Park"}, {"year": 1995, "title": "Die Siedler von Catan", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1995, "title": "Die Siedler von Catan", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1995, "title": "Karambolage", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1994, "title": "6 nimmt!", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1994, "title": "Looping Louie", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": "Loopin Louie"}, {"year": 1994, "title": "Manhattan", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1993, "title": "Bluff", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1993, "title": "Modern Art", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": null}, {"year": 1993, "title": "Ringel Rangel", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1992, "title": "Der Fliegende Holländer", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Flying Dutchman board game"}, {"year": 1992, "title": "Schweinsgalopp", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": "Galloping Pigs"}, {"year": 1992, "title": "Um Reifenbreite", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1991, "title": "Corsaro – Irrfahrt im Piratenmeer", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1991, "title": "Das Labyrinth der Meister", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Master Labyrinth"}, {"year": 1991, "title": "Drunter & Drüber", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1990, "title": "Adel Verpflichtet", "catKey": "dsp", "catLabel": "Deutscher Spielepreis", "altTitle": "Hoity Toity Adel Verpflichtet"}, {"year": 1990, "title": "Adel verpflichtet", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1990, "title": "Das Geisterschloss", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1989, "title": "Café International", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1989, "title": "Gute Freunde", "catKey": "kinder-vor", "catLabel": "Sonderpreis Kinderspiel (bis 2000)", "altTitle": null}, {"year": 1988, "title": "Barbarossa und die Rätselmeister", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Barbarossa and the Sunken Treasure"}, {"year": 1987, "title": "Auf Achse", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1986, "title": "Heimlich & Co.", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Heimlich and Co Top Secret Spies"}, {"year": 1985, "title": "Sherlock Holmes Criminal-Cabinet", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Sherlock Holmes Consulting Detective"}, {"year": 1984, "title": "Dampfross", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Dampfross Railway Rivals"}, {"year": 1983, "title": "Scotland Yard", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1982, "title": "Sagaland", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": "Sagaland Enchanted Forest"}, {"year": 1981, "title": "Focus", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1980, "title": "Rummikub", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}, {"year": 1979, "title": "Hase und Igel", "catKey": "sdj", "catLabel": "Spiel des Jahres", "altTitle": null}];
+
+let allEvents = [];
+let currentEventGames = [];
+let currentEventShelves = [];
+let selectedEventId = new URLSearchParams(location.search).get('event') || '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const loadingEl = document.getElementById('ov-event-title');
+    const pickerWrap = document.getElementById('ov-event-picker-wrap');
+    const picker = document.getElementById('ov-event-picker');
+
+    const searchInput = document.getElementById('ov-search');
+    const catFilter = document.getElementById('ov-cat-filter');
+    const availFilter = document.getElementById('ov-avail-filter');
+    const sortSelect = document.getElementById('ov-sort');
+    const tableBody = document.getElementById('ov-table-body');
+    const emptyEl = document.getElementById('ov-empty');
+    const statsEl = document.getElementById('ov-stats');
+
+    const PAGE_SIZE = 50;
+    let currentPage = 1;
+    function renderFromPage1() { currentPage = 1; render(); }
+
+    [searchInput, catFilter, availFilter, sortSelect].forEach(el => el.addEventListener('input', renderFromPage1));
+    [catFilter, availFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
+    document.getElementById('ov-page-prev').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    document.getElementById('ov-page-next').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+
+    const filterToggle = document.getElementById('ov-filter-toggle');
+    const filterPanel = document.getElementById('ov-filter-panel');
+    const filterCount = document.getElementById('ov-filter-count');
+    filterToggle.addEventListener('click', () => filterPanel.classList.toggle('cl-hidden'));
+    document.getElementById('ov-filter-reset').addEventListener('click', () => {
+        catFilter.value = 'all'; availFilter.value = 'all'; sortSelect.value = 'year-desc';
+        renderFromPage1();
+    });
+    function updateFilterCount() {
+        let n = 0;
+        if (catFilter.value !== 'all') n++;
+        if (availFilter.value !== 'all') n++;
+        if (sortSelect.value !== 'year-desc') n++;
+        filterCount.textContent = n;
+        filterCount.classList.toggle('cl-hidden', n === 0);
+    }
+
+    onSnapshot(collection(db, 'events'), (snap) => {
+        allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        if (allEvents.length === 0) {
+            loadingEl.textContent = 'Aktuell sind keine Events verfuegbar.';
+            return;
+        }
+        picker.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('');
+        if (!selectedEventId || !allEvents.some(ev => ev.id === selectedEventId)) selectedEventId = allEvents[0].id;
+        picker.value = selectedEventId;
+        loadEvent(selectedEventId);
+    }, err => console.error('events onSnapshot Fehler:', err));
+
+    picker.addEventListener('change', () => {
+        selectedEventId = picker.value;
+        const url = new URL(location.href);
+        url.searchParams.set('event', selectedEventId);
+        history.replaceState(null, '', url);
+        loadEvent(selectedEventId);
+    });
+
+    const REFRESH_INTERVAL_MS = 60000;
+    let refreshTimer = null;
+
+    function loadEvent(eventId) {
+        const ev = allEvents.find(e => e.id === eventId);
+        loadingEl.textContent = ev ? `Preistraeger bei "${ev.name}"${ev.date ? ' · ' + ev.date : ''} — aktualisiert sich automatisch` : 'Preistraeger-Uebersicht';
+
+        if (refreshTimer) clearInterval(refreshTimer);
+        async function fetchData() {
+            try {
+                const [shelvesSnap, gamesSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'eventShelves'), where('eventId', '==', eventId))),
+                    getDocs(query(collection(db, 'eventGames'), where('eventId', '==', eventId)))
+                ]);
+                currentEventShelves = shelvesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                currentEventGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                render();
+                const refreshEl = document.getElementById('ov-last-refresh');
+                if (refreshEl) refreshEl.textContent = 'Stand: ' + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+            } catch (err) { console.error('Aktualisieren fehlgeschlagen:', err); }
+        }
+        fetchData();
+        refreshTimer = setInterval(fetchData, REFRESH_INTERVAL_MS);
+        document.getElementById('ov-refresh-btn').onclick = fetchData;
+    }
+
+    // Abgleich per normalisiertem Titel-Vergleich gegen die Spiele dieses
+    // Events — bewusst kein Live-Nachschlag in der zentralen Datenbank noetig,
+    // eventGames traegt Titel/Regal/Verfuegbarkeit schon vollstaendig.
+    function matchEventGame(winner) {
+        const wn = normTitle(winner.title);
+        const wa = winner.altTitle ? normTitle(winner.altTitle) : null;
+        return currentEventGames.find(eg => {
+            const en = normTitle(eg.gameName);
+            return en === wn || (wa && en === wa) || (wn && en.includes(wn)) || (wa && en.includes(wa));
+        });
+    }
+
+    function render() {
+        updateFilterCount();
+        const term = searchInput.value.trim().toLowerCase();
+        const catVal = catFilter.value;
+        const availVal = availFilter.value;
+        const sortVal = sortSelect.value;
+
+        let rows = WINNERS.map(w => {
+            const match = matchEventGame(w);
+            let availState = 'fehlt';
+            if (match) {
+                const qty = match.quantity ?? 1, avail = match.availableQuantity ?? qty;
+                availState = avail > 0 ? 'verfuegbar' : 'ausgeliehen';
+            }
+            return { ...w, match, availState };
+        });
+
+        rows = rows.filter(r => {
+            const nameMatch = !term || r.title.toLowerCase().includes(term);
+            const catMatch = catVal === 'all' || r.catKey === catVal;
+            let availMatch = true;
+            if (availVal === 'verfuegbar') availMatch = r.availState === 'verfuegbar';
+            else if (availVal === 'vorhanden') availMatch = r.availState !== 'fehlt';
+            else if (availVal === 'fehlt') availMatch = r.availState === 'fehlt';
+            return nameMatch && catMatch && availMatch;
+        });
+
+        if (sortVal === 'year-asc') rows.sort((a, b) => a.year - b.year || a.title.localeCompare(b.title, 'de'));
+        else if (sortVal === 'name') rows.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+        else rows.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title, 'de'));
+
+        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        const startIdx = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = rows.slice(startIdx, startIdx + PAGE_SIZE);
+
+        emptyEl.classList.toggle('cl-hidden', rows.length > 0);
+        tableBody.innerHTML = pageItems.map(r => {
+            const shelf = r.match ? shelfNameFor(r.match.shelfId) : '—';
+            const badgeCls = { verfuegbar: 'ov-avail-badge--frei', ausgeliehen: 'ov-avail-badge--aus', fehlt: 'ov-avail-badge--fehlt' }[r.availState];
+            const badgeLabel = { verfuegbar: 'Verfuegbar', ausgeliehen: 'Ausgeliehen', fehlt: 'Nicht in der Sammlung' }[r.availState];
+            return `<tr class="${r.availState === 'verfuegbar' ? 'ov-row-avail' : ''}">
+                <td class="ov-year">${r.year}</td>
+                <td>${escapeHTML(r.title)}</td>
+                <td><span class="ov-cat-badge ov-cat-badge--${r.catKey}">${escapeHTML(r.catLabel)}</span></td>
+                <td>${shelf}</td>
+                <td><span class="ov-avail-badge ${badgeCls}">${badgeLabel}</span></td>
+            </tr>`;
+        }).join('');
+
+        const totalCount = rows.length;
+        const availCount = rows.filter(r => r.availState === 'verfuegbar').length;
+        const outCount = rows.filter(r => r.availState === 'ausgeliehen').length;
+        const missingCount = rows.filter(r => r.availState === 'fehlt').length;
+        statsEl.innerHTML = `
+            <span class="ov-stat"><strong>${totalCount}</strong> Preistraeger (gefiltert)</span>
+            <span class="ov-stat"><strong>${availCount}</strong> verfuegbar</span>
+            <span class="ov-stat"><strong>${outCount}</strong> ausgeliehen</span>
+            <span class="ov-stat"><strong>${missingCount}</strong> nicht in der Sammlung</span>`;
+
+        document.getElementById('ov-pagination').classList.toggle('cl-hidden', rows.length <= PAGE_SIZE);
+        document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${rows.length} Eintraege)`;
+        document.getElementById('ov-page-prev').disabled = currentPage <= 1;
+        document.getElementById('ov-page-next').disabled = currentPage >= totalPages;
+    }
+
+    function shelfNameFor(shelfId) {
+        if (!shelfId) return '—';
+        const s = currentEventShelves.find(sh => sh.id === shelfId);
+        return s ? escapeHTML(s.name) : '—';
+    }
+});
+</script>
+</body>
+</html>
