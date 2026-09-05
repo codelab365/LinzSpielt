@@ -76,7 +76,9 @@
     .st-item-name a:hover { text-decoration:underline; }
     .st-item-meta { font-size:.8rem; color:var(--cl-muted); margin-top:.15rem; }
     .st-item-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.35rem; }
-    .st-item-right { display:flex; align-items:center; gap:.5rem; flex-shrink:0; }
+    .st-item-right { display:flex; align-items:center; gap:.35rem; flex-shrink:0; }
+    .st-delete-btn { background:none; border:none; color:var(--cl-err); cursor:pointer; font-size:1.3rem; line-height:1; padding:.1rem .45rem; border-radius:var(--cl-radius-sm); }
+    .st-delete-btn:hover, .st-delete-btn:focus-visible { background:color-mix(in srgb, var(--cl-err) 12%, transparent); }
     .st-desc { margin-top:.5rem; font-size:.85rem; }
     .st-desc summary { cursor:pointer; color:var(--cl-navy-600); font-weight:600; list-style:none; }
     [data-theme="dark"] .st-desc summary { color:var(--cl-signal); }
@@ -260,7 +262,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const firebaseConfig = {
@@ -398,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let pendingSelectId = null;
 
   onSnapshot(query(treffenRef, orderBy('datum', 'desc')), (snap) => {
-    treffenListe = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    treffenListe = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => isTreffenSichtbar(t.datum));
     const prevSelection = pendingSelectId || treffenSelect.value || currentTreffenId;
     treffenSelect.innerHTML = '<option value="">– Treffen wählen –</option>' +
       treffenListe.map(t => `<option value="${t.id}">${escapeHTML(t.titel)} (${escapeHTML(formatDatum(t.datum))})</option>`).join('');
@@ -421,6 +423,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parts = d.split('-');
     if (parts.length !== 3) return d;
     return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  }
+
+  // Treffen bleiben bis 3 Tage nach dem Termin sichtbar, danach automatisch
+  // aus der Auswahl ausgeblendet. Die Daten werden dabei NICHT gelöscht.
+  const SICHTBAR_TAGE_NACH_TERMIN = 3;
+  function isTreffenSichtbar(datum) {
+    if (!datum) return true;
+    const d = new Date(datum + 'T00:00:00');
+    if (isNaN(d.getTime())) return true;
+    const cutoff = new Date(d.getTime() + SICHTBAR_TAGE_NACH_TERMIN * 24 * 60 * 60 * 1000);
+    const heute = new Date();
+    heute.setHours(0, 0, 0, 0);
+    return cutoff >= heute;
   }
 
   treffenSelect.addEventListener('change', () => selectTreffen(treffenSelect.value));
@@ -458,6 +473,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       wuensche = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderWl();
     }, (e) => { console.error(e); wlError.textContent = `Wunschliste konnte nicht geladen werden (${e.code || e.message}).`; });
+  }
+
+  // --- LÖSCHEN MIT PASSWORT (Hinweis: reine Bremse gegen Versehen, kein echter Zugriffsschutz) ---
+  const LOESCH_PASSWORT = 'spieleversum';
+  async function deleteWithPassword(collectionPath, id, label) {
+    const pw = prompt(`Zum Löschen von "${label}" bitte das Passwort eingeben:`);
+    if (pw === null) return; // abgebrochen
+    if (pw.trim().toLowerCase() !== LOESCH_PASSWORT) {
+      alert('Falsches Passwort – der Eintrag wurde nicht gelöscht.');
+      return;
+    }
+    try {
+      await deleteDoc(doc(collection(db, collectionPath), id));
+    } catch (e) {
+      console.error(e);
+      alert(`Fehler beim Löschen (${e.code || e.message || e}).`);
+    }
   }
 
   // --- TABS ---
@@ -697,6 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="st-item-right">
               <button class="cl-btn cl-btn--ghost cl-btn--sm" data-edit-id="${m.id}">Bearbeiten</button>
+              <button class="st-delete-btn" data-delete-id="${m.id}" title="Eintrag löschen" aria-label="Eintrag löschen">&times;</button>
             </div>
           </div>
           ${descHtml(m)}
@@ -706,6 +739,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.addEventListener('click', () => {
         const item = mitgebracht.find(x => x.id === btn.dataset.editId);
         if (item) startEditMb(item);
+      });
+    });
+    mbList.querySelectorAll('button[data-delete-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = mitgebracht.find(x => x.id === btn.dataset.deleteId);
+        if (item) deleteWithPassword(`spieleversum_treffen/${currentTreffenId}/mitgebracht`, item.id, item.name);
       });
     });
   }
@@ -845,6 +884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="st-item-right">
               <button class="cl-btn cl-btn--ghost cl-btn--sm" data-edit-id="${w.id}">Bearbeiten</button>
+              <button class="st-delete-btn" data-delete-id="${w.id}" title="Eintrag löschen" aria-label="Eintrag löschen">&times;</button>
             </div>
           </div>
           ${descHtml(w)}
@@ -862,6 +902,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.addEventListener('click', () => {
         const item = wuensche.find(x => x.id === btn.dataset.editId);
         if (item) startEditWl(item);
+      });
+    });
+    wlList.querySelectorAll('button[data-delete-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = wuensche.find(x => x.id === btn.dataset.deleteId);
+        if (item) deleteWithPassword(`spieleversum_treffen/${currentTreffenId}/wunschliste`, item.id, item.name);
       });
     });
     wlList.querySelectorAll('button[data-antwort-save]').forEach(btn => {
