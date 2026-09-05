@@ -41,7 +41,7 @@
     /* BGG-Suche (gemeinsam für beide Formulare) */
     .st-name-search-row { display:flex; gap:.5rem; }
     .st-name-search-row input { flex:1; min-width:0; }
-    .st-bgg-panel { margin-top:.5rem; border:1px solid var(--cl-line); border-radius:var(--cl-radius-sm); background:var(--cl-surface-2); max-height:220px; overflow-y:auto; }
+    .st-bgg-panel { margin-top:.5rem; border:1px solid var(--cl-line); border-radius:var(--cl-radius-sm); background:var(--cl-surface-2); max-height:280px; overflow-y:auto; }
     .st-bgg-results { padding:.35rem; }
     .st-bgg-result-item { display:flex; justify-content:space-between; gap:.5rem; padding:.45rem .6rem; border-radius:var(--cl-radius-sm); cursor:pointer; font-size:.88rem; }
     .st-bgg-result-item:hover { background:var(--cl-surface); }
@@ -267,7 +267,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.9</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.0</span></div>
 </footer>
 
 <script type="module">
@@ -619,7 +619,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       resultsList.innerHTML = '<p class="st-bgg-hint">Suche auf BGG…</p>';
       try {
         const searchXml = await callBggApi('search', { query: queryStr, type: 'boardgame' });
-        const items = Array.from(searchXml.querySelectorAll('item')).slice(0, 12);
+        let items = Array.from(searchXml.querySelectorAll('item'));
+        // BGG sortiert Suchergebnisse nicht nach Relevanz – exakte Namenstreffer
+        // nach vorne holen, damit sie bei vielen Treffern (z.B. "Odin") nicht
+        // durch das Kappen auf die ersten Einträge verloren gehen.
+        const qLower = queryStr.toLowerCase();
+        const rang = (it) => {
+          const n = (it.querySelector('name')?.getAttribute('value') || '').toLowerCase();
+          if (n === qLower) return 0;
+          if (n.startsWith(qLower)) return 1;
+          return 2;
+        };
+        items = items
+          .map((it, i) => ({ it, i, r: rang(it) }))
+          .sort((a, b) => a.r - b.r || a.i - b.i)
+          .map(x => x.it)
+          .slice(0, 20);
         if (items.length === 0) {
           resultsList.innerHTML = '<p class="st-bgg-hint">Keine Treffer auf BGG gefunden. Werte können manuell eingetragen werden.</p>';
           return;
