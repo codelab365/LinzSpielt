@@ -256,7 +256,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.2</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.3</span></div>
 </footer>
 
 <script type="module">
@@ -399,6 +399,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let pendingSelectId = null;
 
+  // Bestimmt, welches Treffen beim Laden automatisch ausgewählt werden soll:
+  // das nächste bevorstehende (kleinstes Datum >= heute); gibt es keines,
+  // das zuletzt vergangene noch sichtbare Treffen.
+  function getNextTreffenId() {
+    if (treffenListe.length === 0) return null;
+    const heuteStr = todayStr();
+    const kommende = treffenListe.filter(t => t.datum && t.datum >= heuteStr);
+    if (kommende.length > 0) {
+      kommende.sort((a, b) => a.datum.localeCompare(b.datum)); // aufsteigend -> nächstes zuerst
+      return kommende[0].id;
+    }
+    return treffenListe[0].id; // bereits nach Datum absteigend sortiert -> neuestes vergangenes
+  }
+
   onSnapshot(query(treffenRef, orderBy('datum', 'desc')), (snap) => {
     treffenListe = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => isTreffenSichtbar(t.datum));
     const prevSelection = pendingSelectId || treffenSelect.value || currentTreffenId;
@@ -408,8 +422,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       treffenSelect.value = prevSelection;
       selectTreffen(prevSelection);
     } else if (treffenListe.length > 0 && !currentTreffenId) {
-      treffenSelect.value = treffenListe[0].id;
-      selectTreffen(treffenListe[0].id);
+      const nextId = getNextTreffenId();
+      if (nextId) {
+        treffenSelect.value = nextId;
+        selectTreffen(nextId);
+      }
     }
     pendingSelectId = null;
   }, (e) => {
