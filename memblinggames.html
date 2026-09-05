@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spieleversum – Mitgliedertreffen</title>
+<link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
+<style>
+    /* =========================================================
+       st- : Spieletreffen-spezifische Ergänzungen zum
+       codeLAB365 Design-System. Nutzt ausschließlich cl-* Tokens.
+       ========================================================= */
+    .st-bgg-badge { display:inline-flex; align-items:center; opacity:.88; transition:opacity .15s ease; padding:.15rem; border-radius:var(--cl-radius-sm); }
+    .st-bgg-badge:hover, .st-bgg-badge:focus-visible { opacity:1; }
+    .st-bgg-badge__img { height:28px; width:auto; display:block; }
+    @media (max-width:480px) { .st-bgg-badge__img { height:22px; } }
+
+    /* Treffen-Auswahl */
+    .st-meeting-bar { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; }
+    .st-meeting-bar select.cl-input { flex:1; min-width:180px; }
+    .st-meeting-form { display:none; grid-template-columns:2fr 1fr auto auto; gap:var(--cl-space-2); align-items:end; margin-top:var(--cl-space-3); }
+    .st-meeting-form.st-open { display:grid; }
+    @media (max-width:640px) { .st-meeting-form { grid-template-columns:1fr 1fr; } }
+    .st-meeting-info { margin-top:var(--cl-space-2); display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.6rem; }
+    .st-meeting-title { font-family:var(--cl-font-display); font-size:1.2rem; font-weight:700; }
+    .st-meeting-date { color:var(--cl-muted); font-size:.88rem; }
+    .st-feedback { font-size:.82rem; color:var(--cl-ok); }
+    .st-feedback--err { color:var(--cl-err); }
+    .st-empty-hint { text-align:center; color:var(--cl-muted); padding:var(--cl-space-4) 0; }
+
+    /* Tabs */
+    .st-tabs { display:flex; gap:.4rem; border-bottom:1px solid var(--cl-line); margin-bottom:var(--cl-space-3); }
+    .st-tab-btn { background:none; border:none; cursor:pointer; padding:.65rem 1rem; font-size:.95rem; font-weight:600; color:var(--cl-muted); border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .st-tab-btn--active { color:var(--cl-navy-600); border-bottom-color:var(--cl-signal); }
+    [data-theme="dark"] .st-tab-btn--active { color:var(--cl-signal); }
+    @media (prefers-color-scheme:dark) { .st-tab-btn--active { color:var(--cl-signal); } }
+
+    /* Suche / Filter */
+    .st-filter-row { margin-bottom:var(--cl-space-3); }
+
+    /* BGG-Suche (gemeinsam für beide Formulare) */
+    .st-name-search-row { display:flex; gap:.5rem; }
+    .st-name-search-row input { flex:1; min-width:0; }
+    .st-bgg-panel { margin-top:.5rem; border:1px solid var(--cl-line); border-radius:var(--cl-radius-sm); background:var(--cl-surface-2); max-height:220px; overflow-y:auto; }
+    .st-bgg-results { padding:.35rem; }
+    .st-bgg-result-item { display:flex; justify-content:space-between; gap:.5rem; padding:.45rem .6rem; border-radius:var(--cl-radius-sm); cursor:pointer; font-size:.88rem; }
+    .st-bgg-result-item:hover { background:var(--cl-surface); }
+    .st-bgg-result-item__year { color:var(--cl-muted); font-size:.8rem; flex-shrink:0; }
+    .st-bgg-hint { padding:.6rem; font-size:.85rem; color:var(--cl-muted); }
+    .st-bgg-match { margin-top:.6rem; display:flex; gap:.7rem; padding:.6rem; border-radius:var(--cl-radius-sm); border:1px solid var(--cl-line); background:var(--cl-surface-2); align-items:flex-start; }
+    .st-bgg-match img { width:56px; height:56px; object-fit:contain; border-radius:6px; flex-shrink:0; background:var(--cl-surface); }
+    .st-bgg-match__body { min-width:0; flex:1; }
+    .st-bgg-match__title { font-weight:600; font-size:.9rem; }
+    .st-bgg-match__badges { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; margin-top:.35rem; }
+    .st-bgg-pill { font-size:.72rem; font-weight:600; padding:.1rem .5rem; border-radius:var(--cl-radius-pill); }
+    .st-bgg-pill--rating { background:color-mix(in srgb, var(--cl-warn) 20%, transparent); color:var(--cl-warn); }
+    .st-bgg-pill--weight { background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-navy-600); }
+    [data-theme="dark"] .st-bgg-pill--weight { color:var(--cl-signal); }
+    @media (prefers-color-scheme:dark) { .st-bgg-pill--weight { color:var(--cl-signal); } }
+    .st-bgg-link { font-size:.78rem; }
+    .st-bgg-match__remove { background:none; border:none; color:var(--cl-err); cursor:pointer; font-size:1.1rem; line-height:1; margin-left:auto; align-self:flex-start; }
+
+    /* Formulare */
+    .st-form-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--cl-space-2); }
+    .st-checkbox-row { display:flex; align-items:center; gap:.5rem; font-size:.9rem; color:var(--cl-text); }
+    .st-error { color:var(--cl-err); font-size:.85rem; min-height:1.2rem; }
+
+    /* Liste */
+    .st-item { padding:.75rem 0; border-bottom:1px solid var(--cl-line); }
+    .st-item:last-child { border-bottom:none; }
+    .st-item-top { display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem; }
+    .st-item-left { display:flex; align-items:flex-start; gap:.6rem; min-width:0; }
+    .st-thumb { width:48px; height:48px; object-fit:contain; border-radius:6px; background:var(--cl-surface-2); border:1px solid var(--cl-line); flex-shrink:0; }
+    .st-item-name { font-weight:600; }
+    .st-item-name a { color:inherit; text-decoration:none; }
+    .st-item-name a:hover { text-decoration:underline; }
+    .st-item-meta { font-size:.8rem; color:var(--cl-muted); margin-top:.15rem; }
+    .st-item-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.35rem; }
+    .st-item-right { display:flex; align-items:center; gap:.5rem; flex-shrink:0; }
+    .st-desc { margin-top:.5rem; font-size:.85rem; }
+    .st-desc summary { cursor:pointer; color:var(--cl-navy-600); font-weight:600; list-style:none; }
+    [data-theme="dark"] .st-desc summary { color:var(--cl-signal); }
+    @media (prefers-color-scheme:dark) { .st-desc summary { color:var(--cl-signal); } }
+    .st-desc summary::-webkit-details-marker { display:none; }
+    .st-desc__body { margin-top:.4rem; color:var(--cl-text); white-space:pre-line; line-height:1.5; }
+    .st-desc__lang-hint { font-size:.72rem; color:var(--cl-muted); margin-top:.35rem; font-style:italic; }
+
+    .st-response { margin-top:.55rem; padding:.6rem; border-radius:var(--cl-radius-sm); background:var(--cl-surface-2); border:1px solid var(--cl-line); }
+    .st-response__existing { font-size:.88rem; margin-bottom:.5rem; }
+    .st-response__existing b { color:var(--cl-ok); }
+    .st-response-row { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .st-response-row input[type="text"] { flex:1; min-width:120px; }
+    .st-response-row input.st-response-name { flex:0 0 140px; min-width:100px; }
+
+    @media (max-width:480px) {
+        .st-item-top { flex-direction:column; }
+        .st-item-right { align-self:flex-end; }
+    }
+
+    .st-cta-bar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.75rem; }
+    .st-cta-text { font-size:.92rem; color:var(--cl-muted); max-width:34ch; }
+</style>
+</head>
+<body>
+
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spieleversum · <b>Treffen</b></span></a>
+        <div class="cl-header__spacer"></div>
+        <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer" class="st-bgg-badge" title="Powered by BoardGameGeek" aria-label="Powered by BoardGameGeek">
+            <svg class="st-bgg-badge__img" viewBox="0 0 342 76" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+                <title>Powered by BGG</title>
+                <g transform="translate(0.654300, 0.296900)" fill-rule="evenodd">
+                    <path d="M106.3372,25.7535 C108.0022,25.7535 109.0062,26.8855 108.8182,28.5505 L106.7492,46.8565 C106.5612,48.5195 105.3022,49.6535 103.6372,49.6535 L91.3492,49.6535 C89.6842,49.6535 88.6812,48.5195 88.8682,46.8565 L90.9362,28.5505 C91.1242,26.8855 92.3862,25.7535 94.0502,25.7535 L106.3372,25.7535 Z M119.4023,25.7534 L119.7953,40.7644 L124.7123,25.7534 L129.7763,25.7534 L131.1723,40.3404 L135.0883,25.7534 L140.6113,25.7534 L133.4133,49.6534 L127.9953,49.6534 L125.8183,36.3394 L120.5253,49.6534 L115.2153,49.6534 L113.3823,25.7534 L119.4023,25.7534 Z M160.6848,25.7534 L160.1048,30.8864 L150.6148,30.8864 L150.1418,35.0664 L158.3578,35.0664 L157.7808,40.1644 L149.5668,40.1644 L149.0788,44.4844 L158.5678,44.4844 L157.9848,49.6534 L142.3698,49.6534 L145.0698,25.7534 L160.6848,25.7534 Z M206.2849,25.7534 L205.7049,30.8864 L196.2169,30.8864 L195.7449,35.0664 L203.9599,35.0664 L203.3829,40.1644 L195.1679,40.1644 L194.6809,44.4844 L204.1689,44.4844 L203.5849,49.6534 L187.9719,49.6534 L190.6709,25.7534 L206.2849,25.7534 Z M289.8932,25.7533 C291.8432,25.7533 292.9402,26.9913 292.7412,28.7623 L292.1412,34.0723 C291.9572,35.7023 290.7182,37.2593 288.4632,37.7913 C290.5992,38.3213 291.6692,39.8083 291.4892,41.4033 L290.9012,46.6063 C290.6892,48.4843 289.3182,49.6533 287.3702,49.6533 L272.4642,49.6533 L275.1642,25.7533 L289.8932,25.7533 Z M83.714,25.7529 C85.165,25.7529 86.272,26.9209 86.099,28.4429 L84.711,40.7309 C84.551,42.1469 83.169,43.4219 81.717,43.4219 L73.253,43.4219 L72.55,49.6529 L66.389,49.6529 L69.09,25.7529 L83.714,25.7529 Z M181.6448,25.7537 C183.0968,25.7537 184.2028,26.9207 184.0308,28.4427 L182.7948,39.3847 C182.6308,40.8367 181.2518,42.0747 179.7998,42.0747 L179.6228,42.0747 L181.7048,49.6527 L175.6858,49.6527 L173.5688,42.0747 L170.9478,42.0747 L170.0918,49.6527 L163.9318,49.6527 L166.6318,25.7537 L181.6448,25.7537 Z M225.0852,25.7531 C227.7052,25.7531 229.6932,27.9131 229.3892,30.6031 L227.7892,44.7671 C227.4802,47.4941 225.0062,49.6521 222.3862,49.6521 L209.5312,49.6521 L212.2312,25.7531 L225.0852,25.7531 Z M316.8386,25.7531 L316.2586,30.8871 L305.1746,30.8871 C304.9976,30.8871 304.8016,31.0641 304.7776,31.2761 L304.7776,31.2761 L303.3296,44.0941 C303.3046,44.3071 303.4656,44.4481 303.6426,44.4481 L303.6426,44.4481 L308.6006,44.4481 C308.8476,44.4481 309.0056,44.3071 309.0306,44.0941 L309.0306,44.0941 L309.4866,40.0581 L306.1996,40.0581 L308.7676,34.9941 L315.7196,34.9941 L314.3386,46.9271 C314.1626,48.4841 312.8266,49.6521 311.3046,49.6521 L311.3046,49.6521 L299.3376,49.6521 C297.8136,49.6521 296.7066,48.4841 296.8826,46.9271 L296.8826,46.9271 L298.9716,28.4431 C299.1356,26.9921 300.5136,25.7531 302.0386,25.7531 L302.0386,25.7531 L316.8386,25.7531 Z M340.6911,25.7531 L340.1111,30.8871 L329.0271,30.8871 C328.8501,30.8871 328.6541,31.0641 328.6311,31.2761 L328.6311,31.2761 L327.1821,44.0941 C327.1571,44.3071 327.3181,44.4481 327.4951,44.4481 L327.4951,44.4481 L332.4531,44.4481 C332.6991,44.4481 332.8581,44.3071 332.8831,44.0941 L332.8831,44.0941 L333.3391,40.0581 L330.0521,40.0581 L332.6201,34.9941 L339.5721,34.9941 L338.1911,46.9271 C338.0161,48.4841 336.6791,49.6521 335.1571,49.6521 L335.1571,49.6521 L323.1901,49.6521 C321.6661,49.6521 320.5591,48.4841 320.7341,46.9271 L320.7341,46.9271 L322.8231,28.4431 C322.9881,26.9921 324.3661,25.7531 325.8911,25.7531 L325.8911,25.7531 L340.6911,25.7531 Z M285.2212,39.8443 L279.6972,39.8443 L279.1002,45.1203 L284.6252,45.1203 C284.8732,45.1203 284.9992,44.9443 285.0182,44.7663 L285.5312,40.2343 C285.5512,40.0583 285.4692,39.8443 285.2212,39.8443 Z M248.408,30.5417 C249.576,30.5417 250.234,31.2837 250.114,32.3457 L249.755,35.5287 C249.645,36.5037 248.902,37.4387 247.55,37.7577 C248.83,38.0747 249.473,38.9657 249.363,39.9207 L249.012,43.0397 C248.885,44.1637 248.063,44.8647 246.896,44.8647 L237.963,44.8647 L239.581,30.5417 L248.408,30.5417 Z M257.2558,30.5412 L256.5098,37.1402 C256.4978,37.2472 256.6128,37.3532 256.7188,37.3532 L259.6688,37.3532 C259.7958,37.3532 259.8298,37.2472 259.8418,37.1402 L260.5858,30.5412 L264.2798,30.5412 L263.3268,38.9652 C263.2218,39.8992 262.3918,40.6632 261.5238,40.6632 L259.6338,40.6632 L259.1578,44.8642 L255.4668,44.8642 L255.9418,40.6632 L254.0308,40.6632 C253.1628,40.6632 252.5058,39.8992 252.6118,38.9652 L253.5638,30.5412 L257.2558,30.5412 Z M101.9992,30.9215 L97.1492,30.9215 C97.0072,30.9215 96.8102,31.0995 96.7872,31.3115 L95.3332,44.1645 C95.3132,44.3415 95.4742,44.4845 95.6172,44.4845 L100.4672,44.4845 C100.6792,44.4845 100.8732,44.3415 100.8932,44.1645 L102.3462,31.3115 C102.3692,31.0995 102.2112,30.9215 101.9992,30.9215 Z M221.4962,30.8871 L217.8122,30.8871 L216.2762,44.4841 L219.9602,44.4841 C220.9872,44.4841 221.7752,43.7761 221.8902,42.7481 L223.0352,32.6211 C223.1512,31.5951 222.5232,30.8871 221.4962,30.8871 Z M245.607,38.9877 L242.298,38.9877 L241.939,42.1487 L245.25,42.1487 C245.4,42.1487 245.475,42.0427 245.486,41.9367 L245.793,39.2207 C245.806,39.1147 245.757,38.9877 245.607,38.9877 Z M79.345,30.8869 L74.67,30.8869 L73.826,38.3579 L78.5,38.3579 C78.678,38.3579 78.838,38.1809 78.854,38.0399 L79.623,31.2409 C79.643,31.0649 79.522,30.8869 79.345,30.8869 Z M177.3108,30.8867 L172.2128,30.8867 L171.4928,37.2597 L176.5908,37.2597 C176.7338,37.2597 176.9298,37.0847 176.9448,36.9407 L177.5898,31.2407 C177.6098,31.0637 177.4528,30.8867 177.3108,30.8867 Z M246.24,33.3847 L242.93,33.3847 L242.596,36.3557 L245.904,36.3557 C246.054,36.3557 246.129,36.2497 246.144,36.1227 L246.427,33.6177 C246.439,33.5117 246.39,33.3847 246.24,33.3847 Z M286.2772,30.4963 L280.7552,30.4963 L280.1932,35.4543 L285.7172,35.4543 C285.9662,35.4543 286.0912,35.2763 286.1142,35.0663 L286.5872,30.8873 C286.6062,30.7093 286.5272,30.4963 286.2772,30.4963 Z" fill="#3F3A60"></path>
+                    <polygon fill="#FF5100" points="49.374 13.936 41.903 15.973 49.219 -4.8316906e-13 1.787 17.482 4.379 38.424 -3.37507799e-13 42.651 13.058 75.406 40.813 65.166 50.461 42.483 46.319 38.485"></polygon>
+                    <polygon fill="#FFFFFF" points="15.1196 63.3086 33.8576 44.0036 26.7606 33.4056 34.6816 16.0356 17.2286 34.1636 23.9436 44.2936"></polygon>
+                </g>
+            </svg>
+        </a>
+    </div>
+</header>
+
+<main class="cl-container cl-section" style="padding-top:var(--cl-space-3);">
+
+    <!-- Treffen-Auswahl -->
+    <div class="cl-card cl-card--pad">
+        <div class="st-meeting-bar">
+            <select id="treffenSelect" class="cl-input">
+                <option value="">– Treffen wählen –</option>
+            </select>
+            <button id="newTreffenBtn" class="cl-btn cl-btn--ghost cl-btn--sm">+ Neues Treffen</button>
+        </div>
+        <div id="newTreffenForm" class="st-meeting-form">
+            <div>
+                <label for="newTreffenTitel" class="cl-label">Titel</label>
+                <input type="text" id="newTreffenTitel" class="cl-input" placeholder="z.B. Mitgliedertreffen Oktober">
+            </div>
+            <div>
+                <label for="newTreffenDatum" class="cl-label">Datum</label>
+                <input type="date" id="newTreffenDatum" class="cl-input">
+            </div>
+            <button id="newTreffenSaveBtn" class="cl-btn cl-btn--signal">Anlegen</button>
+            <button id="newTreffenCancelBtn" class="cl-btn cl-btn--ghost">Abbrechen</button>
+        </div>
+        <p id="treffenMsg" class="st-feedback"></p>
+        <div id="meetingInfo" class="st-meeting-info cl-hidden">
+            <div>
+                <div id="meetingTitle" class="st-meeting-title"></div>
+                <div id="meetingDate" class="st-meeting-date"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appBody" class="cl-hidden">
+
+        <!-- Tabs -->
+        <div class="st-tabs" style="margin-top:var(--cl-space-4);">
+            <button class="st-tab-btn st-tab-btn--active" data-tab="panelMitgebracht">📦 Wird mitgebracht</button>
+            <button class="st-tab-btn" data-tab="panelWunschliste">🎯 Wunschliste</button>
+        </div>
+
+        <!-- TAB: Mitgebracht -->
+        <div id="panelMitgebracht" class="st-tabpanel">
+            <div class="cl-card cl-card--pad">
+                <h2>Spiel eintragen, das du mitbringst</h2>
+                <div class="cl-stack">
+                    <div>
+                        <label for="mbNameInput" class="cl-label">Spielname</label>
+                        <div class="st-name-search-row">
+                            <input type="text" id="mbNameInput" class="cl-input" placeholder="z.B. Arcs">
+                            <button type="button" id="mbBggSearchBtn" class="cl-btn cl-btn--ghost cl-btn--sm">🎲 BGG</button>
+                        </div>
+                        <div id="mbBggResultsPanel" class="st-bgg-panel cl-hidden"><div id="mbBggResultsList" class="st-bgg-results"></div></div>
+                        <div id="mbBggMatchPreview" class="st-bgg-match cl-hidden"></div>
+                    </div>
+                    <div class="st-form-row">
+                        <div>
+                            <label for="mbMitbringerInput" class="cl-label">Wer bringt es mit? (optional)</label>
+                            <input type="text" id="mbMitbringerInput" class="cl-input" placeholder="Name / Kürzel">
+                        </div>
+                        <div>
+                            <label class="cl-label">&nbsp;</label>
+                            <label class="st-checkbox-row"><input type="checkbox" id="mbNoteToggle"><span>Notiz hinzufügen</span></label>
+                        </div>
+                    </div>
+                    <input type="text" id="mbNoteInput" placeholder="z.B. neue Erweiterung dabei, nur bei Bedarf, ..." class="cl-input cl-hidden">
+                </div>
+                <div class="cl-flex" style="justify-content:space-between; align-items:center; margin-top:.6rem;">
+                    <p id="mbError" class="st-error"></p>
+                    <div class="cl-flex">
+                        <button id="mbCancelEditBtn" class="cl-btn cl-btn--ghost cl-hidden">Bearbeitung abbrechen</button>
+                        <button id="mbAddBtn" class="cl-btn cl-btn--signal">Eintragen</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cl-card cl-card--pad" style="margin-top:var(--cl-space-4);">
+                <div class="cl-flex" style="justify-content:space-between; align-items:center;">
+                    <h2 style="margin-bottom:0;">Diese Spiele werden mitgebracht <span id="mbCount" class="cl-muted"></span></h2>
+                </div>
+                <input type="text" id="mbSearchInput" class="cl-input st-filter-row" style="margin-top:.75rem;" placeholder="🔍 Liste durchsuchen…">
+                <div id="mbList"><p class="st-empty-hint">Noch keine Spiele eingetragen.</p></div>
+            </div>
+        </div>
+
+        <!-- TAB: Wunschliste -->
+        <div id="panelWunschliste" class="st-tabpanel cl-hidden">
+            <div class="cl-card cl-card--pad">
+                <h2>Wunsch eintragen</h2>
+                <p class="cl-muted" style="margin-top:-.5rem;">Was möchtest du gerne spielen? Vielleicht bringt es jemand mit.</p>
+                <div class="cl-stack">
+                    <div>
+                        <label for="wlNameInput" class="cl-label">Spielname</label>
+                        <div class="st-name-search-row">
+                            <input type="text" id="wlNameInput" class="cl-input" placeholder="z.B. Ark Nova">
+                            <button type="button" id="wlBggSearchBtn" class="cl-btn cl-btn--ghost cl-btn--sm">🎲 BGG</button>
+                        </div>
+                        <div id="wlBggResultsPanel" class="st-bgg-panel cl-hidden"><div id="wlBggResultsList" class="st-bgg-results"></div></div>
+                        <div id="wlBggMatchPreview" class="st-bgg-match cl-hidden"></div>
+                    </div>
+                    <div>
+                        <label for="wlWunschVonInput" class="cl-label">Von wem? (optional)</label>
+                        <input type="text" id="wlWunschVonInput" class="cl-input" placeholder="Name / Kürzel">
+                    </div>
+                </div>
+                <div class="cl-flex" style="justify-content:space-between; align-items:center; margin-top:.6rem;">
+                    <p id="wlError" class="st-error"></p>
+                    <div class="cl-flex">
+                        <button id="wlCancelEditBtn" class="cl-btn cl-btn--ghost cl-hidden">Bearbeitung abbrechen</button>
+                        <button id="wlAddBtn" class="cl-btn cl-btn--signal">Hinzufügen</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cl-card cl-card--pad" style="margin-top:var(--cl-space-4);">
+                <div class="cl-flex" style="justify-content:space-between; align-items:center;">
+                    <h2 style="margin-bottom:0;">Wunschliste <span id="wlCount" class="cl-muted"></span></h2>
+                </div>
+                <input type="text" id="wlSearchInput" class="cl-input st-filter-row" style="margin-top:.75rem;" placeholder="🔍 Liste durchsuchen…">
+                <div id="wlList"><p class="st-empty-hint">Noch keine Wünsche eingetragen.</p></div>
+            </div>
+        </div>
+
+        <!-- CTA: Questboard -->
+        <div class="cl-card cl-card--pad" style="margin-top:var(--cl-space-4);">
+            <div class="st-cta-bar">
+                <p class="st-cta-text">Spontan eine Runde zusammenstellen? Auf BoardOrbit könnt ihr Spielrunden anbieten und Mitspieler:innen finden.</p>
+                <a href="https://codelab365.github.io/Spielesammlung-Genduron/questboard.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--signal">🎯 Spielrunde starten</a>
+            </div>
+        </div>
+
+    </div>
+
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365</div>
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzIgSa17e0xADhmUAP29vMSqN1GRjOCFk",
+    authDomain: "pizzaorder-fec41.firebaseapp.com",
+    projectId: "pizzaorder-fec41",
+    storageBucket: "pizzaorder-fec41.firebasestorage.app",
+    messagingSenderId: "662851560067",
+    appId: "1:662851560067:web:60b5843f159a11821671b6",
+    measurementId: "G-MMFJKPWZML"
+  };
+
+  let db, auth, treffenRef;
+
+  // --- BGG API (gleicher Token wie im Brettspiel-Budget-/BoardOrbit-Tool) ---
+  const BGG_API_TOKEN = 'cb319383-f7f5-4e5b-bc40-78090627231e';
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+  }
+
+  // BGG liefert Beschreibungen teils doppelt HTML-kodiert (z.B. "&amp;#10;" statt Zeilenumbruch).
+  function decodeBggText(str) {
+    if (!str) return '';
+    const ta = document.createElement('textarea');
+    ta.innerHTML = str;
+    return ta.value.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  async function callBggApi(endpoint, params = {}) {
+    const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
+    Object.keys(params).forEach(k => url.searchParams.append(k, params[k]));
+    const headers = new Headers();
+    if (BGG_API_TOKEN) headers.append('Authorization', `Bearer ${BGG_API_TOKEN}`);
+    let response = await fetch(url.toString(), { method: 'GET', headers });
+    let retries = 0;
+    while (response.status === 202 && retries < 5) {
+      retries++;
+      await sleep(1500);
+      response = await fetch(url.toString(), { method: 'GET', headers });
+    }
+    if (!response.ok) throw new Error(`BGG HTTP Fehler ${response.status}`);
+    const xmlText = await response.text();
+    const xmlDoc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (xmlDoc.querySelector("parsererror")) throw new Error("Fehler beim Parsen der BGG-Antwort.");
+    return xmlDoc;
+  }
+
+  function parseBggDetails(xmlDoc) {
+    const item = xmlDoc.querySelector('item');
+    if (!item) return null;
+    const getPrimaryName = () => {
+      const names = item.querySelectorAll('name');
+      for (const n of names) if (n.getAttribute('type') === 'primary') return n.getAttribute('value');
+      return names.length > 0 ? names[0].getAttribute('value') : null;
+    };
+    const yearNode = item.querySelector('yearpublished');
+    const ratingNode = item.querySelector('statistics ratings average');
+    const weightNode = item.querySelector('statistics ratings averageweight');
+    const bggId = parseInt(item.getAttribute('id')) || null;
+    const descNode = item.querySelector('description');
+    return {
+      bggId,
+      bggName: getPrimaryName(),
+      bggYear: yearNode ? yearNode.getAttribute('value') : null,
+      bggImageUrl: item.querySelector('image')?.textContent || item.querySelector('thumbnail')?.textContent || null,
+      bggRating: ratingNode ? parseFloat(ratingNode.getAttribute('value')) : null,
+      bggWeight: weightNode ? parseFloat(weightNode.getAttribute('value')) : null,
+      bggUrl: bggId ? `https://boardgamegeek.com/boardgame/${bggId}` : null,
+      bggDescription: descNode ? decodeBggText(descNode.textContent) : null
+    };
+  }
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    await signInAnonymously(auth);
+    treffenRef = collection(db, 'spieleversum_treffen');
+  } catch (e) {
+    console.error(e);
+    document.body.innerHTML = '<div class="cl-container cl-center" style="padding:3rem 0; color:var(--cl-err);">Fehler bei der Verbindung zur Datenbank.</div>';
+    return;
+  }
+
+  // --- ELEMENTS: Treffen ---
+  const treffenSelect = document.getElementById('treffenSelect');
+  const newTreffenBtn = document.getElementById('newTreffenBtn');
+  const newTreffenForm = document.getElementById('newTreffenForm');
+  const newTreffenTitel = document.getElementById('newTreffenTitel');
+  const newTreffenDatum = document.getElementById('newTreffenDatum');
+  const newTreffenSaveBtn = document.getElementById('newTreffenSaveBtn');
+  const newTreffenCancelBtn = document.getElementById('newTreffenCancelBtn');
+  const newTreffenCancel = newTreffenCancelBtn;
+  const treffenMsg = document.getElementById('treffenMsg');
+  const meetingInfo = document.getElementById('meetingInfo');
+  const meetingTitle = document.getElementById('meetingTitle');
+  const meetingDate = document.getElementById('meetingDate');
+  const appBody = document.getElementById('appBody');
+
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  newTreffenDatum.value = todayStr();
+
+  let treffenListe = [];
+  let currentTreffenId = null;
+  let unsubMitgebracht = null;
+  let unsubWunschliste = null;
+
+  newTreffenBtn.addEventListener('click', () => newTreffenForm.classList.toggle('st-open'));
+  newTreffenCancel.addEventListener('click', () => { newTreffenForm.classList.remove('st-open'); newTreffenTitel.value = ''; });
+
+  newTreffenSaveBtn.addEventListener('click', async () => {
+    const titel = newTreffenTitel.value.trim();
+    const datum = newTreffenDatum.value || todayStr();
+    if (!titel) { treffenMsg.textContent = 'Bitte einen Titel für das Treffen eingeben.'; treffenMsg.className = 'st-feedback st-feedback--err'; return; }
+    try {
+      const docRef = await addDoc(treffenRef, { titel, datum, createdAt: new Date().toISOString() });
+      treffenMsg.textContent = 'Treffen angelegt.';
+      treffenMsg.className = 'st-feedback';
+      newTreffenForm.classList.remove('st-open');
+      newTreffenTitel.value = '';
+      newTreffenDatum.value = todayStr();
+      treffenSelect.value = docRef.id; // wird nach dem nächsten Snapshot-Render bestätigt
+      pendingSelectId = docRef.id;
+    } catch (e) {
+      console.error(e);
+      treffenMsg.textContent = `Fehler beim Anlegen (${e.code || e.message || e}).`;
+      treffenMsg.className = 'st-feedback st-feedback--err';
+    }
+  });
+
+  let pendingSelectId = null;
+
+  onSnapshot(query(treffenRef, orderBy('datum', 'desc')), (snap) => {
+    treffenListe = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const prevSelection = pendingSelectId || treffenSelect.value || currentTreffenId;
+    treffenSelect.innerHTML = '<option value="">– Treffen wählen –</option>' +
+      treffenListe.map(t => `<option value="${t.id}">${escapeHTML(t.titel)} (${escapeHTML(formatDatum(t.datum))})</option>`).join('');
+    if (prevSelection && treffenListe.some(t => t.id === prevSelection)) {
+      treffenSelect.value = prevSelection;
+      selectTreffen(prevSelection);
+    } else if (treffenListe.length > 0 && !currentTreffenId) {
+      treffenSelect.value = treffenListe[0].id;
+      selectTreffen(treffenListe[0].id);
+    }
+    pendingSelectId = null;
+  }, (e) => {
+    console.error(e);
+    treffenMsg.textContent = `Treffen konnten nicht geladen werden (${e.code || e.message}).`;
+    treffenMsg.className = 'st-feedback st-feedback--err';
+  });
+
+  function formatDatum(d) {
+    if (!d) return '';
+    const parts = d.split('-');
+    if (parts.length !== 3) return d;
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  }
+
+  treffenSelect.addEventListener('change', () => selectTreffen(treffenSelect.value));
+
+  function selectTreffen(id) {
+    currentTreffenId = id || null;
+    if (unsubMitgebracht) { unsubMitgebracht(); unsubMitgebracht = null; }
+    if (unsubWunschliste) { unsubWunschliste(); unsubWunschliste = null; }
+    mitgebracht = [];
+    wuensche = [];
+    stopEditMb();
+    stopEditWl();
+
+    if (!currentTreffenId) {
+      appBody.classList.add('cl-hidden');
+      meetingInfo.classList.add('cl-hidden');
+      return;
+    }
+    const t = treffenListe.find(x => x.id === currentTreffenId);
+    if (t) {
+      meetingTitle.textContent = t.titel;
+      meetingDate.textContent = formatDatum(t.datum);
+      meetingInfo.classList.remove('cl-hidden');
+    }
+    appBody.classList.remove('cl-hidden');
+
+    const mbRef = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
+    unsubMitgebracht = onSnapshot(mbRef, (snap) => {
+      mitgebracht = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMb();
+    }, (e) => { console.error(e); mbError.textContent = `Liste konnte nicht geladen werden (${e.code || e.message}).`; });
+
+    const wlRef = collection(db, `spieleversum_treffen/${currentTreffenId}/wunschliste`);
+    unsubWunschliste = onSnapshot(wlRef, (snap) => {
+      wuensche = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderWl();
+    }, (e) => { console.error(e); wlError.textContent = `Wunschliste konnte nicht geladen werden (${e.code || e.message}).`; });
+  }
+
+  // --- TABS ---
+  document.querySelectorAll('.st-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.st-tab-btn').forEach(b => b.classList.remove('st-tab-btn--active'));
+      btn.classList.add('st-tab-btn--active');
+      document.querySelectorAll('.st-tabpanel').forEach(p => p.classList.add('cl-hidden'));
+      document.getElementById(btn.dataset.tab).classList.remove('cl-hidden');
+    });
+  });
+
+  // --- BGG-SUCHE (wiederverwendbar für beide Formulare) ---
+  function createBggPicker({ nameInput, searchBtn, resultsPanel, resultsList, matchPreview, errorEl, onMatch, onClear }) {
+    let current = null;
+
+    function renderPreview(match) {
+      const ratingHtml = typeof match.bggRating === 'number' && !isNaN(match.bggRating)
+        ? `<span class="st-bgg-pill st-bgg-pill--rating">⭐ ${match.bggRating.toFixed(1)}</span>` : '';
+      const weightHtml = typeof match.bggWeight === 'number' && !isNaN(match.bggWeight)
+        ? `<span class="st-bgg-pill st-bgg-pill--weight">⚙️ ${match.bggWeight.toFixed(1)}</span>` : '';
+      const linkHtml = match.bggUrl
+        ? `<a class="st-bgg-link" href="${match.bggUrl}" target="_blank" rel="noopener noreferrer">Auf BGG ansehen ↗</a>` : '';
+      matchPreview.innerHTML = `
+        ${match.bggImageUrl ? `<img src="${match.bggImageUrl}" alt="" referrerpolicy="no-referrer">` : ''}
+        <div class="st-bgg-match__body">
+          <div class="st-bgg-match__title">${escapeHTML(match.bggName || 'Unbekannt')}${match.bggYear ? ` <span class="cl-muted" style="font-weight:400;">(${escapeHTML(match.bggYear)})</span>` : ''}</div>
+          <div class="st-bgg-match__badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+        </div>
+        <button type="button" class="st-bgg-match__remove" title="BGG-Verknüpfung entfernen" aria-label="BGG-Verknüpfung entfernen">&times;</button>
+      `;
+      matchPreview.classList.remove('cl-hidden');
+      matchPreview.querySelector('.st-bgg-match__remove').addEventListener('click', clear);
+      resultsPanel.classList.add('cl-hidden');
+    }
+
+    function clear() {
+      current = null;
+      matchPreview.classList.add('cl-hidden');
+      matchPreview.innerHTML = '';
+      if (onClear) onClear();
+    }
+
+    function select(match) {
+      current = match;
+      renderPreview(match);
+      if (!nameInput.value.trim()) nameInput.value = match.bggName || '';
+      if (onMatch) onMatch(match);
+    }
+
+    searchBtn.addEventListener('click', async () => {
+      const queryStr = nameInput.value.trim();
+      if (!queryStr) { if (errorEl) errorEl.textContent = 'Bitte zuerst einen Spielnamen (oder Suchbegriff) eingeben.'; return; }
+      if (errorEl) errorEl.textContent = '';
+      resultsPanel.classList.remove('cl-hidden');
+      resultsList.innerHTML = '<p class="st-bgg-hint">Suche auf BGG…</p>';
+      try {
+        const searchXml = await callBggApi('search', { query: queryStr, type: 'boardgame' });
+        const items = Array.from(searchXml.querySelectorAll('item')).slice(0, 12);
+        if (items.length === 0) {
+          resultsList.innerHTML = '<p class="st-bgg-hint">Keine Treffer auf BGG gefunden. Werte können manuell eingetragen werden.</p>';
+          return;
+        }
+        resultsList.innerHTML = items.map(item => {
+          const id = item.getAttribute('id');
+          const nameNode = item.querySelector('name');
+          const name = nameNode ? nameNode.getAttribute('value') : '(ohne Titel)';
+          const yearNode = item.querySelector('yearpublished');
+          const year = yearNode ? yearNode.getAttribute('value') : '';
+          return `<div class="st-bgg-result-item" data-id="${id}"><span>${escapeHTML(name)}</span><span class="st-bgg-result-item__year">${escapeHTML(year)}</span></div>`;
+        }).join('');
+      } catch (e) {
+        console.error(e);
+        resultsList.innerHTML = '<p class="st-bgg-hint">Suche fehlgeschlagen (evtl. Netzwerk/CORS). Werte können manuell eingetragen werden.</p>';
+      }
+    });
+
+    resultsList.addEventListener('click', async (e) => {
+      const item = e.target.closest('.st-bgg-result-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      resultsList.innerHTML = '<p class="st-bgg-hint">Lade Details…</p>';
+      try {
+        const detailXml = await callBggApi('thing', { id, stats: 1 });
+        const match = parseBggDetails(detailXml);
+        if (match) select(match);
+      } catch (e) {
+        console.error(e);
+        resultsList.innerHTML = '<p class="st-bgg-hint">Details konnten nicht geladen werden.</p>';
+      }
+    });
+
+    return { getMatch: () => current, clear, setMatch: select };
+  }
+
+  // ======================= MITGEBRACHT =======================
+  const mbNameInput = document.getElementById('mbNameInput');
+  const mbBggSearchBtn = document.getElementById('mbBggSearchBtn');
+  const mbBggResultsPanel = document.getElementById('mbBggResultsPanel');
+  const mbBggResultsList = document.getElementById('mbBggResultsList');
+  const mbBggMatchPreview = document.getElementById('mbBggMatchPreview');
+  const mbMitbringerInput = document.getElementById('mbMitbringerInput');
+  const mbNoteToggle = document.getElementById('mbNoteToggle');
+  const mbNoteInput = document.getElementById('mbNoteInput');
+  const mbAddBtn = document.getElementById('mbAddBtn');
+  const mbCancelEditBtn = document.getElementById('mbCancelEditBtn');
+  const mbError = document.getElementById('mbError');
+  const mbList = document.getElementById('mbList');
+  const mbCount = document.getElementById('mbCount');
+  const mbSearchInput = document.getElementById('mbSearchInput');
+
+  let mitgebracht = [];
+  let editingMbId = null;
+
+  mbNoteToggle.addEventListener('change', () => {
+    mbNoteInput.classList.toggle('cl-hidden', !mbNoteToggle.checked);
+    if (mbNoteToggle.checked) mbNoteInput.focus(); else mbNoteInput.value = '';
+  });
+
+  const mbBggPicker = createBggPicker({
+    nameInput: mbNameInput, searchBtn: mbBggSearchBtn, resultsPanel: mbBggResultsPanel,
+    resultsList: mbBggResultsList, matchPreview: mbBggMatchPreview, errorEl: mbError
+  });
+
+  mbSearchInput.addEventListener('input', renderMb);
+
+  async function addMitgebracht() {
+    if (!currentTreffenId) { mbError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
+    const bggMatch = mbBggPicker.getMatch();
+    const name = (bggMatch?.bggName || mbNameInput.value.trim());
+    const mitbringer = mbMitbringerInput.value.trim();
+    const notiz = mbNoteToggle.checked ? mbNoteInput.value.trim() : '';
+
+    if (!name) { mbError.textContent = 'Bitte einen Spielnamen eingeben.'; return; }
+    mbError.textContent = '';
+
+    const data = { name, updatedAt: new Date().toISOString() };
+    if (mitbringer) data.mitbringer = mitbringer; else data.mitbringer = '';
+    if (notiz) data.notiz = notiz; else data.notiz = '';
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription'].forEach(f => {
+      data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
+    });
+
+    try {
+      const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
+      if (editingMbId) {
+        await updateDoc(doc(ref, editingMbId), data);
+        stopEditMb();
+      } else {
+        data.createdAt = new Date().toISOString();
+        await addDoc(ref, data);
+      }
+      mbNameInput.value = ''; mbMitbringerInput.value = '';
+      mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden');
+      mbBggPicker.clear();
+      mbBggResultsPanel.classList.add('cl-hidden'); mbBggResultsList.innerHTML = '';
+      mbNameInput.focus();
+    } catch (e) {
+      console.error(e);
+      mbError.textContent = `Fehler beim Speichern (${e.code || e.message || e}).`;
+    }
+  }
+  mbAddBtn.addEventListener('click', addMitgebracht);
+  mbNameInput.addEventListener('keypress', e => e.key === 'Enter' && addMitgebracht());
+
+  function startEditMb(item) {
+    editingMbId = item.id;
+    mbNameInput.value = item.name || '';
+    mbMitbringerInput.value = item.mitbringer || '';
+    if (item.notiz) { mbNoteToggle.checked = true; mbNoteInput.value = item.notiz; mbNoteInput.classList.remove('cl-hidden'); }
+    else { mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden'); }
+    if (item.bggId) {
+      mbBggPicker.setMatch({
+        bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
+        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription
+      });
+    } else {
+      mbBggPicker.clear();
+    }
+    mbCancelEditBtn.classList.remove('cl-hidden');
+    mbAddBtn.textContent = 'Änderungen speichern';
+    mbNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function stopEditMb() {
+    editingMbId = null;
+    mbCancelEditBtn.classList.add('cl-hidden');
+    mbAddBtn.textContent = 'Eintragen';
+    mbNameInput.value = ''; mbMitbringerInput.value = '';
+    mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden');
+    mbBggPicker.clear();
+  }
+  mbCancelEditBtn.addEventListener('click', stopEditMb);
+
+  function descHtml(item) {
+    if (!item.bggDescription) return '';
+    const short = item.bggDescription.length > 260 ? item.bggDescription.slice(0, 260).trim() + '…' : item.bggDescription;
+    return `<details class="st-desc">
+        <summary>Beschreibung anzeigen</summary>
+        <div class="st-desc__body">${escapeHTML(item.bggDescription)}</div>
+        <div class="st-desc__lang-hint">Text von BoardGameGeek – die BGG-Schnittstelle liefert i.d.R. nur die englische Beschreibung.</div>
+      </details>`;
+  }
+
+  function renderMb() {
+    const filter = mbSearchInput.value.trim().toLowerCase();
+    const filtered = mitgebracht.filter(m => !filter || (m.name || '').toLowerCase().includes(filter));
+    const sorted = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+    mbCount.textContent = mitgebracht.length ? `(${mitgebracht.length})` : '';
+
+    if (mitgebracht.length === 0) {
+      mbList.innerHTML = '<p class="st-empty-hint">Noch keine Spiele eingetragen.</p>';
+      return;
+    }
+    if (sorted.length === 0) {
+      mbList.innerHTML = '<p class="st-empty-hint">Keine Treffer für die Suche.</p>';
+      return;
+    }
+    mbList.innerHTML = sorted.map(m => {
+      const ratingHtml = typeof m.bggRating === 'number' ? `<span class="cl-badge cl-badge--warn">⭐ ${m.bggRating.toFixed(1)}</span>` : '';
+      const weightHtml = typeof m.bggWeight === 'number' ? `<span class="cl-badge">⚙ ${m.bggWeight.toFixed(1)}</span>` : '';
+      const linkHtml = m.bggUrl ? `<a class="st-bgg-link" href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">BGG ↗</a>` : '';
+      const imgHtml = m.bggImageUrl ? `<img src="${m.bggImageUrl}" referrerpolicy="no-referrer" class="st-thumb">` : '';
+      const nameHtml = m.bggUrl ? `<a href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(m.name)}</a>` : escapeHTML(m.name);
+      const metaBits = [];
+      if (m.mitbringer) metaBits.push(`mitgebracht von ${escapeHTML(m.mitbringer)}`);
+      if (m.notiz) metaBits.push(escapeHTML(m.notiz));
+      return `
+        <div class="st-item">
+          <div class="st-item-top">
+            <div class="st-item-left">
+              ${imgHtml}
+              <div class="min-w-0">
+                <div class="st-item-name">${nameHtml}</div>
+                ${metaBits.length ? `<div class="st-item-meta">${metaBits.join(' · ')}</div>` : ''}
+                <div class="st-item-badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+              </div>
+            </div>
+            <div class="st-item-right">
+              <button class="cl-btn cl-btn--ghost cl-btn--sm" data-edit-id="${m.id}">Bearbeiten</button>
+            </div>
+          </div>
+          ${descHtml(m)}
+        </div>`;
+    }).join('');
+    mbList.querySelectorAll('button[data-edit-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = mitgebracht.find(x => x.id === btn.dataset.editId);
+        if (item) startEditMb(item);
+      });
+    });
+  }
+
+  // ======================= WUNSCHLISTE =======================
+  const wlNameInput = document.getElementById('wlNameInput');
+  const wlBggSearchBtn = document.getElementById('wlBggSearchBtn');
+  const wlBggResultsPanel = document.getElementById('wlBggResultsPanel');
+  const wlBggResultsList = document.getElementById('wlBggResultsList');
+  const wlBggMatchPreview = document.getElementById('wlBggMatchPreview');
+  const wlWunschVonInput = document.getElementById('wlWunschVonInput');
+  const wlAddBtn = document.getElementById('wlAddBtn');
+  const wlCancelEditBtn = document.getElementById('wlCancelEditBtn');
+  const wlError = document.getElementById('wlError');
+  const wlList = document.getElementById('wlList');
+  const wlCount = document.getElementById('wlCount');
+  const wlSearchInput = document.getElementById('wlSearchInput');
+
+  let wuensche = [];
+  let editingWlId = null;
+
+  const wlBggPicker = createBggPicker({
+    nameInput: wlNameInput, searchBtn: wlBggSearchBtn, resultsPanel: wlBggResultsPanel,
+    resultsList: wlBggResultsList, matchPreview: wlBggMatchPreview, errorEl: wlError
+  });
+
+  wlSearchInput.addEventListener('input', renderWl);
+
+  async function addWunsch() {
+    if (!currentTreffenId) { wlError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
+    const bggMatch = wlBggPicker.getMatch();
+    const name = (bggMatch?.bggName || wlNameInput.value.trim());
+    const wunschVon = wlWunschVonInput.value.trim();
+
+    if (!name) { wlError.textContent = 'Bitte einen Spielnamen eingeben.'; return; }
+    wlError.textContent = '';
+
+    const data = { name, updatedAt: new Date().toISOString() };
+    data.wunschVon = wunschVon || '';
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription'].forEach(f => {
+      data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
+    });
+
+    try {
+      const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/wunschliste`);
+      if (editingWlId) {
+        await updateDoc(doc(ref, editingWlId), data);
+        stopEditWl();
+      } else {
+        data.createdAt = new Date().toISOString();
+        data.antwort = '';
+        data.antwortVon = '';
+        await addDoc(ref, data);
+      }
+      wlNameInput.value = ''; wlWunschVonInput.value = '';
+      wlBggPicker.clear();
+      wlBggResultsPanel.classList.add('cl-hidden'); wlBggResultsList.innerHTML = '';
+      wlNameInput.focus();
+    } catch (e) {
+      console.error(e);
+      wlError.textContent = `Fehler beim Speichern (${e.code || e.message || e}).`;
+    }
+  }
+  wlAddBtn.addEventListener('click', addWunsch);
+  wlNameInput.addEventListener('keypress', e => e.key === 'Enter' && addWunsch());
+
+  function startEditWl(item) {
+    editingWlId = item.id;
+    wlNameInput.value = item.name || '';
+    wlWunschVonInput.value = item.wunschVon || '';
+    if (item.bggId) {
+      wlBggPicker.setMatch({
+        bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
+        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription
+      });
+    } else {
+      wlBggPicker.clear();
+    }
+    wlCancelEditBtn.classList.remove('cl-hidden');
+    wlAddBtn.textContent = 'Änderungen speichern';
+    wlNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function stopEditWl() {
+    editingWlId = null;
+    wlCancelEditBtn.classList.add('cl-hidden');
+    wlAddBtn.textContent = 'Hinzufügen';
+    wlNameInput.value = ''; wlWunschVonInput.value = '';
+    wlBggPicker.clear();
+  }
+  wlCancelEditBtn.addEventListener('click', stopEditWl);
+
+  async function saveAntwort(id, antwort, antwortVon) {
+    if (!currentTreffenId) return;
+    try {
+      const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/wunschliste`);
+      await updateDoc(doc(ref, id), { antwort, antwortVon, antwortAt: new Date().toISOString() });
+    } catch (e) {
+      console.error(e);
+      wlError.textContent = `Antwort konnte nicht gespeichert werden (${e.code || e.message || e}).`;
+    }
+  }
+
+  function renderWl() {
+    const filter = wlSearchInput.value.trim().toLowerCase();
+    const filtered = wuensche.filter(w => !filter || (w.name || '').toLowerCase().includes(filter));
+    const sorted = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+    wlCount.textContent = wuensche.length ? `(${wuensche.length})` : '';
+
+    if (wuensche.length === 0) {
+      wlList.innerHTML = '<p class="st-empty-hint">Noch keine Wünsche eingetragen.</p>';
+      return;
+    }
+    if (sorted.length === 0) {
+      wlList.innerHTML = '<p class="st-empty-hint">Keine Treffer für die Suche.</p>';
+      return;
+    }
+    wlList.innerHTML = sorted.map(w => {
+      const ratingHtml = typeof w.bggRating === 'number' ? `<span class="cl-badge cl-badge--warn">⭐ ${w.bggRating.toFixed(1)}</span>` : '';
+      const weightHtml = typeof w.bggWeight === 'number' ? `<span class="cl-badge">⚙ ${w.bggWeight.toFixed(1)}</span>` : '';
+      const linkHtml = w.bggUrl ? `<a class="st-bgg-link" href="${w.bggUrl}" target="_blank" rel="noopener noreferrer">BGG ↗</a>` : '';
+      const imgHtml = w.bggImageUrl ? `<img src="${w.bggImageUrl}" referrerpolicy="no-referrer" class="st-thumb">` : '';
+      const nameHtml = w.bggUrl ? `<a href="${w.bggUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(w.name)}</a>` : escapeHTML(w.name);
+      const wunschVonHtml = w.wunschVon ? `<div class="st-item-meta">Wunsch von ${escapeHTML(w.wunschVon)}</div>` : '';
+      const existingAntwort = w.antwort
+        ? `<div class="st-response__existing"><b>${escapeHTML(w.antwortVon || 'Jemand')}:</b> "${escapeHTML(w.antwort)}"</div>`
+        : '';
+      return `
+        <div class="st-item">
+          <div class="st-item-top">
+            <div class="st-item-left">
+              ${imgHtml}
+              <div class="min-w-0">
+                <div class="st-item-name">${nameHtml}</div>
+                ${wunschVonHtml}
+                <div class="st-item-badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+              </div>
+            </div>
+            <div class="st-item-right">
+              <button class="cl-btn cl-btn--ghost cl-btn--sm" data-edit-id="${w.id}">Bearbeiten</button>
+            </div>
+          </div>
+          ${descHtml(w)}
+          <div class="st-response">
+            ${existingAntwort}
+            <div class="st-response-row">
+              <input type="text" class="cl-input st-response-name" data-antwort-name="${w.id}" placeholder="Dein Name" value="${escapeHTML(w.antwortVon || '')}">
+              <input type="text" class="cl-input" data-antwort-text="${w.id}" placeholder="z.B. Ja, ich nehm's mit!" value="${escapeHTML(w.antwort || '')}">
+              <button class="cl-btn cl-btn--ghost cl-btn--sm" data-antwort-save="${w.id}">Antworten</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    wlList.querySelectorAll('button[data-edit-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = wuensche.find(x => x.id === btn.dataset.editId);
+        if (item) startEditWl(item);
+      });
+    });
+    wlList.querySelectorAll('button[data-antwort-save]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.antwortSave;
+        const antwort = wlList.querySelector(`[data-antwort-text="${id}"]`).value.trim();
+        const antwortVon = wlList.querySelector(`[data-antwort-name="${id}"]`).value.trim();
+        saveAntwort(id, antwort, antwortVon);
+      });
+    });
+  }
+
+});
+</script>
+</body>
+</html>
