@@ -206,7 +206,14 @@
                 <div class="cl-flex" style="justify-content:space-between; align-items:center;">
                     <h2 style="margin-bottom:0;">Diese Spiele werden mitgebracht <span id="mbCount" class="cl-muted"></span></h2>
                 </div>
-                <input type="text" id="mbSearchInput" class="cl-input st-filter-row" style="margin-top:.75rem;" placeholder="🔍 Liste durchsuchen…">
+                <div class="st-filter-row" style="display:flex; gap:.5rem; margin-top:.75rem;">
+                    <input type="text" id="mbSearchInput" class="cl-input" style="flex:1; min-width:120px;" placeholder="🔍 Liste durchsuchen…">
+                    <select id="mbSortSelect" class="cl-input" style="flex:0 0 auto;">
+                        <option value="name">Name (A–Z)</option>
+                        <option value="rating">BGG-Bewertung</option>
+                        <option value="weight">Komplexität</option>
+                    </select>
+                </div>
                 <div id="mbList"><p class="st-empty-hint">Noch keine Spiele eingetragen.</p></div>
             </div>
         </div>
@@ -244,7 +251,14 @@
                 <div class="cl-flex" style="justify-content:space-between; align-items:center;">
                     <h2 style="margin-bottom:0;">Wunschliste <span id="wlCount" class="cl-muted"></span></h2>
                 </div>
-                <input type="text" id="wlSearchInput" class="cl-input st-filter-row" style="margin-top:.75rem;" placeholder="🔍 Liste durchsuchen…">
+                <div class="st-filter-row" style="display:flex; gap:.5rem; margin-top:.75rem;">
+                    <input type="text" id="wlSearchInput" class="cl-input" style="flex:1; min-width:120px;" placeholder="🔍 Liste durchsuchen…">
+                    <select id="wlSortSelect" class="cl-input" style="flex:0 0 auto;">
+                        <option value="name">Name (A–Z)</option>
+                        <option value="rating">BGG-Bewertung</option>
+                        <option value="weight">Komplexität</option>
+                    </select>
+                </div>
                 <div id="wlList"><p class="st-empty-hint">Noch keine Wünsche eingetragen.</p></div>
             </div>
         </div>
@@ -267,7 +281,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.0</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.2</span></div>
 </footer>
 
 <script type="module">
@@ -306,6 +320,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     return ta.value.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
+  function formatSpieler(m) {
+    if (m.bggMinPlayers && m.bggMaxPlayers) {
+      return m.bggMinPlayers === m.bggMaxPlayers ? `${m.bggMinPlayers}` : `${m.bggMinPlayers}–${m.bggMaxPlayers}`;
+    }
+    return m.bggMinPlayers || m.bggMaxPlayers || null;
+  }
+  function formatDauer(m) {
+    return m.bggPlayingTime ? `${m.bggPlayingTime} Min` : null;
+  }
+
+  // Gemeinsame Sortierfunktion für beide Listen (Name / BGG-Bewertung / Komplexität).
+  function sortListe(liste, modus) {
+    const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'de');
+    if (modus === 'rating') {
+      return [...liste].sort((a, b) => {
+        const av = typeof a.bggRating === 'number' ? a.bggRating : -Infinity;
+        const bv = typeof b.bggRating === 'number' ? b.bggRating : -Infinity;
+        return bv - av || byName(a, b);
+      });
+    }
+    if (modus === 'weight') {
+      return [...liste].sort((a, b) => {
+        const av = typeof a.bggWeight === 'number' ? a.bggWeight : Infinity;
+        const bv = typeof b.bggWeight === 'number' ? b.bggWeight : Infinity;
+        return av - bv || byName(a, b);
+      });
+    }
+    return [...liste].sort(byName);
+  }
+
   async function callBggApi(endpoint, params = {}) {
     const url = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
     Object.keys(params).forEach(k => url.searchParams.append(k, params[k]));
@@ -333,21 +377,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (const n of names) if (n.getAttribute('type') === 'primary') return n.getAttribute('value');
       return names.length > 0 ? names[0].getAttribute('value') : null;
     };
+    const numAttr = (sel) => {
+      const v = item.querySelector(sel)?.getAttribute('value');
+      const n = v !== null && v !== undefined ? parseInt(v, 10) : NaN;
+      return isNaN(n) || n <= 0 ? null : n;
+    };
     const yearNode = item.querySelector('yearpublished');
     const ratingNode = item.querySelector('statistics ratings average');
     const weightNode = item.querySelector('statistics ratings averageweight');
     const bggId = parseInt(item.getAttribute('id')) || null;
     const descNode = item.querySelector('description');
+    // Alle von BGG bekannten Namen (Primärname + Alternativtitel, z.B. deutsche
+    // Übersetzungen) – wird nur zur Namensauflösung beim Speichern verwendet,
+    // nicht dauerhaft in Firestore abgelegt.
+    const bggAllNames = Array.from(item.querySelectorAll('name')).map(n => ({
+      type: n.getAttribute('type'), value: n.getAttribute('value')
+    }));
     return {
       bggId,
       bggName: getPrimaryName(),
+      bggAllNames,
       bggYear: yearNode ? yearNode.getAttribute('value') : null,
       bggImageUrl: item.querySelector('image')?.textContent || item.querySelector('thumbnail')?.textContent || null,
       bggRating: ratingNode ? parseFloat(ratingNode.getAttribute('value')) : null,
       bggWeight: weightNode ? parseFloat(weightNode.getAttribute('value')) : null,
       bggUrl: bggId ? `https://boardgamegeek.com/boardgame/${bggId}` : null,
-      bggDescription: descNode ? decodeBggText(descNode.textContent) : null
+      bggDescription: descNode ? decodeBggText(descNode.textContent) : null,
+      bggMinPlayers: numAttr('minplayers'),
+      bggMaxPlayers: numAttr('maxplayers'),
+      bggPlayingTime: numAttr('playingtime') || numAttr('maxplaytime')
     };
+  }
+
+  // Löst den zu speichernden Namen auf: Wenn gerade frisch ein BGG-Treffer
+  // gewählt wurde (bggAllNames vorhanden) UND die Eingabe (Groß-/Kleinschreibung
+  // egal) einem der von BGG bekannten Namen entspricht – auch einem
+  // Alternativtitel wie der deutschen Übersetzung – wird exakt dessen
+  // BGG-Schreibweise übernommen. Passt nichts, gilt der BGG-Primärname als
+  // verlässliche Quelle. Ohne frischen BGG-Abgleich (z.B. reines Bearbeiten
+  // ohne neue Suche) bleibt die Eingabe unangetastet.
+  function resolveName(typedName, match) {
+    const typed = (typedName || '').trim();
+    if (!match) return typed;
+    if (!Array.isArray(match.bggAllNames)) return typed || match.bggName || '';
+    if (!typed) return match.bggName || '';
+    const typedLower = typed.toLowerCase();
+    const treffer = match.bggAllNames.find(n => n.value && n.value.trim().toLowerCase() === typedLower);
+    if (treffer) return treffer.value;
+    return match.bggName || typed;
   }
 
   try {
@@ -582,13 +659,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? `<span class="st-bgg-pill st-bgg-pill--rating">⭐ ${match.bggRating.toFixed(1)}</span>` : '';
       const weightHtml = typeof match.bggWeight === 'number' && !isNaN(match.bggWeight)
         ? `<span class="st-bgg-pill st-bgg-pill--weight">⚙️ ${match.bggWeight.toFixed(1)}</span>` : '';
+      const spielerStr = formatSpieler(match);
+      const dauerStr = formatDauer(match);
+      const spielerHtml = spielerStr ? `<span class="st-bgg-pill">👥 ${spielerStr}</span>` : '';
+      const dauerHtml = dauerStr ? `<span class="st-bgg-pill">⏱ ${dauerStr}</span>` : '';
       const linkHtml = match.bggUrl
         ? `<a class="st-bgg-link" href="${match.bggUrl}" target="_blank" rel="noopener noreferrer">Auf BGG ansehen ↗</a>` : '';
+      const resolvedName = resolveName(nameInput.value, match);
+      const speichernHinweis = resolvedName && resolvedName !== match.bggName
+        ? `<div class="cl-muted" style="font-size:.75rem; margin-top:.3rem;">Wird gespeichert als: <strong>${escapeHTML(resolvedName)}</strong></div>` : '';
       matchPreview.innerHTML = `
         ${match.bggImageUrl ? `<img src="${match.bggImageUrl}" alt="" referrerpolicy="no-referrer">` : ''}
         <div class="st-bgg-match__body">
           <div class="st-bgg-match__title">${escapeHTML(match.bggName || 'Unbekannt')}${match.bggYear ? ` <span class="cl-muted" style="font-weight:400;">(${escapeHTML(match.bggYear)})</span>` : ''}</div>
-          <div class="st-bgg-match__badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+          <div class="st-bgg-match__badges">${ratingHtml}${weightHtml}${spielerHtml}${dauerHtml}${linkHtml}</div>
+          ${speichernHinweis}
         </div>
         <button type="button" class="st-bgg-match__remove" title="BGG-Verknüpfung entfernen" aria-label="BGG-Verknüpfung entfernen">&times;</button>
       `;
@@ -687,6 +772,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mbList = document.getElementById('mbList');
   const mbCount = document.getElementById('mbCount');
   const mbSearchInput = document.getElementById('mbSearchInput');
+  const mbSortSelect = document.getElementById('mbSortSelect');
 
   let mitgebracht = [];
   let editingMbId = null;
@@ -702,6 +788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   mbSearchInput.addEventListener('input', renderMb);
+  mbSortSelect.addEventListener('change', renderMb);
 
   // Liest die Mitbringer-Liste eines Eintrags, kompatibel mit alten Einträgen
   // (die noch das einzelne Feld "mitbringer" statt "mitbringerListe" hatten).
@@ -723,7 +810,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function addMitgebracht() {
     if (!currentTreffenId) { mbError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
     const bggMatch = mbBggPicker.getMatch();
-    const name = (bggMatch?.bggName || mbNameInput.value.trim());
+    const name = resolveName(mbNameInput.value, bggMatch);
     const mitbringer = mbMitbringerInput.value.trim();
     const notiz = mbNoteToggle.checked ? mbNoteInput.value.trim() : '';
 
@@ -750,7 +837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const data = { name, updatedAt: new Date().toISOString() };
     if (notiz) data.notiz = notiz; else data.notiz = '';
-    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription'].forEach(f => {
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime'].forEach(f => {
       data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
     });
 
@@ -807,7 +894,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (item.bggId) {
       mbBggPicker.setMatch({
         bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
-        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription
+        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription,
+        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime
       });
     } else {
       mbBggPicker.clear();
@@ -868,7 +956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderMb() {
     const filter = mbSearchInput.value.trim().toLowerCase();
     const filtered = mitgebracht.filter(m => !filter || (m.name || '').toLowerCase().includes(filter));
-    const sorted = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+    const sorted = sortListe(filtered, mbSortSelect.value);
     mbCount.textContent = mitgebracht.length ? `(${mitgebracht.length})` : '';
 
     if (mitgebracht.length === 0) {
@@ -886,6 +974,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const countHtml = bringerListe.length > 1 ? `<span class="cl-badge cl-badge--ok">×${bringerListe.length}</span>` : '';
       const ratingHtml = typeof m.bggRating === 'number' ? `<span class="cl-badge cl-badge--warn">⭐ ${m.bggRating.toFixed(1)}</span>` : '';
       const weightHtml = typeof m.bggWeight === 'number' ? `<span class="cl-badge">⚙ ${m.bggWeight.toFixed(1)}</span>` : '';
+      const spielerStr = formatSpieler(m);
+      const dauerStr = formatDauer(m);
+      const spielerHtml = spielerStr ? `<span class="cl-badge">👥 ${spielerStr}</span>` : '';
+      const dauerHtml = dauerStr ? `<span class="cl-badge">⏱ ${dauerStr}</span>` : '';
       const linkHtml = m.bggUrl ? `<a class="st-bgg-link" href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">BGG ↗</a>` : '';
       const imgHtml = m.bggImageUrl ? `<img src="${m.bggImageUrl}" referrerpolicy="no-referrer" class="st-thumb">` : '';
       const nameHtml = m.bggUrl ? `<a href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(m.name)}</a>` : escapeHTML(m.name);
@@ -904,7 +996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="min-w-0">
                 <div class="st-item-name">${nameHtml}</div>
                 ${metaBits.length ? `<div class="st-item-meta">${metaBits.join(' · ')}</div>` : ''}
-                <div class="st-item-badges">${countHtml}${ratingHtml}${weightHtml}${linkHtml}</div>
+                <div class="st-item-badges">${countHtml}${ratingHtml}${weightHtml}${spielerHtml}${dauerHtml}${linkHtml}</div>
               </div>
             </div>
             <div class="st-item-right">
@@ -949,6 +1041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const wlList = document.getElementById('wlList');
   const wlCount = document.getElementById('wlCount');
   const wlSearchInput = document.getElementById('wlSearchInput');
+  const wlSortSelect = document.getElementById('wlSortSelect');
 
   let wuensche = [];
   let editingWlId = null;
@@ -959,11 +1052,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   wlSearchInput.addEventListener('input', renderWl);
+  wlSortSelect.addEventListener('change', renderWl);
 
   async function addWunsch() {
     if (!currentTreffenId) { wlError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
     const bggMatch = wlBggPicker.getMatch();
-    const name = (bggMatch?.bggName || wlNameInput.value.trim());
+    const name = resolveName(wlNameInput.value, bggMatch);
     const wunschVon = wlWunschVonInput.value.trim();
 
     if (!name) { wlError.textContent = 'Bitte einen Spielnamen eingeben.'; return; }
@@ -971,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const data = { name, updatedAt: new Date().toISOString() };
     data.wunschVon = wunschVon || '';
-    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription'].forEach(f => {
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime'].forEach(f => {
       data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
     });
 
@@ -1005,7 +1099,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (item.bggId) {
       wlBggPicker.setMatch({
         bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
-        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription
+        bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription,
+        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime
       });
     } else {
       wlBggPicker.clear();
@@ -1037,7 +1132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderWl() {
     const filter = wlSearchInput.value.trim().toLowerCase();
     const filtered = wuensche.filter(w => !filter || (w.name || '').toLowerCase().includes(filter));
-    const sorted = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+    const sorted = sortListe(filtered, wlSortSelect.value);
     wlCount.textContent = wuensche.length ? `(${wuensche.length})` : '';
 
     if (wuensche.length === 0) {
@@ -1051,6 +1146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     wlList.innerHTML = sorted.map(w => {
       const ratingHtml = typeof w.bggRating === 'number' ? `<span class="cl-badge cl-badge--warn">⭐ ${w.bggRating.toFixed(1)}</span>` : '';
       const weightHtml = typeof w.bggWeight === 'number' ? `<span class="cl-badge">⚙ ${w.bggWeight.toFixed(1)}</span>` : '';
+      const spielerStrW = formatSpieler(w);
+      const dauerStrW = formatDauer(w);
+      const spielerHtmlW = spielerStrW ? `<span class="cl-badge">👥 ${spielerStrW}</span>` : '';
+      const dauerHtmlW = dauerStrW ? `<span class="cl-badge">⏱ ${dauerStrW}</span>` : '';
       const linkHtml = w.bggUrl ? `<a class="st-bgg-link" href="${w.bggUrl}" target="_blank" rel="noopener noreferrer">BGG ↗</a>` : '';
       const imgHtml = w.bggImageUrl ? `<img src="${w.bggImageUrl}" referrerpolicy="no-referrer" class="st-thumb">` : '';
       const nameHtml = w.bggUrl ? `<a href="${w.bggUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(w.name)}</a>` : escapeHTML(w.name);
@@ -1066,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="min-w-0">
                 <div class="st-item-name">${nameHtml}</div>
                 ${wunschVonHtml}
-                <div class="st-item-badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+                <div class="st-item-badges">${ratingHtml}${weightHtml}${spielerHtmlW}${dauerHtmlW}${linkHtml}</div>
               </div>
             </div>
             <div class="st-item-right">
