@@ -37,6 +37,12 @@
 
     /* Suche / Filter */
     .st-filter-row { margin-bottom:var(--cl-space-3); }
+    .st-sort-row { display:flex; gap:.4rem; margin-top:.6rem; }
+    .st-sort-btn { background:var(--cl-surface-2); border:1px solid var(--cl-line); border-radius:var(--cl-radius-sm); padding:.4rem .7rem; font-size:1rem; line-height:1; cursor:pointer; color:var(--cl-muted); }
+    .st-sort-btn:hover, .st-sort-btn:focus-visible { color:var(--cl-text); }
+    .st-sort-btn--active { border-color:var(--cl-signal); color:var(--cl-navy-600); background:color-mix(in srgb, var(--cl-signal) 14%, transparent); }
+    [data-theme="dark"] .st-sort-btn--active { color:var(--cl-signal); }
+    @media (prefers-color-scheme:dark) { .st-sort-btn--active { color:var(--cl-signal); } }
 
     /* BGG-Suche (gemeinsam für beide Formulare) */
     .st-name-search-row { display:flex; gap:.5rem; }
@@ -206,13 +212,13 @@
                 <div class="cl-flex" style="justify-content:space-between; align-items:center;">
                     <h2 style="margin-bottom:0;">Diese Spiele werden mitgebracht <span id="mbCount" class="cl-muted"></span></h2>
                 </div>
-                <div class="st-filter-row" style="display:flex; gap:.5rem; margin-top:.75rem;">
-                    <input type="text" id="mbSearchInput" class="cl-input" style="flex:1; min-width:120px;" placeholder="🔍 Liste durchsuchen…">
-                    <select id="mbSortSelect" class="cl-input" style="flex:0 0 auto;">
-                        <option value="name">Name (A–Z)</option>
-                        <option value="rating">BGG-Bewertung</option>
-                        <option value="weight">Komplexität</option>
-                    </select>
+                <div class="st-filter-row" style="margin-top:.75rem;">
+                    <input type="text" id="mbSearchInput" class="cl-input" style="width:100%;" placeholder="🔍 Liste durchsuchen…">
+                    <div class="st-sort-row" role="group" aria-label="Sortierung">
+                        <button type="button" class="st-sort-btn st-sort-btn--active" data-sort="name" title="Nach Name sortieren" aria-label="Nach Name sortieren">🔤</button>
+                        <button type="button" class="st-sort-btn" data-sort="rating" title="Nach BGG-Bewertung sortieren" aria-label="Nach BGG-Bewertung sortieren">⭐</button>
+                        <button type="button" class="st-sort-btn" data-sort="weight" title="Nach Komplexität sortieren" aria-label="Nach Komplexität sortieren">⚙️</button>
+                    </div>
                 </div>
                 <div id="mbList"><p class="st-empty-hint">Noch keine Spiele eingetragen.</p></div>
             </div>
@@ -251,13 +257,13 @@
                 <div class="cl-flex" style="justify-content:space-between; align-items:center;">
                     <h2 style="margin-bottom:0;">Wunschliste <span id="wlCount" class="cl-muted"></span></h2>
                 </div>
-                <div class="st-filter-row" style="display:flex; gap:.5rem; margin-top:.75rem;">
-                    <input type="text" id="wlSearchInput" class="cl-input" style="flex:1; min-width:120px;" placeholder="🔍 Liste durchsuchen…">
-                    <select id="wlSortSelect" class="cl-input" style="flex:0 0 auto;">
-                        <option value="name">Name (A–Z)</option>
-                        <option value="rating">BGG-Bewertung</option>
-                        <option value="weight">Komplexität</option>
-                    </select>
+                <div class="st-filter-row" style="margin-top:.75rem;">
+                    <input type="text" id="wlSearchInput" class="cl-input" style="width:100%;" placeholder="🔍 Liste durchsuchen…">
+                    <div class="st-sort-row" role="group" aria-label="Sortierung">
+                        <button type="button" class="st-sort-btn st-sort-btn--active" data-sort="name" title="Nach Name sortieren" aria-label="Nach Name sortieren">🔤</button>
+                        <button type="button" class="st-sort-btn" data-sort="rating" title="Nach BGG-Bewertung sortieren" aria-label="Nach BGG-Bewertung sortieren">⭐</button>
+                        <button type="button" class="st-sort-btn" data-sort="weight" title="Nach Komplexität sortieren" aria-label="Nach Komplexität sortieren">⚙️</button>
+                    </div>
                 </div>
                 <div id="wlList"><p class="st-empty-hint">Noch keine Wünsche eingetragen.</p></div>
             </div>
@@ -281,7 +287,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.2</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.4</span></div>
 </footer>
 
 <script type="module">
@@ -327,7 +333,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return m.bggMinPlayers || m.bggMaxPlayers || null;
   }
   function formatDauer(m) {
-    return m.bggPlayingTime ? `${m.bggPlayingTime} Min` : null;
+    const min = m.bggMinPlaytime;
+    const max = m.bggMaxPlaytime;
+    if (min && max && min !== max) return `${min}–${max} Min`;
+    if (m.bggPlayingTime) return `${m.bggPlayingTime} Min`;
+    if (max) return `${max} Min`;
+    if (min) return `${min} Min`;
+    return null;
   }
 
   // Gemeinsame Sortierfunktion für beide Listen (Name / BGG-Bewertung / Komplexität).
@@ -405,7 +417,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       bggDescription: descNode ? decodeBggText(descNode.textContent) : null,
       bggMinPlayers: numAttr('minplayers'),
       bggMaxPlayers: numAttr('maxplayers'),
-      bggPlayingTime: numAttr('playingtime') || numAttr('maxplaytime')
+      bggPlayingTime: numAttr('playingtime'),
+      bggMinPlaytime: numAttr('minplaytime'),
+      bggMaxPlaytime: numAttr('maxplaytime')
     };
   }
 
@@ -772,7 +786,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mbList = document.getElementById('mbList');
   const mbCount = document.getElementById('mbCount');
   const mbSearchInput = document.getElementById('mbSearchInput');
-  const mbSortSelect = document.getElementById('mbSortSelect');
+  const mbSortButtons = document.querySelectorAll('#panelMitgebracht .st-sort-btn');
+  let mbSortMode = 'name';
+  mbSortButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      mbSortMode = btn.dataset.sort;
+      mbSortButtons.forEach(b => b.classList.toggle('st-sort-btn--active', b === btn));
+      renderMb();
+    });
+  });
 
   let mitgebracht = [];
   let editingMbId = null;
@@ -788,7 +810,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   mbSearchInput.addEventListener('input', renderMb);
-  mbSortSelect.addEventListener('change', renderMb);
 
   // Liest die Mitbringer-Liste eines Eintrags, kompatibel mit alten Einträgen
   // (die noch das einzelne Feld "mitbringer" statt "mitbringerListe" hatten).
@@ -837,7 +858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const data = { name, updatedAt: new Date().toISOString() };
     if (notiz) data.notiz = notiz; else data.notiz = '';
-    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime'].forEach(f => {
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime', 'bggMinPlaytime', 'bggMaxPlaytime'].forEach(f => {
       data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
     });
 
@@ -895,7 +916,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       mbBggPicker.setMatch({
         bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
         bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription,
-        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime
+        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime,
+        bggMinPlaytime: item.bggMinPlaytime, bggMaxPlaytime: item.bggMaxPlaytime
       });
     } else {
       mbBggPicker.clear();
@@ -956,7 +978,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderMb() {
     const filter = mbSearchInput.value.trim().toLowerCase();
     const filtered = mitgebracht.filter(m => !filter || (m.name || '').toLowerCase().includes(filter));
-    const sorted = sortListe(filtered, mbSortSelect.value);
+    const sorted = sortListe(filtered, mbSortMode);
     mbCount.textContent = mitgebracht.length ? `(${mitgebracht.length})` : '';
 
     if (mitgebracht.length === 0) {
@@ -1041,7 +1063,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const wlList = document.getElementById('wlList');
   const wlCount = document.getElementById('wlCount');
   const wlSearchInput = document.getElementById('wlSearchInput');
-  const wlSortSelect = document.getElementById('wlSortSelect');
+  const wlSortButtons = document.querySelectorAll('#panelWunschliste .st-sort-btn');
+  let wlSortMode = 'name';
+  wlSortButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      wlSortMode = btn.dataset.sort;
+      wlSortButtons.forEach(b => b.classList.toggle('st-sort-btn--active', b === btn));
+      renderWl();
+    });
+  });
 
   let wuensche = [];
   let editingWlId = null;
@@ -1052,7 +1082,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   wlSearchInput.addEventListener('input', renderWl);
-  wlSortSelect.addEventListener('change', renderWl);
 
   async function addWunsch() {
     if (!currentTreffenId) { wlError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
@@ -1065,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const data = { name, updatedAt: new Date().toISOString() };
     data.wunschVon = wunschVon || '';
-    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime'].forEach(f => {
+    ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription', 'bggMinPlayers', 'bggMaxPlayers', 'bggPlayingTime', 'bggMinPlaytime', 'bggMaxPlaytime'].forEach(f => {
       data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
     });
 
@@ -1100,7 +1129,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       wlBggPicker.setMatch({
         bggId: item.bggId, bggName: item.bggName, bggYear: item.bggYear, bggImageUrl: item.bggImageUrl,
         bggUrl: item.bggUrl, bggRating: item.bggRating, bggWeight: item.bggWeight, bggDescription: item.bggDescription,
-        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime
+        bggMinPlayers: item.bggMinPlayers, bggMaxPlayers: item.bggMaxPlayers, bggPlayingTime: item.bggPlayingTime,
+        bggMinPlaytime: item.bggMinPlaytime, bggMaxPlaytime: item.bggMaxPlaytime
       });
     } else {
       wlBggPicker.clear();
@@ -1132,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderWl() {
     const filter = wlSearchInput.value.trim().toLowerCase();
     const filtered = wuensche.filter(w => !filter || (w.name || '').toLowerCase().includes(filter));
-    const sorted = sortListe(filtered, wlSortSelect.value);
+    const sorted = sortListe(filtered, wlSortMode);
     wlCount.textContent = wuensche.length ? `(${wuensche.length})` : '';
 
     if (wuensche.length === 0) {
