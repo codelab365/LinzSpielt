@@ -162,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v52</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v53</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -744,8 +744,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v52 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v53 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v53 — BGG-Suche liefert jetzt die relevantesten Treffer zuerst statt in
+//        BGG-interner (nicht nach Relevanz sortierter) Reihenfolge. Betraf
+//        z.B. das Kartenspiel "Odin", das bei der reinen BGG-Reihenfolge
+//        unter den vielen Treffern zu "Odin" (Erweiterungen, ähnliche
+//        Titel etc.) gar nicht mehr unter den ersten 20 angezeigten
+//        Ergebnissen auftauchte. Neue Sortierung bevorzugt: 1) exakte
+//        Namensübereinstimmung, 2) Titel beginnt mit dem Suchbegriff als
+//        eigenes Wort, 3) Suchbegriff kommt als eigenes Wort im Titel vor,
+//        4/5) sonstige Teilübereinstimmungen. Betrifft sowohl die manuelle
+//        "🎲 BGG suchen"-Trefferliste im Spiel-Formular als auch den
+//        automatischen Hintergrund-Abgleich (Scan-Warteschlange, Stage-1-
+//        Übernahme, BGStats-Import) — dort wurde bisher unsortiert der
+//        erste BGG-Treffer übernommen.
 //   v52 — Neue eigenständige Seite preistraeger.html: zeigt alle 164
 //        Preisträger (Spiel des Jahres, Kennerspiel, Kinderspiel,
 //        Sonderpreis Kinderspiel bis 2000, Deutscher &amp; Österreichischer
@@ -1151,11 +1164,77 @@ function parseBggDetails(xmlDoc) {
     };
 }
 
+// --- BGG-Suchergebnisse nach Relevanz sortieren ---
+// Grund: Die BGG-Such-API liefert Treffer nicht nach Relevanz sortiert,
+// sondern anscheinend nach interner BGG-ID. Bei kurzen/häufigen Titeln wie
+// "Odin" geht der eigentlich gesuchte exakte Treffer dadurch in den vielen
+// Treffern unter, deren Titel "Odin" nur enthalten (z.B. Erweiterungen,
+// thematisch ähnliche Titel etc.) und kann sogar aus den ersten 20
+// angezeigten Treffern herausfallen.
+function normalizeBggName(s) {
+    return (s || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Akzente entfernen
+        .replace(/[^a-z0-9 ]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// Niedrigerer Score = besserer Treffer.
+function scoreBggNameMatch(name, query) {
+    const n = normalizeBggName(name);
+    const q = normalizeBggName(query);
+    if (!q || !n) return 9;
+    if (n === q) return 0;
+    const wordBoundary = new RegExp(`\\b${escapeRegExp(q)}\\b`);
+    if (n.startsWith(q) && wordBoundary.test(n)) return 1; // Titel beginnt mit dem Suchwort als eigenes Wort
+    if (wordBoundary.test(n)) return 2; // Suchwort kommt als eigenes Wort irgendwo im Titel vor
+    if (n.startsWith(q)) return 3; // Titel beginnt mit der Zeichenfolge (kein Wortanfang)
+    if (n.includes(q)) return 4; // Zeichenfolge kommt irgendwo vor
+    return 5;
+}
+
+// Bestimmt für ein <item> aus der BGG-Suche den besten Score über alle
+// enthaltenen <name>-Knoten (primary + alternate) sowie den dazugehörigen
+// Namen/das Erscheinungsjahr für die Anzeige.
+function evaluateBggSearchItem(item, query) {
+    const nameNodes = Array.from(item.querySelectorAll('name'));
+    let best = { score: 9, name: 'Unbekannt' };
+    for (const n of nameNodes) {
+        const value = n.getAttribute('value') || '';
+        const score = scoreBggNameMatch(value, query);
+        if (score < best.score || (score === best.score && n.getAttribute('type') === 'primary')) {
+            best = { score, name: value };
+        }
+    }
+    const yearNode = item.querySelector('yearpublished');
+    return {
+        id: item.getAttribute('id'),
+        name: best.name,
+        year: yearNode ? yearNode.getAttribute('value') : '',
+        score: best.score,
+        hasYear: !!yearNode
+    };
+}
+
+// Sortiert BGG-Suchtreffer nach Relevanz zur Eingabe (beste zuerst).
+function rankBggSearchItems(xmlDoc, query) {
+    return Array.from(xmlDoc.querySelectorAll('item'))
+        .map(item => evaluateBggSearchItem(item, query))
+        .sort((a, b) => {
+            if (a.score !== b.score) return a.score - b.score;
+            if (a.hasYear !== b.hasYear) return a.hasYear ? -1 : 1; // veröffentlichte Spiele vor Prototypen etc.
+            return a.name.length - b.name.length; // kürzerer, näherer Name zuerst
+        });
+}
+
 async function bggSearchAndFetchBest(title) {
     const searchXml = await callBggApi('search', { query: title, type: 'boardgame' });
-    const firstItem = searchXml.querySelector('item');
-    if (!firstItem) return null;
-    const id = firstItem.getAttribute('id');
+    const ranked = rankBggSearchItems(searchXml, title);
+    if (ranked.length === 0) return null;
+    const id = ranked[0].id;
     const detailXml = await callBggApi('thing', { id, stats: 1 });
     return parseBggDetails(detailXml);
 }
@@ -2056,14 +2135,13 @@ document.addEventListener('DOMContentLoaded', () => {
         results.innerHTML = '<p class="qb-bgg-hint">Suche auf BGG…</p>';
         try {
             const xmlDoc = await callBggApi('search', { query: q, type: 'boardgame' });
-            const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 20);
-            if (items.length === 0) { results.innerHTML = '<p class="qb-bgg-hint">Keine Treffer auf BGG gefunden.</p>'; return; }
-            results.innerHTML = items.map(item => {
-                const id = item.getAttribute('id');
-                const nameNode = item.querySelector('name');
-                const yearNode = item.querySelector('yearpublished');
-                const name = nameNode ? nameNode.getAttribute('value') : 'Unbekannt';
-                const year = yearNode ? yearNode.getAttribute('value') : '';
+            // Erst alle Treffer nach Relevanz sortieren, dann erst auf die
+            // angezeigte Anzahl kürzen — sonst kann der eigentlich gesuchte
+            // Treffer bei häufigen/kurzen Titeln unter den ersten 20 (in
+            // BGG-interner Reihenfolge) fehlen.
+            const ranked = rankBggSearchItems(xmlDoc, q).slice(0, 20);
+            if (ranked.length === 0) { results.innerHTML = '<p class="qb-bgg-hint">Keine Treffer auf BGG gefunden.</p>'; return; }
+            results.innerHTML = ranked.map(({ id, name, year }) => {
                 return `<div class="qb-bgg-result-item" data-id="${id}"><span>${escapeHTML(name)}</span><span class="qb-bgg-result-item__year">${escapeHTML(year)}</span></div>`;
             }).join('');
         } catch (err) {
