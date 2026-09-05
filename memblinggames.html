@@ -150,6 +150,7 @@
                 <div id="meetingTitle" class="st-meeting-title"></div>
                 <div id="meetingDate" class="st-meeting-date"></div>
             </div>
+            <button id="deleteTreffenBtn" class="cl-btn cl-btn--ghost cl-btn--sm" title="Treffen löschen" style="color:var(--cl-err); border-color:var(--cl-err);">🗑 Treffen löschen</button>
         </div>
     </div>
 
@@ -261,13 +262,13 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.4</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.6</span></div>
 </footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const firebaseConfig = {
@@ -369,6 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const meetingInfo = document.getElementById('meetingInfo');
   const meetingTitle = document.getElementById('meetingTitle');
   const meetingDate = document.getElementById('meetingDate');
+  const deleteTreffenBtn = document.getElementById('deleteTreffenBtn');
   const appBody = document.getElementById('appBody');
 
   const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -462,6 +464,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   treffenSelect.addEventListener('change', () => selectTreffen(treffenSelect.value));
 
+  deleteTreffenBtn.addEventListener('click', async () => {
+    if (!currentTreffenId) return;
+    const t = treffenListe.find(x => x.id === currentTreffenId);
+    const label = t ? t.titel : 'dieses Treffen';
+    const idToDelete = currentTreffenId;
+    const ok = await deleteTreffenCascade(idToDelete, label);
+    if (ok) {
+      treffenSelect.value = '';
+      selectTreffen(null);
+    }
+  });
+
   function selectTreffen(id) {
     currentTreffenId = id || null;
     if (unsubMitgebracht) { unsubMitgebracht(); unsubMitgebracht = null; }
@@ -501,16 +515,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   const LOESCH_PASSWORT = 'spieleversum';
   async function deleteWithPassword(collectionPath, id, label) {
     const pw = prompt(`Zum Löschen von "${label}" bitte das Passwort eingeben:`);
-    if (pw === null) return; // abgebrochen
+    if (pw === null) return false; // abgebrochen
     if (pw.trim().toLowerCase() !== LOESCH_PASSWORT) {
       alert('Falsches Passwort – der Eintrag wurde nicht gelöscht.');
-      return;
+      return false;
     }
     try {
       await deleteDoc(doc(collection(db, collectionPath), id));
+      return true;
     } catch (e) {
       console.error(e);
       alert(`Fehler beim Löschen (${e.code || e.message || e}).`);
+      return false;
+    }
+  }
+
+  // Löscht ein Treffen inkl. aller zugehörigen Einträge in "mitgebracht" und
+  // "wunschliste" (Firestore löscht Unterkollektionen NICHT automatisch mit,
+  // daher werden sie hier zuerst einzeln entfernt).
+  async function deleteTreffenCascade(treffenId, label) {
+    const pw = prompt(`Zum endgültigen Löschen von "${label}" inkl. aller eingetragenen Spiele und Wünsche bitte das Passwort eingeben:`);
+    if (pw === null) return false; // abgebrochen
+    if (pw.trim().toLowerCase() !== LOESCH_PASSWORT) {
+      alert('Falsches Passwort – nichts wurde gelöscht.');
+      return false;
+    }
+    try {
+      const mbRef = collection(db, `spieleversum_treffen/${treffenId}/mitgebracht`);
+      const wlRef = collection(db, `spieleversum_treffen/${treffenId}/wunschliste`);
+      const [mbSnap, wlSnap] = await Promise.all([getDocs(mbRef), getDocs(wlRef)]);
+      const loeschungen = [];
+      mbSnap.forEach(d => loeschungen.push(deleteDoc(d.ref)));
+      wlSnap.forEach(d => loeschungen.push(deleteDoc(d.ref)));
+      await Promise.all(loeschungen);
+      await deleteDoc(doc(collection(db, 'spieleversum_treffen'), treffenId));
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert(`Fehler beim Löschen (${e.code || e.message || e}).`);
+      return false;
     }
   }
 
