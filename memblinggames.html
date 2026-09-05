@@ -188,6 +188,7 @@
                     </div>
                     <input type="text" id="mbNoteInput" placeholder="z.B. neue Erweiterung dabei, nur bei Bedarf, ..." class="cl-input cl-hidden">
                 </div>
+                <p class="cl-muted" style="font-size:.78rem; margin-top:.4rem;">Steht das Spiel schon in der Liste, wird automatisch nur eine weitere Person/Exemplar ergänzt – kein doppelter Eintrag.</p>
                 <div class="cl-flex" style="justify-content:space-between; align-items:center; margin-top:.6rem;">
                     <p id="mbError" class="st-error"></p>
                     <div class="cl-flex">
@@ -262,7 +263,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.6</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.8</span></div>
 </footer>
 
 <script type="module">
@@ -513,6 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- LÖSCHEN MIT PASSWORT (Hinweis: reine Bremse gegen Versehen, kein echter Zugriffsschutz) ---
   const LOESCH_PASSWORT = 'spieleversum';
+  const TREFFEN_LOESCH_PASSWORT = 'spieleversum#'; // eigenes, stärkeres Passwort fürs Löschen eines ganzen Treffens
   async function deleteWithPassword(collectionPath, id, label) {
     const pw = prompt(`Zum Löschen von "${label}" bitte das Passwort eingeben:`);
     if (pw === null) return false; // abgebrochen
@@ -536,7 +538,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function deleteTreffenCascade(treffenId, label) {
     const pw = prompt(`Zum endgültigen Löschen von "${label}" inkl. aller eingetragenen Spiele und Wünsche bitte das Passwort eingeben:`);
     if (pw === null) return false; // abgebrochen
-    if (pw.trim().toLowerCase() !== LOESCH_PASSWORT) {
+    if (pw.trim().toLowerCase() !== TREFFEN_LOESCH_PASSWORT) {
       alert('Falsches Passwort – nichts wurde gelöscht.');
       return false;
     }
@@ -681,6 +683,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   mbSearchInput.addEventListener('input', renderMb);
 
+  // Liest die Mitbringer-Liste eines Eintrags, kompatibel mit alten Einträgen
+  // (die noch das einzelne Feld "mitbringer" statt "mitbringerListe" hatten).
+  function getMitbringerListe(item) {
+    if (Array.isArray(item.mitbringerListe)) return item.mitbringerListe;
+    return item.mitbringer ? [item.mitbringer] : [];
+  }
+
+  // Findet ein bereits vorhandenes Spiel in der aktuellen Liste (per BGG-ID
+  // oder, falls keine Verknüpfung vorhanden, per Namensgleichheit).
+  function findExistingMb(name, bggId) {
+    const nameLower = name.trim().toLowerCase();
+    return mitgebracht.find(m =>
+      (bggId && m.bggId && m.bggId === bggId) ||
+      (m.name || '').trim().toLowerCase() === nameLower
+    );
+  }
+
   async function addMitgebracht() {
     if (!currentTreffenId) { mbError.textContent = 'Bitte zuerst ein Treffen wählen.'; return; }
     const bggMatch = mbBggPicker.getMatch();
@@ -691,8 +710,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!name) { mbError.textContent = 'Bitte einen Spielnamen eingeben.'; return; }
     mbError.textContent = '';
 
+    // Neuer Eintrag (nicht im Bearbeiten-Modus): prüfen, ob dieses Spiel schon
+    // in der Liste ist -> dann als weiteres Exemplar/Person ergänzen statt Duplikat anlegen.
+    if (!editingMbId) {
+      const existing = findExistingMb(name, bggMatch?.bggId);
+      if (existing) {
+        const neueListe = [...getMitbringerListe(existing), mitbringer];
+        try {
+          const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
+          await updateDoc(doc(ref, existing.id), { mitbringerListe: neueListe, updatedAt: new Date().toISOString() });
+          resetMbForm();
+        } catch (e) {
+          console.error(e);
+          mbError.textContent = `Fehler beim Speichern (${e.code || e.message || e}).`;
+        }
+        return;
+      }
+    }
+
     const data = { name, updatedAt: new Date().toISOString() };
-    if (mitbringer) data.mitbringer = mitbringer; else data.mitbringer = '';
     if (notiz) data.notiz = notiz; else data.notiz = '';
     ['bggId', 'bggName', 'bggYear', 'bggImageUrl', 'bggUrl', 'bggRating', 'bggWeight', 'bggDescription'].forEach(f => {
       data[f] = bggMatch && bggMatch[f] !== undefined && bggMatch[f] !== null ? bggMatch[f] : null;
@@ -701,29 +737,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
       if (editingMbId) {
+        // mitbringerListe bewusst NICHT mitschicken -> bleibt unangetastet erhalten
         await updateDoc(doc(ref, editingMbId), data);
         stopEditMb();
       } else {
+        data.mitbringerListe = mitbringer ? [mitbringer] : [];
         data.createdAt = new Date().toISOString();
         await addDoc(ref, data);
       }
-      mbNameInput.value = ''; mbMitbringerInput.value = '';
-      mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden');
-      mbBggPicker.clear();
-      mbBggResultsPanel.classList.add('cl-hidden'); mbBggResultsList.innerHTML = '';
-      mbNameInput.focus();
+      resetMbForm();
     } catch (e) {
       console.error(e);
       mbError.textContent = `Fehler beim Speichern (${e.code || e.message || e}).`;
     }
   }
+  function resetMbForm() {
+    mbNameInput.value = ''; mbMitbringerInput.value = '';
+    mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden');
+    mbBggPicker.clear();
+    mbBggResultsPanel.classList.add('cl-hidden'); mbBggResultsList.innerHTML = '';
+    mbNameInput.focus();
+  }
   mbAddBtn.addEventListener('click', addMitgebracht);
   mbNameInput.addEventListener('keypress', e => e.key === 'Enter' && addMitgebracht());
+
+  // "+"-Button: Spiel ist schon in der Liste -> weitere Person/Exemplar ergänzen,
+  // ohne einen zweiten Listeneintrag anzulegen.
+  async function addWeiteresExemplar(item) {
+    const name = prompt(`Wer bringt "${item.name}" zusätzlich mit? (Name optional, einfach leer lassen)`, '');
+    if (name === null) return; // abgebrochen
+    const neueListe = [...getMitbringerListe(item), name.trim()];
+    try {
+      const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
+      await updateDoc(doc(ref, item.id), { mitbringerListe: neueListe, updatedAt: new Date().toISOString() });
+    } catch (e) {
+      console.error(e);
+      alert(`Fehler beim Hinzufügen (${e.code || e.message || e}).`);
+    }
+  }
 
   function startEditMb(item) {
     editingMbId = item.id;
     mbNameInput.value = item.name || '';
-    mbMitbringerInput.value = item.mitbringer || '';
+    const bringerListe = getMitbringerListe(item).filter(Boolean);
+    mbMitbringerInput.value = '';
+    mbMitbringerInput.disabled = true;
+    mbMitbringerInput.placeholder = bringerListe.length ? `Aktuell: ${bringerListe.join(', ')} (über „+ Exemplar" in der Liste ergänzbar)` : 'über „+ Exemplar" in der Liste ergänzbar';
     if (item.notiz) { mbNoteToggle.checked = true; mbNoteInput.value = item.notiz; mbNoteInput.classList.remove('cl-hidden'); }
     else { mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden'); }
     if (item.bggId) {
@@ -742,9 +801,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     editingMbId = null;
     mbCancelEditBtn.classList.add('cl-hidden');
     mbAddBtn.textContent = 'Eintragen';
-    mbNameInput.value = ''; mbMitbringerInput.value = '';
-    mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden');
-    mbBggPicker.clear();
+    mbMitbringerInput.disabled = false;
+    mbMitbringerInput.placeholder = 'Name / Kürzel';
+    resetMbForm();
   }
   mbCancelEditBtn.addEventListener('click', stopEditMb);
 
@@ -773,13 +832,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     mbList.innerHTML = sorted.map(m => {
+      const bringerListe = getMitbringerListe(m);
+      const namedBringers = bringerListe.filter(Boolean);
+      const anzahlOhneName = bringerListe.length - namedBringers.length;
+      const countHtml = bringerListe.length > 1 ? `<span class="cl-badge cl-badge--ok">×${bringerListe.length}</span>` : '';
       const ratingHtml = typeof m.bggRating === 'number' ? `<span class="cl-badge cl-badge--warn">⭐ ${m.bggRating.toFixed(1)}</span>` : '';
       const weightHtml = typeof m.bggWeight === 'number' ? `<span class="cl-badge">⚙ ${m.bggWeight.toFixed(1)}</span>` : '';
       const linkHtml = m.bggUrl ? `<a class="st-bgg-link" href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">BGG ↗</a>` : '';
       const imgHtml = m.bggImageUrl ? `<img src="${m.bggImageUrl}" referrerpolicy="no-referrer" class="st-thumb">` : '';
       const nameHtml = m.bggUrl ? `<a href="${m.bggUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(m.name)}</a>` : escapeHTML(m.name);
       const metaBits = [];
-      if (m.mitbringer) metaBits.push(`mitgebracht von ${escapeHTML(m.mitbringer)}`);
+      if (namedBringers.length > 0) {
+        metaBits.push(`mitgebracht von ${namedBringers.map(escapeHTML).join(', ')}${anzahlOhneName > 0 ? ` (+${anzahlOhneName} ohne Namensangabe)` : ''}`);
+      } else if (bringerListe.length > 0) {
+        metaBits.push(`${bringerListe.length}× verfügbar (ohne Namensangabe)`);
+      }
       if (m.notiz) metaBits.push(escapeHTML(m.notiz));
       return `
         <div class="st-item">
@@ -789,10 +856,11 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="min-w-0">
                 <div class="st-item-name">${nameHtml}</div>
                 ${metaBits.length ? `<div class="st-item-meta">${metaBits.join(' · ')}</div>` : ''}
-                <div class="st-item-badges">${ratingHtml}${weightHtml}${linkHtml}</div>
+                <div class="st-item-badges">${countHtml}${ratingHtml}${weightHtml}${linkHtml}</div>
               </div>
             </div>
             <div class="st-item-right">
+              <button class="cl-btn cl-btn--ghost cl-btn--sm" data-plus-id="${m.id}" title="Weiteres Exemplar / weitere Person ergänzen">+ Exemplar</button>
               <button class="cl-btn cl-btn--ghost cl-btn--sm" data-edit-id="${m.id}">Bearbeiten</button>
               <button class="st-delete-btn" data-delete-id="${m.id}" title="Eintrag löschen" aria-label="Eintrag löschen">&times;</button>
             </div>
@@ -800,6 +868,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${descHtml(m)}
         </div>`;
     }).join('');
+    mbList.querySelectorAll('button[data-plus-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = mitgebracht.find(x => x.id === btn.dataset.plusId);
+        if (item) addWeiteresExemplar(item);
+      });
+    });
     mbList.querySelectorAll('button[data-edit-id]').forEach(btn => {
       btn.addEventListener('click', () => {
         const item = mitgebracht.find(x => x.id === btn.dataset.editId);
