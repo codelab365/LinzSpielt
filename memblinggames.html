@@ -63,6 +63,9 @@
     /* Formulare */
     .st-form-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--cl-space-2); }
     .st-checkbox-row { display:flex; align-items:center; gap:.5rem; font-size:.9rem; color:var(--cl-text); }
+    .st-chip-row { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+    .st-chip { display:inline-flex; align-items:center; gap:.3rem; font-size:.8rem; padding:.2rem .3rem .2rem .6rem; border-radius:var(--cl-radius-pill); background:var(--cl-surface-2); border:1px solid var(--cl-line); }
+    .st-chip button { background:none; border:none; color:var(--cl-err); cursor:pointer; font-size:1rem; line-height:1; padding:0 .3rem; }
     .st-error { color:var(--cl-err); font-size:.85rem; min-height:1.2rem; }
 
     /* Liste */
@@ -180,6 +183,7 @@
                         <div>
                             <label for="mbMitbringerInput" class="cl-label">Wer bringt es mit? (optional)</label>
                             <input type="text" id="mbMitbringerInput" class="cl-input" placeholder="Name / Kürzel">
+                            <div id="mbEditBringerList" class="st-chip-row cl-hidden"></div>
                         </div>
                         <div>
                             <label class="cl-label">&nbsp;</label>
@@ -263,7 +267,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.8</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v1.9</span></div>
 </footer>
 
 <script type="module">
@@ -659,6 +663,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mbBggResultsList = document.getElementById('mbBggResultsList');
   const mbBggMatchPreview = document.getElementById('mbBggMatchPreview');
   const mbMitbringerInput = document.getElementById('mbMitbringerInput');
+  const mbEditBringerList = document.getElementById('mbEditBringerList');
   const mbNoteToggle = document.getElementById('mbNoteToggle');
   const mbNoteInput = document.getElementById('mbNoteInput');
   const mbAddBtn = document.getElementById('mbAddBtn');
@@ -779,11 +784,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   function startEditMb(item) {
     editingMbId = item.id;
     mbNameInput.value = item.name || '';
-    const bringerListe = getMitbringerListe(item).filter(Boolean);
     mbMitbringerInput.value = '';
     mbMitbringerInput.disabled = true;
-    mbMitbringerInput.placeholder = bringerListe.length ? `Aktuell: ${bringerListe.join(', ')} (über „+ Exemplar" in der Liste ergänzbar)` : 'über „+ Exemplar" in der Liste ergänzbar';
-    if (item.notiz) { mbNoteToggle.checked = true; mbNoteInput.value = item.notiz; mbNoteInput.classList.remove('cl-hidden'); }
+    mbMitbringerInput.placeholder = 'neue Person: über „+ Exemplar" in der Liste ergänzbar';
+    renderMbEditBringerList(item.id);    if (item.notiz) { mbNoteToggle.checked = true; mbNoteInput.value = item.notiz; mbNoteInput.classList.remove('cl-hidden'); }
     else { mbNoteToggle.checked = false; mbNoteInput.value = ''; mbNoteInput.classList.add('cl-hidden'); }
     if (item.bggId) {
       mbBggPicker.setMatch({
@@ -797,12 +801,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     mbAddBtn.textContent = 'Änderungen speichern';
     mbNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+
+  // Zeigt die aktuellen Mitbringer:innen eines Eintrags als entfernbare Chips
+  // (nur sichtbar/aktiv während des Bearbeitens dieses Eintrags).
+  function renderMbEditBringerList(itemId, listeOverride) {
+    const item = mitgebracht.find(x => x.id === itemId);
+    const liste = listeOverride !== undefined ? listeOverride : (item ? getMitbringerListe(item) : []);
+    if (!liste.length) { mbEditBringerList.innerHTML = ''; mbEditBringerList.classList.add('cl-hidden'); return; }
+    mbEditBringerList.classList.remove('cl-hidden');
+    mbEditBringerList.innerHTML = liste.map((name, idx) =>
+      `<span class="st-chip">${escapeHTML(name && name.trim() ? name : 'ohne Namensangabe')}<button type="button" data-remove-idx="${idx}" title="Exemplar entfernen" aria-label="Exemplar entfernen">&times;</button></span>`
+    ).join('');
+    mbEditBringerList.querySelectorAll('button[data-remove-idx]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.removeIdx, 10);
+        const neueListe = liste.filter((_, i) => i !== idx);
+        try {
+          const ref = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
+          await updateDoc(doc(ref, itemId), { mitbringerListe: neueListe, updatedAt: new Date().toISOString() });
+          renderMbEditBringerList(itemId, neueListe);
+        } catch (e) {
+          console.error(e);
+          alert(`Fehler beim Entfernen (${e.code || e.message || e}).`);
+        }
+      });
+    });
+  }
+
   function stopEditMb() {
     editingMbId = null;
     mbCancelEditBtn.classList.add('cl-hidden');
     mbAddBtn.textContent = 'Eintragen';
     mbMitbringerInput.disabled = false;
     mbMitbringerInput.placeholder = 'Name / Kürzel';
+    mbEditBringerList.innerHTML = '';
+    mbEditBringerList.classList.add('cl-hidden');
     resetMbForm();
   }
   mbCancelEditBtn.addEventListener('click', stopEditMb);
