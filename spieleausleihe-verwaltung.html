@@ -162,7 +162,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v53</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v54</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -744,8 +744,22 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v53 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v54 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v54 — Regale eines Events können jetzt umbenannt werden ("Umbenennen"-
+//        Button auf jeder Regal-Karte im Event-Fenster). Da Spiele im
+//        Event nur die Regal-ID (nicht den Namen) speichern, wirkt eine
+//        Umbenennung sofort überall (Dropdowns, Tresen, Rückgabe-Hinweise,
+//        Preisträger-Abgleich), ohne einzelne Spiel-Einträge anzufassen.
+//        Wird beim Umbenennen ein Name gewählt, den in diesem Event
+//        bereits ein anderes Regal trägt, erscheint statt einer stillen
+//        Umbenennung eine Rückfrage: Wirklich alle Spiele aus dem
+//        umbenannten Regal dem bestehenden gleichnamigen Regal zuordnen
+//        (= zusammenführen)? Erst nach Bestätigung werden die betroffenen
+//        Spiele umgehängt und das leere Regal gelöscht.
+//        (Hinweis: Ein einzelnes Spiel während des Events einem anderen
+//        Regal zuzuordnen, ging bereits vorher über das Regal-Dropdown in
+//        der Spiele-Tabelle des Events — keine Änderung nötig.)
 //   v53 — BGG-Suche liefert jetzt die relevantesten Treffer zuerst statt in
 //        BGG-interner (nicht nach Relevanz sortierter) Reihenfolge. Betraf
 //        z.B. das Kartenspiel "Odin", das bei der reinen BGG-Reihenfolge
@@ -2871,7 +2885,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === s.id).length;
             return `<div class="sv-shelf-card">
                 <div><div style="font-weight:600;">${escapeHTML(s.name)}</div><div class="cl-muted" style="font-size:.8rem;">${count} Spiel(e)</div></div>
-                <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
+                <div style="display:flex; gap:.35rem;">
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-rename-event-shelf" data-id="${s.id}">Umbenennen</button>
+                    <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
+                </div>
             </div>`;
         }).join('');
         quickSelect.disabled = false;
@@ -2896,12 +2913,57 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('event-shelf-grid').addEventListener('click', (e) => {
         const btn = e.target.closest('.sv-delete-event-shelf');
-        if (!btn) return;
-        const count = parseInt(btn.dataset.count);
-        if (count > 0) { showToast(`Regal "${btn.dataset.name}" enthält noch ${count} Spiel(e).`, true); return; }
-        showConfirm('Regal löschen', `Regal "${btn.dataset.name}" wirklich löschen?`, async () => {
-            try { await deleteDoc(doc(db, 'eventShelves', btn.dataset.id)); } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
-        });
+        if (btn) {
+            const count = parseInt(btn.dataset.count);
+            if (count > 0) { showToast(`Regal "${btn.dataset.name}" enthält noch ${count} Spiel(e).`, true); return; }
+            showConfirm('Regal löschen', `Regal "${btn.dataset.name}" wirklich löschen?`, async () => {
+                try { await deleteDoc(doc(db, 'eventShelves', btn.dataset.id)); } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
+            });
+            return;
+        }
+        const renameBtn = e.target.closest('.sv-rename-event-shelf');
+        if (renameBtn) {
+            const shelfId = renameBtn.dataset.id;
+            const shelf = allEventShelves.find(s => s.id === shelfId);
+            if (!shelf) return;
+            const input = prompt(`Neuer Name für Regal "${shelf.name}":`, shelf.name);
+            if (input === null) return; // Dialog abgebrochen
+            const newName = input.trim();
+            if (!newName || newName === shelf.name) return;
+            // Prüfen, ob in diesem Event bereits ein ANDERES Regal genau
+            // diesen Namen trägt — dann keine stille Umbenennung (das würde
+            // zwei gleichnamige Regale nebeneinander erzeugen, verwirrend
+            // z.B. in den Regal-Dropdowns), sondern Rückfrage, ob wirklich
+            // alle Spiele des umbenannten Regals dem bestehenden Regal
+            // zugeordnet werden sollen (= Zusammenführen).
+            const clash = allEventShelves.find(s => s.eventId === currentEventId && s.id !== shelfId && s.name.trim().toLowerCase() === newName.toLowerCase());
+            if (clash) {
+                const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === shelfId).length;
+                showConfirm(
+                    'Regale zusammenführen?',
+                    `Ein Regal namens "${clash.name}" existiert in diesem Event bereits. Wenn du fortfährst, werden alle ${count} Spiel(e) aus "${shelf.name}" diesem bestehenden Regal "${clash.name}" zugeordnet, und "${shelf.name}" wird danach gelöscht. Wirklich fortfahren?`,
+                    async () => {
+                        try {
+                            const games = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === shelfId);
+                            for (const g of games) {
+                                await updateDoc(doc(db, 'eventGames', g.id), { shelfId: clash.id });
+                            }
+                            await deleteDoc(doc(db, 'eventShelves', shelfId));
+                            showToast(`Regal "${shelf.name}" mit "${clash.name}" zusammengeführt.`);
+                        } catch (err) { console.error(err); showToast('Zusammenführen fehlgeschlagen.', true); }
+                    }
+                );
+                return;
+            }
+            // Kein Namenskonflikt: einfache Umbenennung. Die Spiele im Regal
+            // verweisen nur auf die Regal-ID (shelfId), nicht auf den Namen
+            // selbst — daher reicht diese eine Änderung, um den neuen Namen
+            // überall (Dropdowns, Tresen, Rückgabe-Hinweise, Preisträger-
+            // Abgleich usw.) sofort anzuzeigen, ohne einzelne Spiel-Einträge
+            // anzufassen.
+            updateDoc(doc(db, 'eventShelves', shelfId), { name: newName })
+                .catch(err => { console.error(err); showToast('Umbenennen fehlgeschlagen.', true); });
+        }
     });
 
     document.getElementById('event-bulk-load-btn').addEventListener('click', async () => {
