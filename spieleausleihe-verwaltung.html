@@ -122,9 +122,11 @@
     .sv-entity-card__meta { color: var(--cl-muted); font-size: .82rem; margin: .2rem 0 .6rem 0; }
     .sv-entity-card__actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
 
-    .sv-shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
+    .sv-shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
     .sv-shelf-card { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-2) var(--cl-space-3);
-        display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+        display: flex; flex-direction: column; align-items: stretch; gap: .6rem; }
+    .sv-shelf-card__actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .sv-shelf-card__actions .cl-btn { flex: 1 1 auto; white-space: nowrap; }
 
     .sv-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-3); }
     .sv-stat-box { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); text-align: center; }
@@ -162,7 +164,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v54</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v56</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -744,8 +746,27 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v54 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v56 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v56 — Bugfix "Regale zusammenführen"-Dialog: Der Bestätigen-Button
+//        zeigte "Löschen" (Standard-Beschriftung des allgemeinen
+//        Bestätigungs-Modals) statt einer zur Aktion passenden
+//        Beschriftung — dadurch wirkte es, als könne man den Vorgang gar
+//        nicht richtig bestätigen. Zeigt jetzt "Zusammenführen" in
+//        neutraler Farbe statt rotem "Löschen". Nebenbei behoben: Die
+//        dafür nötige Hilfsfunktion war versehentlich nur innerhalb eines
+//        anderen Funktions-Scopes definiert und wäre vom OK/Abbrechen-
+//        Klick des Modals aus gar nicht erreichbar gewesen (Reference-
+//        Error) — jetzt global definiert, inkl. Reset auf den Standard-
+//        Look ("Löschen", rot) nach jedem Bestätigen ODER Abbrechen, damit
+//        keine spätere Bestätigung versehentlich eine fremde Beschriftung
+//        übernimmt.
+//   v55 — Bugfix: Auf den Regal-Karten im Event-Fenster überlappten sich
+//        die Buttons "Umbenennen" und "Löschen" bei schmalen Karten
+//        (Regal-Grid mit 160px-Mindestbreite, Buttons standen in einer
+//        Reihe neben Name/Stückzahl). Karten stehen jetzt in Spalten
+//        (Name+Stückzahl oben, Buttons in eigener Zeile darunter),
+//        Grid-Mindestbreite auf 200px erhöht.
 //   v54 — Regale eines Events können jetzt umbenannt werden ("Umbenennen"-
 //        Button auf jeder Regal-Karte im Event-Fenster). Da Spiele im
 //        Event nur die Regal-ID (nicht den Namen) speichern, wirkt eine
@@ -1350,12 +1371,30 @@ function showConfirm(title, text, onConfirm) {
     confirmCallback = onConfirm;
     showModal(document.getElementById('confirm-modal-overlay'));
 }
+// Setzt den OK-Button des Bestätigungs-Modals auf sein Standard-Aussehen
+// zurück ("Löschen", rot). Manche Aufrufer (z.B. "Zusammenführen"-
+// Bestätigung, "Beschreibungen nachholen") beschriften den Button vorher
+// um — global hier definiert, damit sowohl der OK/Abbrechen-Klick unten
+// als auch einzelne showConfirm-Aufrufe im restlichen Code darauf
+// zugreifen können.
+function resetConfirmModalStyle() {
+    const okBtn = document.getElementById('confirm-modal-ok');
+    okBtn.textContent = 'Löschen';
+    okBtn.style.background = 'var(--cl-err)';
+    okBtn.style.borderColor = 'var(--cl-err)';
+}
 document.getElementById('confirm-modal-ok').addEventListener('click', () => {
     if (confirmCallback) confirmCallback();
     confirmCallback = null;
     hideModal(document.getElementById('confirm-modal-overlay'));
+    resetConfirmModalStyle(); // Modal immer auf den Standard-Look ("Löschen", rot) zurücksetzen,
+                               // damit ein zuvor umbenannter Button (z.B. "Zusammenführen") nicht
+                               // für die nächste, andere Bestätigung stehen bleibt.
 });
-document.getElementById('confirm-modal-cancel').addEventListener('click', () => hideModal(document.getElementById('confirm-modal-overlay')));
+document.getElementById('confirm-modal-cancel').addEventListener('click', () => {
+    hideModal(document.getElementById('confirm-modal-overlay'));
+    resetConfirmModalStyle();
+});
 
 // --- Globaler State ---
 let allGames = [];
@@ -1897,13 +1936,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         document.getElementById('stage2-import-btn').disabled = false;
         showToast('Abgleich abgeschlossen. Bitte Ergebnisse in der Tabelle prüfen.');
-    }
-
-    function resetConfirmModalStyle() {
-        const okBtn = document.getElementById('confirm-modal-ok');
-        okBtn.textContent = 'Löschen';
-        okBtn.style.background = 'var(--cl-err)';
-        okBtn.style.borderColor = 'var(--cl-err)';
     }
 
     document.getElementById('stage1-add-btn').addEventListener('click', async () => {
@@ -2885,7 +2917,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === s.id).length;
             return `<div class="sv-shelf-card">
                 <div><div style="font-weight:600;">${escapeHTML(s.name)}</div><div class="cl-muted" style="font-size:.8rem;">${count} Spiel(e)</div></div>
-                <div style="display:flex; gap:.35rem;">
+                <div class="sv-shelf-card__actions">
                     <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-rename-event-shelf" data-id="${s.id}">Umbenennen</button>
                     <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-delete-event-shelf" data-id="${s.id}" data-count="${count}" data-name="${escapeHTML(s.name)}">Löschen</button>
                 </div>
@@ -2939,6 +2971,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const clash = allEventShelves.find(s => s.eventId === currentEventId && s.id !== shelfId && s.name.trim().toLowerCase() === newName.toLowerCase());
             if (clash) {
                 const count = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === shelfId).length;
+                const okBtn = document.getElementById('confirm-modal-ok');
+                okBtn.textContent = 'Zusammenführen';
+                okBtn.style.background = '';
+                okBtn.style.borderColor = '';
                 showConfirm(
                     'Regale zusammenführen?',
                     `Ein Regal namens "${clash.name}" existiert in diesem Event bereits. Wenn du fortfährst, werden alle ${count} Spiel(e) aus "${shelf.name}" diesem bestehenden Regal "${clash.name}" zugeordnet, und "${shelf.name}" wird danach gelöscht. Wirklich fortfahren?`,
