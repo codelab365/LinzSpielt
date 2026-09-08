@@ -72,6 +72,41 @@
     .td-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
     .td-event-picker { max-width: 26rem; margin: 3rem auto; }
 
+    /* Bild-Thumbnail + klickbare Zeile, analog zur Ansicht für Besucher:innen */
+    table.td-table img.td-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .td-thumb--placeholder { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; background: var(--cl-surface-2); font-size: 1.2rem; opacity: .5; }
+    .td-game-cell { cursor: pointer; }
+    .td-game-cell:hover { text-decoration: underline; }
+    .td-badge-status--publisher { background: color-mix(in srgb, var(--cl-signal) 20%, transparent); color: var(--cl-signal); }
+    .td-duration { font-variant-numeric: tabular-nums; color: var(--cl-muted); font-size: .85rem; white-space: nowrap; }
+
+    /* Detailansicht (identisch zur Ansicht für Besucher:innen) */
+    .td-detail-overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
+        background: color-mix(in srgb, black 55%, transparent); padding: 1rem; }
+    .td-detail-overlay.is-visible { display: flex; }
+    .td-detail-modal { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-4); max-width: 32rem; width: 100%;
+        max-height: 90vh; overflow-y: auto; position: relative; box-shadow: var(--cl-shadow-lg); }
+    .td-detail-close { position: absolute; top: .8rem; right: .8rem; background: none; border: none; font-size: 1.6rem; line-height: 1;
+        color: var(--cl-muted); cursor: pointer; }
+    .td-detail-close:hover { color: var(--cl-text); }
+    .td-detail-head { display: flex; gap: var(--cl-space-3); align-items: flex-start; }
+    .td-detail-head img { width: 96px; height: 96px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .td-detail-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .3rem 0; }
+    .td-detail-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+    .td-detail-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: var(--cl-space-3) 0; font-size: .9rem; }
+    .td-detail-meta-grid div span:first-child { color: var(--cl-muted); display: block; font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; }
+    .td-detail-desc { font-size: .9rem; line-height: 1.5; white-space: pre-line; max-height: 220px; overflow-y: auto;
+        border-top: 1px solid var(--cl-line); padding-top: var(--cl-space-3); margin-top: var(--cl-space-3); }
+    .td-detail-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
+
+    /* Unbekannte Scans (nicht in der Datenbank/nicht in diesem Event) */
+    .td-unknown-panel { margin-top: var(--cl-space-3); }
+    .td-unknown-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); margin-top: .5rem; }
+    .td-unknown-item { display: flex; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; font-size: .85rem; border-bottom: 1px solid var(--cl-line); }
+    .td-unknown-item:last-child { border-bottom: none; }
+    .td-unknown-item__time { color: var(--cl-muted); font-size: .76rem; white-space: nowrap; }
+
     /* Rückgabe-Meldung: große, unübersehbare Overlay-Karte */
     .td-return-overlay { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
         background: color-mix(in srgb, black 60%, transparent); padding: 1rem; }
@@ -84,8 +119,15 @@
     .td-return-card__shelf { font-size: 1.8rem; font-weight: 700; color: var(--cl-ok); margin: .5rem 0; }
     .td-return-card__timer { color: var(--cl-muted); font-size: .85rem; margin-top: .75rem; }
 
+    /* Feature-Wunsch vom letzten Membling-Treffen: Bestätigen-Buttons im
+       Ausleihsystem deutlich größer, damit sie am Tresen (oft hektisch,
+       manchmal am Tablet mit Handschuhen o.ä.) leichter zu treffen sind. */
+    .td-btn-xl { font-size: 1.4rem !important; padding: 1rem 2.2rem !important; }
+
     @media (max-width: 640px) {
         .cl-card--pad { padding: var(--cl-space-3); }
+        .td-detail-head { flex-direction: column; align-items: center; text-align: center; }
+        .td-detail-meta-grid { grid-template-columns: 1fr 1fr; }
     }
 </style>
 </head>
@@ -224,10 +266,21 @@
         </div>
         <div class="td-table-wrap">
             <table class="td-table">
-                <thead><tr><th>Spiel</th><th>Spieler</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th></th><th>Spiel</th><th>Spieler</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th id="desk-th-duration" class="cl-hidden">Ausgeliehen seit</th><th>Status</th><th></th></tr></thead>
                 <tbody id="desk-list-body"></tbody>
             </table>
             <p id="desk-list-empty" class="td-empty cl-hidden">Keine Spiele gefunden.</p>
+        </div>
+
+        <div class="cl-card cl-card--pad td-unknown-panel" id="desk-unknown-panel" style="display:none;">
+            <h3 style="margin-top:0;">❓ Unbekannte Scans (diese Sitzung)</h3>
+            <p class="cl-muted" style="font-size:.85rem;">EANs, die beim Scannen nicht bei diesem Event gefunden wurden — z.B. weil das Spiel noch nicht in der Datenbank angelegt ist. Diese Liste lebt nur auf diesem Gerät und in dieser Sitzung (wird beim Neuladen der Seite geleert).</p>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
+                <input type="text" id="desk-unknown-filter" class="cl-input" placeholder="EAN filtern…" style="flex:1; min-width:140px;" autocomplete="off">
+                <button type="button" id="desk-unknown-copy-btn" class="cl-btn cl-btn--ghost cl-btn--sm">📋 Liste kopieren</button>
+                <button type="button" id="desk-unknown-clear-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Liste leeren</button>
+            </div>
+            <div id="desk-unknown-list" class="td-unknown-list"></div>
         </div>
     </div>
 
@@ -246,7 +299,7 @@
         <p class="td-return-card__title" id="return-title"></p>
         <p class="td-return-card__shelf" id="return-shelf"></p>
         <p class="cl-muted" id="return-sub"></p>
-        <button type="button" id="return-ok-btn" class="cl-btn cl-btn--signal" style="margin-top:1rem;">OK</button>
+        <button type="button" id="return-ok-btn" class="cl-btn cl-btn--signal td-btn-xl" style="margin-top:1rem;">OK</button>
         <p class="td-return-card__timer" id="return-timer-text"></p>
     </div>
 </div>
@@ -258,11 +311,28 @@
         <div class="td-return-card__icon" id="confirm-action-icon">📖</div>
         <p class="td-return-card__title" id="confirm-action-title"></p>
         <p class="cl-muted" id="confirm-action-sub"></p>
-        <div id="confirm-action-choice-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem;">
-            <button type="button" id="confirm-action-choice-borrow-btn" class="cl-btn cl-btn--signal">📖 Ausleihen</button>
-            <button type="button" id="confirm-action-choice-return-btn" class="cl-btn cl-btn--signal" style="background:var(--cl-ok); border-color:var(--cl-ok);">↩️ Rückgabe</button>
+        <div id="confirm-action-choice-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+            <button type="button" id="confirm-action-choice-borrow-btn" class="cl-btn cl-btn--signal td-btn-xl">📖 Ausleihen</button>
+            <button type="button" id="confirm-action-choice-return-btn" class="cl-btn cl-btn--signal td-btn-xl" style="background:var(--cl-ok); border-color:var(--cl-ok);">↩️ Rückgabe</button>
         </div>
         <button type="button" id="confirm-action-choice-cancel-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.6rem;">Abbrechen</button>
+    </div>
+</div>
+
+<!-- Detailansicht (identisch zur Ansicht für Besucher:innen) -->
+<div id="td-detail-overlay" class="td-detail-overlay">
+    <div class="td-detail-modal">
+        <button type="button" id="td-detail-close" class="td-detail-close" aria-label="Schließen">&times;</button>
+        <div class="td-detail-head">
+            <img id="td-detail-img" src="" alt="" referrerpolicy="no-referrer" style="display:none;">
+            <div>
+                <p class="td-detail-title" id="td-detail-title"></p>
+                <div class="td-detail-badges" id="td-detail-badges"></div>
+            </div>
+        </div>
+        <div class="td-detail-meta-grid" id="td-detail-meta"></div>
+        <p id="td-detail-desc" class="td-detail-desc" style="display:none;"></p>
+        <a id="td-detail-bgg-link" class="td-detail-bgg-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Auf BoardGameGeek ansehen ↗</a>
     </div>
 </div>
 
@@ -492,6 +562,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return eg.gameName || eg.ean;
     }
 
+    // --- Ausleihdauer: aus der bestehenden "loans"-Sammlung (ein Dokument
+    // pro Ausleihvorgang, mit borrowedAt/returnedAt) — dort steht bereits
+    // alles Nötige, ganz ohne neues Datenmodell. Bei mehreren gleichzeitig
+    // ausgeliehenen Exemplaren desselben Spiels wird der älteste noch offene
+    // Ausleihzeitpunkt verwendet (die längste laufende Ausleihe ist die, die
+    // am ehesten nachgefragt werden sollte).
+    let activeLoanStartByEan = new Map();
+    function formatDuration(ms) {
+        if (ms == null || ms < 0) return '—';
+        const totalMin = Math.floor(ms / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return `${h}:${String(m).padStart(2, '0')}`;
+    }
+    function loanDurationLabel(ean) {
+        const startMs = activeLoanStartByEan.get(ean);
+        if (startMs == null) return '—';
+        return formatDuration(Date.now() - startMs);
+    }
+    let durationTickHandle = null;
+
     function openDesk(eventId) {
         deskView.classList.remove('cl-hidden');
 
@@ -501,6 +592,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('desk-event-title').textContent = currentEvent.name;
                 document.getElementById('desk-event-meta').textContent = currentEvent.date || '';
             }
+            // z.B. "Ausleihdauer anzeigen" kann sich im Verwaltungstool
+            // während des laufenden Events ändern — Spalte/Anzeige sofort
+            // nachziehen, nicht erst beim nächsten Neuladen.
+            renderDeskList();
         }, err => console.error('event onSnapshot Fehler:', err)));
 
         unsubs.push(onSnapshot(query(collection(db, 'eventShelves'), where('eventId', '==', eventId)), (snap) => {
@@ -512,6 +607,28 @@ document.addEventListener('DOMContentLoaded', () => {
             allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderDesk();
         }, err => console.error('eventGames onSnapshot Fehler:', err)));
+
+        // Aktive (noch nicht zurückgegebene) Ausleihen dieses Events — Basis
+        // für die Ausleihdauer-Anzeige. Läuft unabhängig davon, ob die
+        // Anzeige gerade eingeschaltet ist (billige Abfrage, nur wenige
+        // Dokumente gleichzeitig offen) — so steht die Zeitleiste sofort zur
+        // Verfügung, sobald das Häkchen im Verwaltungstool gesetzt wird.
+        unsubs.push(onSnapshot(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null)), (snap) => {
+            const map = new Map();
+            snap.docs.forEach(d => {
+                const l = d.data();
+                const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
+                if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
+            });
+            activeLoanStartByEan = map;
+            renderDeskList();
+        }, err => console.error('loans onSnapshot Fehler:', err)));
+
+        // Ticker für die laufende Anzeige der Ausleihdauer (h:mm) — die
+        // Minuten sollen weiterlaufen, auch ohne dass sich an den Daten
+        // selbst etwas ändert.
+        if (durationTickHandle) clearInterval(durationTickHandle);
+        durationTickHandle = setInterval(() => { if (currentEvent?.showLoanDuration) renderDeskList(); }, 30000);
     }
 
     function renderDesk() {
@@ -586,20 +703,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const body = document.getElementById('desk-list-body');
         document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
+        const showDuration = !!currentEvent?.showLoanDuration;
+        document.getElementById('desk-th-duration').classList.toggle('cl-hidden', !showDuration);
         body.innerHTML = list.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty, out = qty - avail;
             const game = g;
-            const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
+            const isPublisher = !!g.isPublisherTable;
+            const statusLabel = isPublisher ? '🏢 Verlagstisch' : (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen');
+            const statusCls = isPublisher ? 'td-badge-status--publisher' : (avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus');
             return `<tr>
-                <td>${escapeHTML(liveGameName(g))}</td>
+                <td class="td-game-cell" data-id="${g.id}">${g.bggImageUrl ? `<img class="td-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="td-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
+                <td class="td-game-cell" data-id="${g.id}">${escapeHTML(liveGameName(g))}</td>
                 <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
                 <td>${game?.rating ? `⭐ ${game.rating.toFixed(1)}` : '—'}</td>
                 <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
-                <td><span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${statusLabel}</span></td>
+                ${showDuration ? `<td class="td-duration">${isPublisher ? '—' : loanDurationLabel(g.ean)}</td>` : ''}
+                <td><span class="td-badge-status ${statusCls}">${statusLabel}</span></td>
                 <td>
-                    ${avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
-                    ${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
+                    ${!isPublisher && avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
+                    ${!isPublisher && out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -644,8 +767,65 @@ document.addEventListener('DOMContentLoaded', () => {
         if (borrowBtn) {
             const eg = allEventGames.find(g => g.id === borrowBtn.dataset.id);
             if (eg) { borrowOne(eg); playScanBeep(); }
+            return;
+        }
+        const gameCell = e.target.closest('.td-game-cell');
+        if (gameCell) {
+            const eg = allEventGames.find(g => g.id === gameCell.dataset.id);
+            if (eg) openDeskDetail(eg);
         }
     });
+
+    // --- Detailansicht (Bild, Beschreibung, BGG-Link) — dieselbe Ansicht
+    // wie in der öffentlichen Übersicht für Besucher:innen, aufrufbar durch
+    // Klick auf Bild oder Namen in der Spieleliste. ---
+    const deskDetailOverlay = document.getElementById('td-detail-overlay');
+    function complexityLabelForDetail(c) { return complexityLabelDesk(c); }
+    function openDeskDetail(g) {
+        document.getElementById('td-detail-title').textContent = liveGameName(g);
+        const img = document.getElementById('td-detail-img');
+        if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
+
+        const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+        const isPublisher = !!g.isPublisherTable;
+        const statusLabel = isPublisher ? '🏢 Verlagstisch' : (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen');
+        const statusCls = isPublisher ? 'td-badge-status--publisher' : (avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus');
+        const cLabel = complexityLabelForDetail(g.complexity);
+        document.getElementById('td-detail-badges').innerHTML = `
+            <span class="td-badge-status ${statusCls}">${statusLabel}</span>
+            ${g.rating ? `<span class="td-badge-status" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
+            ${cLabel ? `<span class="td-badge-status" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
+        `;
+
+        const showDuration = !!currentEvent?.showLoanDuration;
+        document.getElementById('td-detail-meta').innerHTML = `
+            <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
+            <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
+            <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
+            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
+            ${showDuration && !isPublisher ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
+            ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
+        `;
+
+        const descEl = document.getElementById('td-detail-desc');
+        if (g.description) {
+            const short = g.description.length > 700 ? g.description.slice(0, 700).trim() + '…' : g.description;
+            descEl.textContent = short;
+            descEl.style.display = '';
+        } else {
+            descEl.style.display = 'none';
+        }
+
+        const bggLink = document.getElementById('td-detail-bgg-link');
+        if (g.bggId) { bggLink.href = `https://boardgamegeek.com/boardgame/${g.bggId}`; bggLink.style.display = ''; }
+        else { bggLink.style.display = 'none'; }
+
+        deskDetailOverlay.classList.add('is-visible');
+    }
+    function closeDeskDetail() { deskDetailOverlay.classList.remove('is-visible'); }
+    document.getElementById('td-detail-close').addEventListener('click', closeDeskDetail);
+    deskDetailOverlay.addEventListener('click', (e) => { if (e.target === deskDetailOverlay) closeDeskDetail(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDeskDetail(); });
 
     const statsToggleBtn = document.getElementById('desk-stats-toggle-btn');
     statsToggleBtn.addEventListener('click', () => {
@@ -666,6 +846,41 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
     }
 
+    // --- Unbekannte Scans (diese Sitzung, nur im Browser-Speicher) —
+    // damit das Team am Ende des Events eine Liste der noch nicht bei
+    // diesem Event erfassten EANs hat, statt sich jede einzeln zu merken. ---
+    let unknownScans = []; // [{ ean, count, lastTime }], neueste zuerst
+    function trackUnknownScan(ean) {
+        const existing = unknownScans.find(u => u.ean === ean);
+        if (existing) { existing.count++; existing.lastTime = new Date(); }
+        else { unknownScans.unshift({ ean, count: 1, lastTime: new Date() }); }
+        renderUnknownScans();
+    }
+    function renderUnknownScans() {
+        const panel = document.getElementById('desk-unknown-panel');
+        panel.style.display = unknownScans.length > 0 ? '' : 'none';
+        if (unknownScans.length === 0) return;
+        const term = (document.getElementById('desk-unknown-filter').value || '').trim();
+        const filtered = term ? unknownScans.filter(u => u.ean.includes(term)) : unknownScans;
+        const listEl = document.getElementById('desk-unknown-list');
+        listEl.innerHTML = filtered.map(u => `<div class="td-unknown-item">
+            <span>${escapeHTML(u.ean)}${u.count > 1 ? ` <span class="cl-muted">(${u.count}×)</span>` : ''}</span>
+            <span class="td-unknown-item__time">${u.lastTime.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>`).join('') || '<div class="cl-muted" style="padding:.6rem;">Kein Treffer für diesen Filter.</div>';
+    }
+    document.getElementById('desk-unknown-filter').addEventListener('input', renderUnknownScans);
+    document.getElementById('desk-unknown-copy-btn').addEventListener('click', () => {
+        const term = (document.getElementById('desk-unknown-filter').value || '').trim();
+        const filtered = term ? unknownScans.filter(u => u.ean.includes(term)) : unknownScans;
+        const text = filtered.map(u => u.ean).join('\n');
+        navigator.clipboard?.writeText(text).then(() => showToast('✅ Liste kopiert', false, { variant: 'ok' })).catch(() => showToast('Kopieren fehlgeschlagen.', true));
+    });
+    document.getElementById('desk-unknown-clear-btn').addEventListener('click', () => {
+        unknownScans = [];
+        document.getElementById('desk-unknown-filter').value = '';
+        renderUnknownScans();
+    });
+
     // --- Scannen ---
     const scanInput = document.getElementById('desk-scan-input');
     scanInput.addEventListener('keydown', (e) => {
@@ -681,6 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const eg = allEventGames.find(g => g.ean === ean);
         if (!eg) {
             showScanResultBox({ icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', cls: 'td-scan-result--unknown' });
+            trackUnknownScan(ean);
             scanInput.focus();
             return;
         }
@@ -699,6 +915,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function processEventGameAction(eg) {
+        if (eg.isPublisherTable) {
+            showScanResultBox({ icon: '🏢', title: `${liveGameName(eg)} — Verlagstisch`, sub: 'Dieses Exemplar ist dauerhaft auf einem Verlagstisch aufgebaut und wird nicht regulär aus-/eingebucht. Markierung bei Bedarf im Verwaltungstool entfernen.', cls: 'td-scan-result--unknown' });
+            return;
+        }
         const action = resolveScanAction(eg);
         if (action === 'ambiguous') { showChoicePopup(eg); return; }
         commitAction(eg, action);
