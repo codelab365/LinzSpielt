@@ -164,7 +164,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v56</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v57</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -675,7 +675,7 @@
             <h3 style="margin-top:0;">Spiele bei diesem Event</h3>
             <div class="sv-table-wrap">
                 <table class="sv-table">
-                    <thead><tr><th></th><th>Name</th><th>Regal</th><th>Status</th><th></th></tr></thead>
+                    <thead><tr><th></th><th>Name</th><th>Regal</th><th>Verlagstisch</th><th>Status</th><th></th></tr></thead>
                     <tbody id="event-games-body"></tbody>
                 </table>
                 <p id="event-games-empty" class="sv-empty cl-hidden">Noch keine Spiele bei diesem Event.</p>
@@ -711,6 +711,12 @@
                 <label class="sv-checkbox-chip"><input type="radio" name="borrow-msg-mode" id="borrow-msg-timer" value="timer"> Automatisch ausblenden nach</label>
                 <input type="number" id="borrow-msg-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="5"> Sek.
             </div>
+
+            <label class="cl-label" style="margin-top: var(--cl-space-3);">Ausleihdauer</label>
+            <label class="sv-checkbox-chip" style="display:inline-flex;">
+                <input type="checkbox" id="show-loan-duration-toggle">
+                Ausleihdauer (h:mm) am Tresen und in der Ansicht für Besucher:innen anzeigen
+            </label>
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
@@ -746,8 +752,46 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v56 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v57 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v57 — Feature-Wünsche vom Membling-Treffen (betrifft Verwaltungstool,
+//        Tresen und Ansicht für Besucher:innen):
+//        1) Ausleihdauer: neue Einstellung pro Event ("Ausleihdauer
+//           anzeigen", Event-Fenster) zeigt am Tresen und in der Ansicht
+//           für Besucher:innen eine zusätzliche Spalte "Ausgeliehen seit"
+//           (h:mm) für gerade ausgeliehene Spiele. Nutzt die bereits
+//           vorhandene "loans"-Sammlung (ein Dokument pro Ausleihvorgang)
+//           — bei mehreren gleichzeitig draußen befindlichen Exemplaren
+//           desselben Spiels wird die am längsten laufende Ausleihe
+//           angezeigt. Für die Ansicht für Besucher:innen wird die
+//           zusätzliche Abfrage bewusst nur gestellt, wenn die Einstellung
+//           für das jeweilige Event aktiv ist (keine unnötigen
+//           Firestore-Lesevorgänge für Events ohne dieses Feature).
+//        2) Tresen: Spieleliste zeigt jetzt wie die Ansicht für
+//           Besucher:innen ein Bild pro Spiel, Klick auf Bild oder Namen
+//           öffnet dieselbe Detailansicht (Beschreibung, BGG-Link).
+//        3) Regal-Konflikt bei Mehrgeräte-Betrieb: Wird beim Scannen ins
+//           Event (Schnellerfassung bzw. Event-Fenster-Schnellscan) ein
+//           Spiel erkannt, das in diesem Event bereits einem ANDEREN Regal
+//           zugeordnet ist, fragt eine Bestätigung nach, ob es künftig
+//           stattdessen diesem (neuen) Regal zugeordnet sein soll. Die
+//           Stückzahl wird in jedem Fall erhöht, unabhängig von der
+//           Antwort — es geht nur um die Regal-Zuordnung.
+//        4) Bestätigen-Buttons am Tresen (Ausleihe-/Rückgabe-Meldung,
+//           Ausleihen/Rückgabe-Auswahl bei Mehrfach-Exemplaren) deutlich
+//           größer dargestellt.
+//        5) Verlagstisch: neue Checkbox-Spalte in der Event-Spiele-Tabelle
+//           für permanent aufgebaute, dauerhaft "ausgeliehene" Exemplare.
+//           Markierte Spiele zeigen statt Verfügbar/Ausgeliehen den Tag
+//           "🏢 Verlagstisch" (Tresen, Ansicht für Besucher:innen,
+//           Detailansicht) und werden am Tresen nicht mehr über die
+//           normalen Ausleihe-/Rückgabe-Buttons bzw. per Scan gebucht.
+//        6) Tresen: unbekannte Scans (EAN nicht bei diesem Event erfasst)
+//           werden jetzt zusätzlich in einer eigenen Liste für die
+//           laufende Sitzung gesammelt, mit Filterfeld und einem
+//           "Liste kopieren"-Button (reine Gedächtnisstütze im
+//           Browser-Speicher, wie das bestehende Aktivitäts-Protokoll —
+//           wird beim Neuladen der Seite geleert).
 //   v56 — Bugfix "Regale zusammenführen"-Dialog: Der Bestätigen-Button
 //        zeigte "Löschen" (Standard-Beschriftung des allgemeinen
 //        Bestätigungs-Modals) statt einer zur Aktion passenden
@@ -1383,6 +1427,31 @@ function resetConfirmModalStyle() {
     okBtn.style.background = 'var(--cl-err)';
     okBtn.style.borderColor = 'var(--cl-err)';
 }
+// Promise-basierte Variante von showConfirm — für Stellen im Code, die auf
+// die Entscheidung der Person warten müssen (z.B. mitten in einem
+// await-Ablauf wie addOrIncrementEventGame), statt nur einen Callback zu
+// übergeben. Setzt bei Bedarf eine eigene Beschriftung für den OK-Button.
+function confirmAsync(title, text, okLabel) {
+    return new Promise((resolve) => {
+        const okBtn = document.getElementById('confirm-modal-ok');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        if (okLabel) { okBtn.textContent = okLabel; okBtn.style.background = ''; okBtn.style.borderColor = ''; }
+        let done = false;
+        function onCancel() {
+            if (done) return;
+            done = true;
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(false);
+        }
+        cancelBtn.addEventListener('click', onCancel);
+        showConfirm(title, text, () => {
+            if (done) return;
+            done = true;
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(true);
+        });
+    });
+}
 document.getElementById('confirm-modal-ok').addEventListener('click', () => {
     if (confirmCallback) confirmCallback();
     confirmCallback = null;
@@ -1843,7 +1912,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelfId = document.getElementById('quick-shelf-select').value;
         if (activeEventId && shelfId) {
             try {
-                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name);
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: true });
             } catch (err) { console.error(err); }
         }
 
@@ -1854,6 +1923,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
+        if (eventResult === 'incremented-reassigned') parts.push('Stückzahl im Event +1, Regal umgehängt');
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
         playScanBeep();
         showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
@@ -2815,6 +2885,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('borrow-msg-confirm').checked = borrowMode === 'confirm';
         document.getElementById('borrow-msg-timer').checked = borrowMode === 'timer';
         document.getElementById('borrow-msg-seconds').value = ev.borrowMessageSeconds ?? 5;
+        document.getElementById('show-loan-duration-toggle').checked = !!ev.showLoanDuration;
         renderEventShelfGrid();
         renderEventGamesTable();
         updateSetActiveEventBtnLabel();
@@ -2860,6 +2931,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('borrow-msg-confirm').addEventListener('change', saveBorrowMessageSettings);
     document.getElementById('borrow-msg-timer').addEventListener('change', saveBorrowMessageSettings);
     document.getElementById('borrow-msg-seconds').addEventListener('change', saveBorrowMessageSettings);
+
+    document.getElementById('show-loan-duration-toggle').addEventListener('change', async (e) => {
+        if (!currentEventId) return;
+        try { await updateDoc(doc(db, 'events', currentEventId), { showLoanDuration: e.target.checked }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); e.target.checked = !e.target.checked; }
+    });
 
     function updateSetActiveEventBtnLabel() {
         const btn = document.getElementById('set-active-event-btn');
@@ -3042,19 +3119,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fügt ein Spiel neu zum Event hinzu (Menge 1) oder erhöht die Stückzahl
     // um 1, falls es in diesem Event/Regal bereits vorhanden ist — genutzt
     // sowohl hier als auch in der Schnellerfassung.
-    async function addOrIncrementEventGame(eventId, ean, shelfId, collectionId, gameMeta, name) {
+    async function addOrIncrementEventGame(eventId, ean, shelfId, collectionId, gameMeta, name, opts = {}) {
         const egId = `${eventId}_${ean}`;
         const existing = allEventGames.find(g => g.id === egId);
         if (existing) {
-            await updateDoc(doc(db, 'eventGames', egId), { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
-            return 'incremented';
+            const updateData = { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() };
+            // Mehrgeräte-Betrieb (mehrere EAN-Scanner gleichzeitig im Einsatz):
+            // Wurde dieses Spiel für dieses Event schon einem ANDEREN Regal
+            // zugeordnet, jetzt aber für ein weiteres Regal gescannt, könnte
+            // sonst unbemerkt das falsche Regal "gewinnen" (das zuletzt
+            // gescannte, ohne dass irgendjemand das mitbekommt). Bei aktivem
+            // Konflikt-Check nachfragen, bei den Bulk-Importpfaden (BGStats,
+            // Sammlungs-Übernahme) bewusst NICHT — dort ist ohnehin niemand
+            // interaktiv am Schirm, der die Rückfrage beantworten könnte.
+            if (opts.checkShelfConflict && shelfId && existing.shelfId && existing.shelfId !== shelfId) {
+                const existingShelfName = shelfNameFor(eventId, existing.shelfId);
+                const targetShelfName = shelfNameFor(eventId, shelfId);
+                const gameLabel = name || gameMeta?.name || ean;
+                const reassign = await confirmAsync(
+                    'Regal-Konflikt',
+                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein Scan für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht.`,
+                    'Ja, umhängen'
+                );
+                if (reassign) updateData.shelfId = shelfId;
+            }
+            await updateDoc(doc(db, 'eventGames', egId), updateData);
+            return updateData.shelfId ? 'incremented-reassigned' : 'incremented';
         }
         await setDoc(doc(db, 'eventGames', egId), {
             eventId, ean, collectionId: collectionId || null, gameName: name || gameMeta?.name || ean,
             bggId: gameMeta?.bggId ?? null, bggImageUrl: gameMeta?.bggImageUrl ?? null, minPlayers: gameMeta?.minPlayers ?? null, maxPlayers: gameMeta?.maxPlayers ?? null,
             minAge: gameMeta?.minAge ?? null, Duration: gameMeta?.Duration ?? null, rating: gameMeta?.rating ?? null,
             complexity: gameMeta?.complexity ?? null, category: gameMeta?.category ?? null, description: gameMeta?.description ?? null,
-            shelfId: shelfId || null, quantity: 1, availableQuantity: 1, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
+            shelfId: shelfId || null, quantity: 1, availableQuantity: 1, isPublisherTable: false, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
         });
         return 'added';
     }
@@ -3191,6 +3288,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
                     </select>
                 </td>
+                <td style="text-align:center;" title="Spiel steht permanent auf einem Verlagstisch und gilt als dauerhaft ausgeliehen.">
+                    <input type="checkbox" class="sv-eg-publisher-toggle" data-id="${g.id}" ${g.isPublisherTable ? 'checked' : ''}>
+                </td>
                 <td>
                     <div style="display:flex; align-items:center; gap:.4rem;">
                         <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-minus" data-id="${g.id}" ${avail <= 0 ? 'disabled' : ''}>−</button>
@@ -3221,9 +3321,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('event-games-body').addEventListener('change', async (e) => {
         const sel = e.target.closest('.sv-event-game-shelf-select');
-        if (!sel) return;
-        try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value }); }
-        catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
+        if (sel) {
+            try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value }); }
+            catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
+            return;
+        }
+        const pubToggle = e.target.closest('.sv-eg-publisher-toggle');
+        if (pubToggle) {
+            const eg = allEventGames.find(x => x.id === pubToggle.dataset.id);
+            if (!eg) return;
+            const isNowPublisher = pubToggle.checked;
+            const qty = eg.quantity ?? 1;
+            try {
+                // Ein Verlagstisch-Exemplar gilt per Definition als dauerhaft
+                // ausgeliehen (avail=0); beim Entfernen der Markierung wird
+                // wieder die volle Stückzahl als verfügbar geführt — das
+                // Team räumt es dann de facto wieder ins normale Regal ein.
+                await updateDoc(doc(db, 'eventGames', pubToggle.dataset.id), {
+                    isPublisherTable: isNowPublisher,
+                    availableQuantity: isNowPublisher ? 0 : qty
+                });
+                showToast(isNowPublisher
+                    ? 'Als Verlagstisch markiert — gilt jetzt als dauerhaft ausgeliehen.'
+                    : 'Verlagstisch-Markierung entfernt — wieder normal verfügbar.', false, { variant: 'ok' });
+            } catch (err) {
+                console.error(err);
+                showToast('Verlagstisch-Markierung fehlgeschlagen.', true);
+                pubToggle.checked = !isNowPublisher;
+            }
+        }
     });
     document.getElementById('event-games-body').addEventListener('click', (e) => {
         const btn = e.target.closest('.sv-remove-event-game');
@@ -3282,12 +3408,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let eventResult = null;
         try {
-            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name);
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: true });
         } catch (err) { console.error(err); }
 
         eventQuickScanCount++;
         const counterEl = document.getElementById('event-quick-scan-counter');
-        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
+        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : (eventResult === 'incremented-reassigned' ? 'Stückzahl +1, Regal umgehängt' : 'eingeräumt')];
         counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
         playScanBeep();
         showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
