@@ -37,6 +37,7 @@
     .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
     .ov-badge--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
     .ov-badge--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+    .ov-badge--publisher { background: color-mix(in srgb, var(--cl-signal) 20%, transparent); color: var(--cl-signal); }
     .ov-rating { color: var(--cl-warn); font-weight: 600; white-space: nowrap; }
     .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
     .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
@@ -137,7 +138,7 @@
         <div class="ov-table-wrap">
             <table class="ov-table">
                 <thead>
-                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th>Status</th></tr>
+                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th id="ov-th-duration" class="cl-hidden">Ausgeliehen seit</th><th>Status</th></tr>
                 </thead>
                 <tbody id="ov-table-body"></tbody>
             </table>
@@ -207,10 +208,19 @@ function complexityBucket(c) {
 function displayName(g) {
     return g.gameName || g.ean;
 }
+function formatDuration(ms) {
+    if (ms == null || ms < 0) return '—';
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
+}
 
 let allEvents = [];
 let currentEventGames = [];
 let currentEventShelves = [];
+let currentEventShowLoanDuration = false;
+let activeLoanStartByEan = new Map();
 let selectedEventId = new URLSearchParams(location.search).get('event') || '';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -302,17 +312,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const ev = allEvents.find(e => e.id === eventId);
         eventTitleEl.textContent = ev ? `Stand für "${ev.name}"${ev.date ? ' · ' + ev.date : ''} — aktualisiert sich automatisch` : 'Stand der Spielothek';
         mainEl.classList.remove('cl-hidden');
+        currentEventShowLoanDuration = !!ev?.showLoanDuration;
+        document.getElementById('ov-th-duration').classList.toggle('cl-hidden', !currentEventShowLoanDuration);
 
         if (refreshTimer) clearInterval(refreshTimer);
 
         async function fetchData() {
             try {
-                const [shelvesSnap, gamesSnap] = await Promise.all([
+                const fetches = [
                     getDocs(query(collection(db, 'eventShelves'), where('eventId', '==', eventId))),
                     getDocs(query(collection(db, 'eventGames'), where('eventId', '==', eventId)))
-                ]);
+                ];
+                // Ausleihdauer nur abfragen, wenn das Event sie aktiviert hat —
+                // ein zusätzlicher Lesevorgang, den die meisten Events gar
+                // nicht brauchen (siehe Kostenüberlegungen oben).
+                if (ev?.showLoanDuration) {
+                    fetches.push(getDocs(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null))));
+                }
+                const [shelvesSnap, gamesSnap, loansSnap] = await Promise.all(fetches);
                 currentEventShelves = shelvesSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
                 currentEventGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (loansSnap) {
+                    const map = new Map();
+                    loansSnap.docs.forEach(d => {
+                        const l = d.data();
+                        const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
+                        if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
+                    });
+                    activeLoanStartByEan = map;
+                } else {
+                    activeLoanStartByEan = new Map();
+                }
                 render();
                 const refreshEl = document.getElementById('ov-last-refresh');
                 if (refreshEl) refreshEl.textContent = 'Stand: ' + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
@@ -333,6 +363,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!id) return '—';
         const s = currentEventShelves.find(s => s.id === id);
         return s ? s.name : '—';
+    }
+    function loanDurationLabel(ean) {
+        const startMs = activeLoanStartByEan.get(ean);
+        if (startMs == null) return '—';
+        return formatDuration(Date.now() - startMs);
     }
 
     function render() {
@@ -372,9 +407,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
+        const showDuration = currentEventShowLoanDuration;
         tableBody.innerHTML = pageItems.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
-            const statusLabel = avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen';
+            const isPublisher = !!g.isPublisherTable;
+            const statusLabel = isPublisher ? 'Verlagstisch' : (avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen');
+            const statusCls = isPublisher ? 'ov-badge--publisher' : (avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus');
             return `<tr data-id="${g.id}">
                 <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
                 <td>${escapeHTML(displayName(g))}</td>
@@ -384,7 +422,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
                 <td>${g.complexity ? `${complexityLabel(g.complexity)} (${g.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
-                <td><span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span></td>
+                ${showDuration ? `<td>${isPublisher ? '—' : loanDurationLabel(g.ean)}</td>` : ''}
+                <td><span class="ov-badge ${statusCls}">${statusLabel}</span></td>
             </tr>`;
         }).join('');
 
@@ -417,10 +456,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
 
         const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
-        const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
+        const isPublisher = !!g.isPublisherTable;
+        const statusLabel = isPublisher ? 'Verlagstisch' : (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen');
+        const statusCls = isPublisher ? 'ov-badge--publisher' : (avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus');
         const cLabel = complexityLabel(g.complexity);
         document.getElementById('ov-modal-badges').innerHTML = `
-            <span class="ov-badge ${avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus'}">${statusLabel}</span>
+            <span class="ov-badge ${statusCls}">${statusLabel}</span>
             ${g.rating ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
             ${cLabel ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
         `;
@@ -430,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
             <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
             <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
+            ${currentEventShowLoanDuration && !isPublisher ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
             ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
         `;
 
