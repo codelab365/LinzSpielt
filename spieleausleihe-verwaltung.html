@@ -164,7 +164,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v57</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v58</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -752,8 +752,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v57 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v58 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v58 — Korrektur an der v57-Verlagstisch-Funktion: War bisher ein
+//        Alles-oder-nichts-Flag pro Spiel-Eintrag (ganzer Eintrag =
+//        Verlagstisch oder nicht) — konnte den Fall nicht abbilden, dass
+//        von mehreren Exemplaren eines Spiels eines permanent auf einem
+//        Verlagstisch steht, während ein anderes Exemplar ganz normal im
+//        Regal ausgeliehen werden kann. Jetzt ist es eine Stückzahl
+//        ("Wie viele der N Exemplare stehen auf einem Verlagstisch?") statt
+//        einer Ja/Nein-Checkbox. Die übrigen (nicht zugeteilten) Exemplare
+//        bleiben ganz normal ausleihbar, mit eigenem Verfügbar/Ausgeliehen-
+//        Status; der "🏢 X auf Verlagstisch"-Hinweis erscheint zusätzlich
+//        dazu, nicht mehr an dessen Stelle — betrifft Verwaltungstool
+//        (Event-Spiele-Tabelle), Tresen (Statusanzeige, Scan-Logik,
+//        Detailansicht) und Ansicht für Besucher:innen.
 //   v57 — Feature-Wünsche vom Membling-Treffen (betrifft Verwaltungstool,
 //        Tresen und Ansicht für Besucher:innen):
 //        1) Ausleihdauer: neue Einstellung pro Event ("Ausleihdauer
@@ -3151,7 +3164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bggId: gameMeta?.bggId ?? null, bggImageUrl: gameMeta?.bggImageUrl ?? null, minPlayers: gameMeta?.minPlayers ?? null, maxPlayers: gameMeta?.maxPlayers ?? null,
             minAge: gameMeta?.minAge ?? null, Duration: gameMeta?.Duration ?? null, rating: gameMeta?.rating ?? null,
             complexity: gameMeta?.complexity ?? null, category: gameMeta?.category ?? null, description: gameMeta?.description ?? null,
-            shelfId: shelfId || null, quantity: 1, availableQuantity: 1, isPublisherTable: false, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
+            shelfId: shelfId || null, quantity: 1, availableQuantity: 1, publisherTableQuantity: 0, addedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
         });
         return 'added';
     }
@@ -3279,6 +3292,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
         body.innerHTML = games.map(g => {
             const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
+            const pubQty = g.publisherTableQuantity ?? 0;
+            const lendQty = Math.max(0, qty - pubQty); // ausleihbare Exemplare, ohne die auf dem Verlagstisch
             const canRemove = avail >= qty;
             return `<tr>
                 <td>${g.bggImageUrl ? `<img class="sv-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}</td>
@@ -3288,14 +3303,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
                     </select>
                 </td>
-                <td style="text-align:center;" title="Spiel steht permanent auf einem Verlagstisch und gilt als dauerhaft ausgeliehen.">
-                    <input type="checkbox" class="sv-eg-publisher-toggle" data-id="${g.id}" ${g.isPublisherTable ? 'checked' : ''}>
+                <td style="text-align:center;" title="Wie viele der ${qty} Exemplare stehen permanent auf einem Verlagstisch (gelten als dauerhaft ausgeliehen, unabhängig von den übrigen, normal ausleihbaren Exemplaren)?">
+                    <input type="number" class="cl-input sv-eg-publisher-qty" data-id="${g.id}" min="0" max="${qty}" value="${pubQty}" style="width:4rem; text-align:center;">
                 </td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:.4rem;">
+                    <div style="display:flex; align-items:center; gap:.4rem; flex-wrap:wrap;">
                         <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-minus" data-id="${g.id}" ${avail <= 0 ? 'disabled' : ''}>−</button>
-                        <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${qty} verfügbar</span>
+                        <span class="sv-badge-status ${avail > 0 ? 'sv-badge-status--frei' : 'sv-badge-status--aus'}">${avail}/${lendQty} verfügbar</span>
                         <button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-eg-qty-plus" data-id="${g.id}">+</button>
+                        ${pubQty > 0 ? `<span class="sv-badge-status" style="background:color-mix(in srgb, var(--cl-signal) 20%, transparent); color:var(--cl-signal);">🏢 ${pubQty} auf Verlagstisch</span>` : ''}
                     </div>
                 </td>
                 <td><button type="button" class="cl-btn cl-btn--ghost cl-btn--sm sv-remove-event-game" data-id="${g.id}" ${canRemove ? '' : 'disabled'}>Entfernen</button></td>
@@ -3326,28 +3342,33 @@ document.addEventListener('DOMContentLoaded', () => {
             catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
             return;
         }
-        const pubToggle = e.target.closest('.sv-eg-publisher-toggle');
-        if (pubToggle) {
-            const eg = allEventGames.find(x => x.id === pubToggle.dataset.id);
+        const pubInput = e.target.closest('.sv-eg-publisher-qty');
+        if (pubInput) {
+            const eg = allEventGames.find(x => x.id === pubInput.dataset.id);
             if (!eg) return;
-            const isNowPublisher = pubToggle.checked;
             const qty = eg.quantity ?? 1;
+            const oldPubQty = eg.publisherTableQuantity ?? 0;
+            const newPubQty = Math.max(0, Math.min(qty, parseInt(pubInput.value, 10) || 0));
+            const delta = newPubQty - oldPubQty; // positiv = mehr Exemplare wandern auf den Verlagstisch
+            const oldAvail = eg.availableQuantity ?? qty;
+            // Beim Erhöhen werden Exemplare aus dem ausleihbaren (verfügbaren)
+            // Pool entnommen — genau wie beim physischen Umräumen auf den
+            // Verlagstisch. Beim Verringern kommen sie wieder in den
+            // ausleihbaren Pool zurück. Nie unter 0 und nie über die neue
+            // ausleihbare Höchstmenge (qty - newPubQty) hinaus.
+            const newAvail = Math.max(0, Math.min(qty - newPubQty, oldAvail - delta));
             try {
-                // Ein Verlagstisch-Exemplar gilt per Definition als dauerhaft
-                // ausgeliehen (avail=0); beim Entfernen der Markierung wird
-                // wieder die volle Stückzahl als verfügbar geführt — das
-                // Team räumt es dann de facto wieder ins normale Regal ein.
-                await updateDoc(doc(db, 'eventGames', pubToggle.dataset.id), {
-                    isPublisherTable: isNowPublisher,
-                    availableQuantity: isNowPublisher ? 0 : qty
+                await updateDoc(doc(db, 'eventGames', pubInput.dataset.id), {
+                    publisherTableQuantity: newPubQty,
+                    availableQuantity: newAvail
                 });
-                showToast(isNowPublisher
-                    ? 'Als Verlagstisch markiert — gilt jetzt als dauerhaft ausgeliehen.'
+                showToast(newPubQty > 0
+                    ? `${newPubQty} Exemplar(e) als Verlagstisch markiert.`
                     : 'Verlagstisch-Markierung entfernt — wieder normal verfügbar.', false, { variant: 'ok' });
             } catch (err) {
                 console.error(err);
                 showToast('Verlagstisch-Markierung fehlgeschlagen.', true);
-                pubToggle.checked = !isNowPublisher;
+                pubInput.value = oldPubQty;
             }
         }
     });
