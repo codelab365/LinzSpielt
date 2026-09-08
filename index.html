@@ -323,27 +323,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function fetchData() {
             try {
-                const fetches = [
+                const [shelvesSnap, gamesSnap] = await Promise.all([
                     getDocs(query(collection(db, 'eventShelves'), where('eventId', '==', eventId))),
                     getDocs(query(collection(db, 'eventGames'), where('eventId', '==', eventId)))
-                ];
-                // Ausleihdauer nur abfragen, wenn das Event sie aktiviert hat —
-                // ein zusätzlicher Lesevorgang, den die meisten Events gar
-                // nicht brauchen (siehe Kostenüberlegungen oben).
-                if (ev?.showLoanDuration) {
-                    fetches.push(getDocs(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null))));
-                }
-                const [shelvesSnap, gamesSnap, loansSnap] = await Promise.all(fetches);
+                ]);
                 currentEventShelves = shelvesSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
                 currentEventGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                if (loansSnap) {
-                    const map = new Map();
-                    loansSnap.docs.forEach(d => {
-                        const l = d.data();
-                        const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
-                        if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
-                    });
-                    activeLoanStartByEan = map;
+
+                // Ausleihdauer nur abfragen, wenn das Event sie aktiviert hat —
+                // ein zusätzlicher Lesevorgang, den die meisten Events gar
+                // nicht brauchen. Bewusst in einem EIGENEN try/catch und NICHT
+                // Teil des obigen Promise.all: schlägt diese Abfrage fehl
+                // (z.B. weil die "loans"-Sammlung andere Zugriffsrechte hat als
+                // eventShelves/eventGames), soll das nicht die ganze
+                // Spieleliste verschwinden lassen — im schlimmsten Fall fehlt
+                // dann nur die Ausleihdauer-Spalte.
+                if (ev?.showLoanDuration) {
+                    try {
+                        const loansSnap = await getDocs(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null)));
+                        const map = new Map();
+                        loansSnap.docs.forEach(d => {
+                            const l = d.data();
+                            const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
+                            if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
+                        });
+                        activeLoanStartByEan = map;
+                    } catch (loanErr) {
+                        console.error('Ausleihdauer konnte nicht geladen werden:', loanErr);
+                        activeLoanStartByEan = new Map();
+                    }
                 } else {
                     activeLoanStartByEan = new Map();
                 }
