@@ -215,6 +215,10 @@ function formatDuration(ms) {
     const m = totalMin % 60;
     return `${h}:${String(m).padStart(2, '0')}`;
 }
+// Manche Exemplare können permanent auf einem Verlagstisch stehen, während
+// andere Exemplare desselben Spiels ganz normal ausgeliehen werden können.
+function pubQty(g) { return g.publisherTableQuantity ?? 0; }
+function lendQty(g) { return Math.max(0, (g.quantity ?? 1) - pubQty(g)); }
 
 let allEvents = [];
 let currentEventGames = [];
@@ -379,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortVal = sortSelect.value;
 
         let filtered = currentEventGames.filter(g => {
-            const avail = g.availableQuantity ?? (g.quantity ?? 1);
+            const avail = g.availableQuantity ?? lendQty(g);
             const nameMatch = !term || displayName(g).toLowerCase().includes(term);
             const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
             const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
@@ -409,10 +413,10 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
         const showDuration = currentEventShowLoanDuration;
         tableBody.innerHTML = pageItems.map(g => {
-            const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
-            const isPublisher = !!g.isPublisherTable;
-            const statusLabel = isPublisher ? 'Verlagstisch' : (avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen');
-            const statusCls = isPublisher ? 'ov-badge--publisher' : (avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus');
+            const qty = lendQty(g), avail = g.availableQuantity ?? qty;
+            const publisherQty = pubQty(g);
+            const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen') : null;
+            const statusCls = avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus';
             return `<tr data-id="${g.id}">
                 <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
                 <td>${escapeHTML(displayName(g))}</td>
@@ -422,8 +426,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
                 <td>${g.complexity ? `${complexityLabel(g.complexity)} (${g.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}</td>
-                ${showDuration ? `<td>${isPublisher ? '—' : loanDurationLabel(g.ean)}</td>` : ''}
-                <td><span class="ov-badge ${statusCls}">${statusLabel}</span></td>
+                ${showDuration ? `<td>${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
+                <td>
+                    ${statusLabel ? `<span class="ov-badge ${statusCls}">${statusLabel}</span>` : ''}
+                    ${publisherQty > 0 ? `<span class="ov-badge ov-badge--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
+                </td>
             </tr>`;
         }).join('');
 
@@ -455,13 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = document.getElementById('ov-modal-img');
         if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
 
-        const qty = g.quantity ?? 1, avail = g.availableQuantity ?? qty;
-        const isPublisher = !!g.isPublisherTable;
-        const statusLabel = isPublisher ? 'Verlagstisch' : (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen');
-        const statusCls = isPublisher ? 'ov-badge--publisher' : (avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus');
+        const qty = lendQty(g), avail = g.availableQuantity ?? qty;
+        const publisherQty = pubQty(g);
+        const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen') : null;
+        const statusCls = avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus';
         const cLabel = complexityLabel(g.complexity);
         document.getElementById('ov-modal-badges').innerHTML = `
-            <span class="ov-badge ${statusCls}">${statusLabel}</span>
+            ${statusLabel ? `<span class="ov-badge ${statusCls}">${statusLabel}</span>` : ''}
+            ${publisherQty > 0 ? `<span class="ov-badge ov-badge--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
             ${g.rating ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
             ${cLabel ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
         `;
@@ -471,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
             <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
             <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
-            ${currentEventShowLoanDuration && !isPublisher ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
+            ${currentEventShowLoanDuration && qty > 0 ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
             ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
         `;
 
