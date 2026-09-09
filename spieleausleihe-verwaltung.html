@@ -165,7 +165,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v62</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v63</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -724,7 +724,12 @@
                 <input type="checkbox" id="warn-shelf-conflict-toggle">
                 Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist
             </label>
-            <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 0 0;">Nur ein Hinweis, keine Sperre — zwei Exemplare desselben Spiels können trotzdem bewusst auf zwei Regale aufgeteilt werden (bei der Rückgabe ist dann aber nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).</p>
+            <div id="shelf-conflict-mode-row" class="sv-checkbox-list" style="margin-bottom:0; margin-top:.5rem;">
+                <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-confirm" value="confirm"> Manuell bestätigen (unterbricht den Scan-Vorgang)</label>
+                <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-timer" value="timer"> Automatisch weiter nach</label>
+                <input type="number" id="shelf-conflict-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="8"> Sek.
+            </div>
+            <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 0 0;">Nur ein Hinweis, keine Sperre — zwei Exemplare desselben Spiels können trotzdem bewusst auf zwei Regale aufgeteilt werden (bei der Rückgabe ist dann aber nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam). Bei "Manuell bestätigen" gilt das auch beim schnellen Durchscannen — praktisch, wenn Spiele möglichst konsequent im gleichen Regal bleiben sollen; bei "Automatisch weiter" läuft der Scan-Vorgang ohne Warten durch, mit Warnton und auffälliger Meldung statt Rückfrage.</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
@@ -763,8 +768,28 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v62 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v63 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v63 — Regal-Konflikt-Hinweis vereinheitlicht: Statt eines festen
+//        Unterschieds zwischen "manuelle Suche = blockierend" und
+//        "Schnellscan = nur Warnton" (v62) gibt es jetzt EINE Rückfrage
+//        für alle drei Aufrufstellen (manuelle Suche, Schnellerfassung,
+//        Schnellscan im Event-Fenster), und eine neue, zweite Einstellung
+//        im Event-Fenster legt fest, wie sie sich verhält — nach
+//        demselben Muster wie die bestehende Ausleihe-/Rückgabemeldung:
+//          • "Manuell bestätigen" — wartet auf eine aktive Entscheidung,
+//            unterbricht dafür auch den Scan-Vorgang. Für Teams, die
+//            Spiele konsequent im gleichen Regal halten wollen.
+//          • "Automatisch weiter nach X Sekunden" (Sekundenzahl frei
+//            einstellbar) — dieselbe Rückfrage, schließt sich aber von
+//            selbst wie "Abbrechen", falls niemand reagiert, damit der
+//            Scan-Fluss nicht warten muss.
+//        Neue Event-Felder: shelfConflictMode ('confirm'/'timer', Default
+//        'confirm'), shelfConflictSeconds (Default 8). confirmAsync kann
+//        jetzt einen optionalen Timeout entgegennehmen und schließt sich
+//        dann automatisch wie ein Abbrechen-Klick. Der Warnton
+//        (playWarnBeep) ertönt jetzt einheitlich bei jedem erkannten
+//        Konflikt, unabhängig vom gewählten Modus.
 //   v62 — Regal-Konflikt-Hinweis differenziert nach Kontext:
 //        1) Bugfix "Spiele manuell suchen" (Event-Fenster, Mehrfach-
 //           auswahl): Der dort gewählte Regal-Wert wurde bei bereits im
@@ -1550,25 +1575,35 @@ function resetConfirmModalStyle() {
 // die Entscheidung der Person warten müssen (z.B. mitten in einem
 // await-Ablauf wie addOrIncrementEventGame), statt nur einen Callback zu
 // übergeben. Setzt bei Bedarf eine eigene Beschriftung für den OK-Button.
-function confirmAsync(title, text, okLabel) {
+// Optionaler timeoutMs: schließt den Dialog automatisch (wie ein Abbrechen-
+// Klick) nach Ablauf der Zeit, falls bis dahin keine Entscheidung getroffen
+// wurde — für den "Automatisch weiter nach X Sekunden"-Modus, bei dem der
+// Scan-Fluss nicht auf eine manuelle Reaktion warten soll.
+function confirmAsync(title, text, okLabel, timeoutMs) {
     return new Promise((resolve) => {
         const okBtn = document.getElementById('confirm-modal-ok');
         const cancelBtn = document.getElementById('confirm-modal-cancel');
         if (okLabel) { okBtn.textContent = okLabel; okBtn.style.background = ''; okBtn.style.borderColor = ''; }
         let done = false;
-        function onCancel() {
+        let timeoutHandle = null;
+        function finish(result) {
             if (done) return;
             done = true;
             cancelBtn.removeEventListener('click', onCancel);
-            resolve(false);
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            resolve(result);
         }
+        function onCancel() { finish(false); }
         cancelBtn.addEventListener('click', onCancel);
-        showConfirm(title, text, () => {
-            if (done) return;
-            done = true;
-            cancelBtn.removeEventListener('click', onCancel);
-            resolve(true);
-        });
+        showConfirm(title, text, () => finish(true));
+        if (timeoutMs) {
+            timeoutHandle = setTimeout(() => {
+                if (done) return;
+                hideModal(document.getElementById('confirm-modal-overlay'));
+                resetConfirmModalStyle();
+                finish(false);
+            }, timeoutMs);
+        }
     });
 }
 document.getElementById('confirm-modal-ok').addEventListener('click', () => {
@@ -2032,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeEventId && shelfId) {
             try {
                 const activeEv = allEvents.find(e => e.id === activeEventId);
-                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: activeEv?.warnOnShelfConflict ? 'warn' : false });
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: !!activeEv?.warnOnShelfConflict, shelfConflictMode: activeEv?.shelfConflictMode, shelfConflictSeconds: activeEv?.shelfConflictSeconds });
             } catch (err) { console.error(err); }
         }
 
@@ -2043,13 +2078,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
+        if (eventResult === 'incremented-reassigned') parts.push('Stückzahl im Event +1, Regal umgehängt');
         if (eventResult === 'incremented-conflict') {
             const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
             parts.push(`⚠️ bereits im Regal "${shelfNameFor(activeEventId, eg?.shelfId)}" — NICHT umgehängt`);
         }
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, eventResult !== 'incremented-conflict');
         if (eventResult === 'incremented-conflict') {
-            playWarnBeep();
             const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
             showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(shelfNameFor(activeEventId, eg?.shelfId))}" (Regal "${escapeHTML(shelfNameFor(activeEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
         } else {
@@ -3016,6 +3051,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('borrow-msg-seconds').value = ev.borrowMessageSeconds ?? 5;
         document.getElementById('show-loan-duration-toggle').checked = !!ev.showLoanDuration;
         document.getElementById('warn-shelf-conflict-toggle').checked = !!ev.warnOnShelfConflict;
+        const shelfConflictMode = ev.shelfConflictMode === 'timer' ? 'timer' : 'confirm';
+        document.getElementById('shelf-conflict-confirm').checked = shelfConflictMode === 'confirm';
+        document.getElementById('shelf-conflict-timer').checked = shelfConflictMode === 'timer';
+        document.getElementById('shelf-conflict-seconds').value = ev.shelfConflictSeconds ?? 8;
         renderEventShelfGrid();
         renderEventGamesTable();
         updateSetActiveEventBtnLabel();
@@ -3073,6 +3112,16 @@ document.addEventListener('DOMContentLoaded', () => {
         try { await updateDoc(doc(db, 'events', currentEventId), { warnOnShelfConflict: e.target.checked }); }
         catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); e.target.checked = !e.target.checked; }
     });
+    async function saveShelfConflictModeSettings() {
+        if (!currentEventId) return;
+        const mode = document.getElementById('shelf-conflict-timer').checked ? 'timer' : 'confirm';
+        const seconds = Math.max(1, Math.min(60, parseInt(document.getElementById('shelf-conflict-seconds').value) || 8));
+        try { await updateDoc(doc(db, 'events', currentEventId), { shelfConflictMode: mode, shelfConflictSeconds: seconds }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); }
+    }
+    document.getElementById('shelf-conflict-confirm').addEventListener('change', saveShelfConflictModeSettings);
+    document.getElementById('shelf-conflict-timer').addEventListener('change', saveShelfConflictModeSettings);
+    document.getElementById('shelf-conflict-seconds').addEventListener('change', saveShelfConflictModeSettings);
 
     function updateSetActiveEventBtnLabel() {
         const btn = document.getElementById('set-active-event-btn');
@@ -3262,45 +3311,47 @@ document.addEventListener('DOMContentLoaded', () => {
     // um 1, falls es in diesem Event/Regal bereits vorhanden ist — genutzt
     // sowohl hier als auch in der Schnellerfassung.
     //
-    // opts.checkShelfConflict steuert den Regal-Konflikt-Hinweis, wenn das
-    // Spiel bereits einem ANDEREN Regal zugeordnet ist:
-    //   'block' — blockierende Rückfrage (confirmAsync), für bewusste
-    //             Einzel-/Mehrfachaktionen mit Person am Schirm (z.B.
-    //             manuelle Suche im Event-Fenster). Ergebnis bei
-    //             Bestätigung: 'incremented-reassigned'.
-    //   'warn'  — NICHT blockierend, für schnelles Durchscannen (Schnell-
-    //             erfassung, Schnellscan im Event-Fenster) — ein Dialog
-    //             würde den Scan-Fluss unterbrechen. Regal bleibt
-    //             unverändert, Konflikt wird nur über den Rückgabewert
-    //             gemeldet ('incremented-conflict'), die aufrufende Stelle
-    //             kümmert sich um Warnton + auffällige Anzeige.
-    //   falsy   — kein Check (Bulk-Importpfade wie BGStats, Sammlungs-
-    //             Übernahme — dort ist niemand interaktiv am Schirm).
+    // opts.checkShelfConflict (bool) schaltet den Regal-Konflikt-Hinweis ein,
+    // wenn das Spiel bereits einem ANDEREN Regal zugeordnet ist — gespeist
+    // aus der Event-Einstellung warnOnShelfConflict, gilt einheitlich für
+    // alle drei interaktiven Aufrufstellen (manuelle Suche, Schnell-
+    // erfassung, Schnellscan im Event-Fenster). Wie die Rückfrage sich
+    // verhält, entscheidet die ebenfalls pro Event einstellbare
+    // opts.shelfConflictMode:
+    //   'confirm' — blockierende Rückfrage (confirmAsync), wartet auf eine
+    //               Entscheidung — auch beim schnellen Durchscannen, falls
+    //               gewünscht (z.B. wenn Spiele möglichst konsequent im
+    //               gleichen Regal bleiben sollen).
+    //   'timer'   — dieselbe Rückfrage, schließt sich aber nach
+    //               opts.shelfConflictSeconds automatisch wie "Abbrechen",
+    //               falls niemand reagiert — der Scan-Fluss muss dann nicht
+    //               warten.
+    // In beiden Fällen bei Konflikt zusätzlich ein Warnton (kann sonst beim
+    // schnellen Scannen leicht übersehen werden). checkShelfConflict falsy
+    // = kein Check (Bulk-Importpfade wie BGStats, Sammlungs-Übernahme —
+    // dort ist niemand interaktiv am Schirm, der reagieren könnte).
     async function addOrIncrementEventGame(eventId, ean, shelfId, collectionId, gameMeta, name, opts = {}) {
         const egId = `${eventId}_${ean}`;
         const existing = allEventGames.find(g => g.id === egId);
         if (existing) {
             const updateData = { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() };
-            const hasConflict = shelfId && existing.shelfId && existing.shelfId !== shelfId;
-            if (opts.checkShelfConflict === 'block' && hasConflict) {
+            const hasConflict = opts.checkShelfConflict && shelfId && existing.shelfId && existing.shelfId !== shelfId;
+            if (hasConflict) {
                 const existingShelfName = shelfNameFor(eventId, existing.shelfId);
                 const targetShelfName = shelfNameFor(eventId, shelfId);
                 const gameLabel = name || gameMeta?.name || ean;
+                const isTimer = opts.shelfConflictMode === 'timer';
+                const seconds = Math.max(1, Math.min(60, opts.shelfConflictSeconds ?? 8));
+                playWarnBeep();
                 const reassign = await confirmAsync(
                     'Regal-Konflikt',
-                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein weiteres Exemplar für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht — bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`,
-                    'Ja, umhängen'
+                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein weiteres Exemplar für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht.${isTimer ? ` Ohne Reaktion bleibt es in ${seconds} Sek. automatisch bei "${existingShelfName}".` : ` Bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`}`,
+                    'Ja, umhängen',
+                    isTimer ? seconds * 1000 : null
                 );
                 if (reassign) updateData.shelfId = shelfId;
                 await updateDoc(doc(db, 'eventGames', egId), updateData);
-                return updateData.shelfId ? 'incremented-reassigned' : 'incremented';
-            }
-            if (opts.checkShelfConflict === 'warn' && hasConflict) {
-                // Regal bewusst NICHT anfassen — nur melden, Fluss nicht
-                // unterbrechen. Aufrufende Stelle (Schnellscan) macht daraus
-                // Warnton + auffällige, nicht sofort verschwindende Anzeige.
-                await updateDoc(doc(db, 'eventGames', egId), updateData);
-                return 'incremented-conflict';
+                return updateData.shelfId ? 'incremented-reassigned' : 'incremented-conflict';
             }
             await updateDoc(doc(db, 'eventGames', egId), updateData);
             return 'incremented';
@@ -3422,8 +3473,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Den tatsächlich gewählten shelfId übergeben (nicht mehr
                 // still den bestehenden übernehmen) — addOrIncrementEventGame
                 // entscheidet bei einem Regal-Konflikt selbst, ob nachgefragt
-                // wird (siehe checkShelfConflict: 'block').
-                const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: ev?.warnOnShelfConflict ? 'block' : false });
+                // wird (gesteuert über opts.checkShelfConflict/shelfConflictMode).
+                const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
                 if (result === 'added') added++;
                 else if (result === 'incremented-reassigned') reassigned++;
                 else if (result === 'incremented') incremented++;
@@ -3584,7 +3635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let eventResult = null;
         try {
-            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: ev?.warnOnShelfConflict ? 'warn' : false });
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
         } catch (err) { console.error(err); }
 
         eventQuickScanCount++;
@@ -3593,10 +3644,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const eg = allEventGames.find(g => g.id === `${currentEventId}_${ean}`);
             const existingShelfName = shelfNameFor(currentEventId, eg?.shelfId);
             counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (⚠️ bereits im Regal "${existingShelfName}" — NICHT umgehängt)`;
-            playWarnBeep();
             showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(existingShelfName)}" (Regal "${escapeHTML(shelfNameFor(currentEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
         } else {
-            const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
+            const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : (eventResult === 'incremented-reassigned' ? 'Stückzahl +1, Regal umgehängt' : 'eingeräumt')];
             counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
             playScanBeep();
             showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
