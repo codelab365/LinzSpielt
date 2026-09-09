@@ -39,6 +39,7 @@
         border-radius: var(--cl-radius); box-shadow: var(--cl-shadow-lg); font-size: 1.15rem; font-weight: 600; max-width: 90vw; text-align: center; }
     .qb-toast--err { background: var(--cl-err); }
     .qb-toast--ok { background: var(--cl-ok); }
+    .qb-toast--warn { background: var(--cl-warn); }
     .toast-enter { animation: qbFadeIn .25s ease-out; }
     .sv-always-active-toggle { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--cl-muted); margin-top: .5rem; cursor: pointer; }
 
@@ -164,7 +165,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v61</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v62</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -762,8 +763,33 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v61 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v62 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v62 — Regal-Konflikt-Hinweis differenziert nach Kontext:
+//        1) Bugfix "Spiele manuell suchen" (Event-Fenster, Mehrfach-
+//           auswahl): Der dort gewählte Regal-Wert wurde bei bereits im
+//           Event vorhandenen Spielen bisher komplett ignoriert und still
+//           durch das bestehende Regal ersetzt — ganz ohne Hinweis, auch
+//           bei aktivierter Konflikt-Checkbox. Jetzt wird der tatsächlich
+//           gewählte Regal-Wert übergeben; bei aktivierter Checkbox
+//           erscheint bei Konflikt jetzt korrekt die blockierende
+//           Rückfrage ("Ja, umhängen"/"Abbrechen"), bei mehreren
+//           ausgewählten Spielen nacheinander für jeden echten Konflikt.
+//        2) Globale Schnellerfassung &amp; Schnellscan im Event-Fenster
+//           (schnelles, fortlaufendes Scannen): bewusst KEIN blockierender
+//           Dialog mehr, da das den Scan-Fluss unterbrechen würde.
+//           Stattdessen ein neuer, deutlich anderer Warnton (playWarnBeep,
+//           tiefer/kratzig statt des Erfolgs-Klangs) plus eine auffällige,
+//           orange eingefärbte Meldung mit längerer Anzeigedauer statt der
+//           normalen kurzen Erfolgsmeldung. Regal wird dabei nicht
+//           automatisch umgehängt, nur die Stückzahl erhöht — Korrektur
+//           bei Bedarf danach über das Regal-Dropdown in der Event-
+//           Spiele-Tabelle.
+//        addOrIncrementEventGame kennt dafür jetzt drei Modi statt eines
+//        einzigen Ja/Nein-Flags: opts.checkShelfConflict = 'block'
+//        (interaktive Rückfrage), 'warn' (nicht blockierend, nur Ergebnis-
+//        Status 'incremented-conflict' zur Anzeige durch die aufrufende
+//        Stelle) oder falsy (kein Check, weiterhin für Bulk-Importpfade).
 //   v61 — Ausleihe-Log (Verhalten beim Löschen eines Events geändert):
 //        Vorher blieben die "loans"-Dokumente (Ausleih-/Rückgabezeitpunkte)
 //        eines gelöschten Events bewusst erhalten. Jetzt werden sie beim
@@ -1432,6 +1458,32 @@ async function playScanBeep() {
         });
     } catch (err) { console.error('Beep fehlgeschlagen:', err); }
 }
+// Deutlich anderer Klang als der Erfolgs-Piepton (tiefer, kratzig, absteigend)
+// — für den Regal-Konflikt-Hinweis beim schnellen Scannen, wo kein
+// blockierender Dialog den Fluss unterbrechen darf, das Team es aber trotzdem
+// akustisch mitbekommen muss.
+async function playWarnBeep() {
+    if (!isScanSoundEnabled()) return;
+    try {
+        sharedAudioCtx = sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = sharedAudioCtx;
+        if (ctx.state === 'suspended') await ctx.resume();
+        const now = ctx.currentTime;
+        [{ freq: 320, start: 0, dur: 0.16 }, { freq: 220, start: 0.19, dur: 0.28 }].forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.value = n.freq;
+            const t0 = now + n.start;
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(0.4, t0 + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + n.dur + 0.02);
+        });
+    } catch (err) { console.error('Warnton fehlgeschlagen:', err); }
+}
 // "Scan-Feld immer aktiv halten": holt den Fokus automatisch zurück ins
 // Scan-Feld, sobald er woanders hinwandert (z.B. nach einem Button-Klick) —
 // außer der Nutzer tippt gerade bewusst in ein anderes Textfeld. So landet
@@ -1465,6 +1517,7 @@ function showToast(message, isError = false, opts = {}) {
     let cls = 'qb-toast toast-enter';
     if (isError) cls += ' qb-toast--err';
     else if (opts.variant === 'ok') cls += ' qb-toast--ok';
+    else if (opts.variant === 'warn') cls += ' qb-toast--warn';
     toast.className = cls;
     toast.innerHTML = message;
     container.appendChild(toast);
@@ -1979,7 +2032,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeEventId && shelfId) {
             try {
                 const activeEv = allEvents.find(e => e.id === activeEventId);
-                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: !!activeEv?.warnOnShelfConflict });
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: activeEv?.warnOnShelfConflict ? 'warn' : false });
             } catch (err) { console.error(err); }
         }
 
@@ -1990,10 +2043,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
-        if (eventResult === 'incremented-reassigned') parts.push('Stückzahl im Event +1, Regal umgehängt');
-        quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, true);
-        playScanBeep();
-        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
+        if (eventResult === 'incremented-conflict') {
+            const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
+            parts.push(`⚠️ bereits im Regal "${shelfNameFor(activeEventId, eg?.shelfId)}" — NICHT umgehängt`);
+        }
+        quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, eventResult !== 'incremented-conflict');
+        if (eventResult === 'incremented-conflict') {
+            playWarnBeep();
+            const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
+            showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(shelfNameFor(activeEventId, eg?.shelfId))}" (Regal "${escapeHTML(shelfNameFor(activeEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
+        } else {
+            playScanBeep();
+            showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
+        }
         quickScanInput.focus();
     }
 
@@ -3199,32 +3261,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fügt ein Spiel neu zum Event hinzu (Menge 1) oder erhöht die Stückzahl
     // um 1, falls es in diesem Event/Regal bereits vorhanden ist — genutzt
     // sowohl hier als auch in der Schnellerfassung.
+    //
+    // opts.checkShelfConflict steuert den Regal-Konflikt-Hinweis, wenn das
+    // Spiel bereits einem ANDEREN Regal zugeordnet ist:
+    //   'block' — blockierende Rückfrage (confirmAsync), für bewusste
+    //             Einzel-/Mehrfachaktionen mit Person am Schirm (z.B.
+    //             manuelle Suche im Event-Fenster). Ergebnis bei
+    //             Bestätigung: 'incremented-reassigned'.
+    //   'warn'  — NICHT blockierend, für schnelles Durchscannen (Schnell-
+    //             erfassung, Schnellscan im Event-Fenster) — ein Dialog
+    //             würde den Scan-Fluss unterbrechen. Regal bleibt
+    //             unverändert, Konflikt wird nur über den Rückgabewert
+    //             gemeldet ('incremented-conflict'), die aufrufende Stelle
+    //             kümmert sich um Warnton + auffällige Anzeige.
+    //   falsy   — kein Check (Bulk-Importpfade wie BGStats, Sammlungs-
+    //             Übernahme — dort ist niemand interaktiv am Schirm).
     async function addOrIncrementEventGame(eventId, ean, shelfId, collectionId, gameMeta, name, opts = {}) {
         const egId = `${eventId}_${ean}`;
         const existing = allEventGames.find(g => g.id === egId);
         if (existing) {
             const updateData = { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() };
-            // Mehrgeräte-Betrieb (mehrere EAN-Scanner gleichzeitig im Einsatz):
-            // Wurde dieses Spiel für dieses Event schon einem ANDEREN Regal
-            // zugeordnet, jetzt aber für ein weiteres Regal gescannt, könnte
-            // sonst unbemerkt das falsche Regal "gewinnen" (das zuletzt
-            // gescannte, ohne dass irgendjemand das mitbekommt). Bei aktivem
-            // Konflikt-Check nachfragen, bei den Bulk-Importpfaden (BGStats,
-            // Sammlungs-Übernahme) bewusst NICHT — dort ist ohnehin niemand
-            // interaktiv am Schirm, der die Rückfrage beantworten könnte.
-            if (opts.checkShelfConflict && shelfId && existing.shelfId && existing.shelfId !== shelfId) {
+            const hasConflict = shelfId && existing.shelfId && existing.shelfId !== shelfId;
+            if (opts.checkShelfConflict === 'block' && hasConflict) {
                 const existingShelfName = shelfNameFor(eventId, existing.shelfId);
                 const targetShelfName = shelfNameFor(eventId, shelfId);
                 const gameLabel = name || gameMeta?.name || ean;
                 const reassign = await confirmAsync(
                     'Regal-Konflikt',
-                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein Scan für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht — bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`,
+                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein weiteres Exemplar für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht — bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`,
                     'Ja, umhängen'
                 );
                 if (reassign) updateData.shelfId = shelfId;
+                await updateDoc(doc(db, 'eventGames', egId), updateData);
+                return updateData.shelfId ? 'incremented-reassigned' : 'incremented';
+            }
+            if (opts.checkShelfConflict === 'warn' && hasConflict) {
+                // Regal bewusst NICHT anfassen — nur melden, Fluss nicht
+                // unterbrechen. Aufrufende Stelle (Schnellscan) macht daraus
+                // Warnton + auffällige, nicht sofort verschwindende Anzeige.
+                await updateDoc(doc(db, 'eventGames', egId), updateData);
+                return 'incremented-conflict';
             }
             await updateDoc(doc(db, 'eventGames', egId), updateData);
-            return updateData.shelfId ? 'incremented-reassigned' : 'incremented';
+            return 'incremented';
         }
         await setDoc(doc(db, 'eventGames', egId), {
             eventId, ean, collectionId: collectionId || null, gameName: name || gameMeta?.name || ean,
@@ -3335,20 +3414,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentEventId || eventAddSelection.size === 0) return;
         const shelfId = document.getElementById('event-add-bulk-shelf').value;
         if (!shelfId) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
-        let added = 0, incremented = 0, failed = 0;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        let added = 0, incremented = 0, reassigned = 0, failed = 0;
         for (const { ean, collectionId, name } of eventAddSelection.values()) {
             const g = allGames.find(g => g.id === ean);
             try {
-                const existing = allEventGames.find(eg => eg.eventId === currentEventId && eg.ean === ean);
-                const result = await addOrIncrementEventGame(currentEventId, ean, existing ? existing.shelfId : shelfId, collectionId, g, name);
-                if (result === 'added') added++; else if (result === 'incremented') incremented++;
+                // Den tatsächlich gewählten shelfId übergeben (nicht mehr
+                // still den bestehenden übernehmen) — addOrIncrementEventGame
+                // entscheidet bei einem Regal-Konflikt selbst, ob nachgefragt
+                // wird (siehe checkShelfConflict: 'block').
+                const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: ev?.warnOnShelfConflict ? 'block' : false });
+                if (result === 'added') added++;
+                else if (result === 'incremented-reassigned') reassigned++;
+                else if (result === 'incremented') incremented++;
             } catch (err) { console.error(err); failed++; }
         }
         eventAddSelection.clear();
         updateBulkBar();
         eventAddSearch.value = '';
         eventAddResults.classList.add('cl-hidden');
-        showToast(`✅ ${added} neu eingeräumt, ${incremented} in Stückzahl erhöht${failed > 0 ? `, ${failed} fehlgeschlagen` : ''}`, false, { variant: 'ok', duration: 3000 });
+        const parts = [`${added} neu eingeräumt`, `${incremented} in Stückzahl erhöht`];
+        if (reassigned > 0) parts.push(`${reassigned} umgehängt`);
+        if (failed > 0) parts.push(`${failed} fehlgeschlagen`);
+        showToast(`✅ ${parts.join(', ')}`, false, { variant: 'ok', duration: 3500 });
     });
 
     function renderEventGamesTable() {
@@ -3496,15 +3584,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let eventResult = null;
         try {
-            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: !!ev?.warnOnShelfConflict });
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: ev?.warnOnShelfConflict ? 'warn' : false });
         } catch (err) { console.error(err); }
 
         eventQuickScanCount++;
         const counterEl = document.getElementById('event-quick-scan-counter');
-        const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : (eventResult === 'incremented-reassigned' ? 'Stückzahl +1, Regal umgehängt' : 'eingeräumt')];
-        counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
-        playScanBeep();
-        showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
+        if (eventResult === 'incremented-conflict') {
+            const eg = allEventGames.find(g => g.id === `${currentEventId}_${ean}`);
+            const existingShelfName = shelfNameFor(currentEventId, eg?.shelfId);
+            counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (⚠️ bereits im Regal "${existingShelfName}" — NICHT umgehängt)`;
+            playWarnBeep();
+            showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(existingShelfName)}" (Regal "${escapeHTML(shelfNameFor(currentEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
+        } else {
+            const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
+            counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
+            playScanBeep();
+            showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
+        }
         eventQuickScanInput.focus();
     }
 
