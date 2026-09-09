@@ -164,7 +164,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v60</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v61</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -727,7 +727,10 @@
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
-            <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                <button type="button" id="delete-event-btn" class="cl-btn cl-btn--ghost" style="color: var(--cl-err);">Event löschen</button>
+                <button type="button" id="event-csv-export-btn" class="cl-btn cl-btn--ghost">⬇️ Ausleihe-Log als CSV</button>
+            </div>
             <div style="display:flex; gap:.5rem;">
                 <button type="button" id="set-active-event-btn" class="cl-btn cl-btn--ghost">Als aktiv setzen</button>
                 <button type="button" id="event-modal-close2" class="cl-btn cl-btn--ghost">← Zurück zu Events</button>
@@ -759,8 +762,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v60 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v61 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v61 — Ausleihe-Log (Verhalten beim Löschen eines Events geändert):
+//        Vorher blieben die "loans"-Dokumente (Ausleih-/Rückgabezeitpunkte)
+//        eines gelöschten Events bewusst erhalten. Jetzt werden sie beim
+//        Löschen eines Events konsequent mitgelöscht — die Lösch-
+//        bestätigung weist das jetzt ausdrücklich und unübersehbar aus.
+//        Der vollständige Ausleihe-Log war bereits vorher durchgehend in
+//        der Datenbank gespeichert (in "loans", ein Dokument je
+//        Ausleihvorgang) und über den Statistik-Tab als CSV exportierbar —
+//        neu ist zusätzlich ein direkter "⬇️ Ausleihe-Log als CSV"-Button
+//        im Event-Fenster selbst, ohne Umweg über den Statistik-Tab. Das
+//        sitzungslokale "📝 Letzte Aktionen"-Protokoll am Ausleihe-Tresen
+//        bleibt unverändert eine reine, nicht gespeicherte Gedächtnisstütze
+//        für die letzten 10 Aktionen dieses einen Geräts — für die
+//        vollständige, dauerhafte Historie ist immer der CSV-Export
+//        zuständig.
 //   v60 — Regal-Konflikt-Hinweis (aus v57) ist jetzt per Checkbox pro
 //        Event aktivierbar ("Beim Einscannen warnen, wenn ein Spiel in
 //        diesem Event schon einem anderen Regal zugeordnet ist", neues
@@ -3013,15 +3031,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('delete-event-btn').addEventListener('click', () => {
         if (!currentEventId) return;
         const ev = allEvents.find(e => e.id === currentEventId);
-        showConfirm('Event löschen', `Event "${ev?.name}" inkl. Regale und Spielzuordnungen wirklich löschen? Ausleihstatistiken (bereits erfasste Ausleihen) bleiben erhalten.`, async () => {
+        showConfirm('Event löschen', `Event "${ev?.name}" inkl. Regale, Spielzuordnungen und Ausleihe-Log dieses Events wirklich endgültig löschen? Ein CSV-Export des Ausleihe-Logs ist danach nicht mehr möglich — vorher exportieren ("⬇️ Ausleihe-Log als CSV" hier im Event-Fenster, oder im Tab Statistik), falls die Daten noch gebraucht werden.`, async () => {
             try {
                 const shelves = allEventShelves.filter(s => s.eventId === currentEventId);
                 for (const s of shelves) await deleteDoc(doc(db, 'eventShelves', s.id));
                 const games = allEventGames.filter(g => g.eventId === currentEventId);
                 for (const g of games) await deleteDoc(doc(db, 'eventGames', g.id));
+                // Ausleihe-Log (loans) dieses Events mitlöschen — bewusste
+                // Umkehr der vorherigen Regel "Ausleihstatistiken bleiben
+                // erhalten": wer die Daten noch braucht, exportiert sie vorher
+                // als CSV (siehe Hinweistext oben).
+                const loansSnap = await getDocs(query(collection(db, 'loans'), where('eventId', '==', currentEventId)));
+                for (const d of loansSnap.docs) await deleteDoc(doc(db, 'loans', d.id));
                 await deleteDoc(doc(db, 'events', currentEventId));
                 if (activeEventId === currentEventId) { activeEventId = ''; localStorage.removeItem('sv_active_event'); }
-                showToast('Event gelöscht.');
+                showToast('Event inkl. Ausleihe-Log gelöscht.');
                 closeEventModal();
             } catch (err) { console.error(err); showToast('Löschen fehlgeschlagen.', true); }
         });
@@ -3742,11 +3766,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // CSV: eine Zeile pro Ausleihe (Wert +1) und, falls schon zurückgegeben,
     // eine weitere Zeile pro Rückgabe (Wert -1) — jeweils mit echtem
-    // Datum/Uhrzeit dieses Vorgangs.
-    function exportStatsCsv() {
-        if (lastStatsLoans.length === 0) { showToast('Keine Daten zum Exportieren für dieses Event.', true); return; }
+    // Datum/Uhrzeit dieses Vorgangs. Gemeinsam genutzt vom Statistik-Tab
+    // (aktuell geladene Auswahl) und vom direkten Export-Button im
+    // Event-Fenster (frisch aus der Datenbank geladen).
+    function buildAndDownloadLoanCsv(loans, eventName) {
+        if (loans.length === 0) { showToast('Keine Daten zum Exportieren für dieses Event.', true); return; }
         const rows = [['Datum', 'Uhrzeit', 'Spiel', 'Regal', 'Aktion', 'Wert']];
-        for (const l of lastStatsLoans) {
+        for (const l of loans) {
             const shelf = shelfNameGlobal(l.shelfId);
             const borrowed = formatDateTimeParts(l.borrowedAt);
             rows.push([borrowed.date, borrowed.time, l.gameName || l.ean, shelf, 'Ausgeliehen', '1']);
@@ -3758,9 +3784,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Zusammenfassung: Gesamtzahl Ausleihen je Spiel, absteigend sortiert.
         // Spiele ohne jede Ausleihe tauchen hier gar nicht erst auf, weil
-        // lastStatsLoans von vornherein nur tatsächliche Ausleihvorgänge enthält.
+        // loans von vornherein nur tatsächliche Ausleihvorgänge enthält.
         const countByGame = {};
-        for (const l of lastStatsLoans) {
+        for (const l of loans) {
             const name = l.gameName || l.ean;
             countByGame[name] = (countByGame[name] || 0) + 1;
         }
@@ -3777,7 +3803,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        const safeEventName = (lastStatsEventName || 'event').replace(/[^\wäöüÄÖÜß-]+/g, '_');
+        const safeEventName = (eventName || 'event').replace(/[^\wäöüÄÖÜß-]+/g, '_');
         a.href = url;
         a.download = `ausleihstatistik_${safeEventName}.csv`;
         document.body.appendChild(a);
@@ -3785,6 +3811,25 @@ document.addEventListener('DOMContentLoaded', () => {
         a.remove();
         URL.revokeObjectURL(url);
     }
+    function exportStatsCsv() {
+        buildAndDownloadLoanCsv(lastStatsLoans, lastStatsEventName);
+    }
+    document.getElementById('event-csv-export-btn').addEventListener('click', async () => {
+        if (!currentEventId) return;
+        const ev = allEvents.find(e => e.id === currentEventId);
+        const btn = document.getElementById('event-csv-export-btn');
+        btn.disabled = true;
+        try {
+            const loansSnap = await getDocs(query(collection(db, 'loans'), where('eventId', '==', currentEventId)));
+            const loans = loansSnap.docs.map(d => d.data());
+            buildAndDownloadLoanCsv(loans, ev?.name);
+        } catch (err) {
+            console.error(err);
+            showToast('Export fehlgeschlagen.', true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
 
     // Diagramm: Zeitverlauf in wählbaren Zeitfenstern, Ausleihen positiv,
     // Retouren negativ dargestellt — zeigt auf einen Blick, wann viel los war.
