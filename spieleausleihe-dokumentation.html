@@ -80,6 +80,7 @@
             <ul>
                 <li><a href="#sammlungen">Sammlungen verwalten</a></li>
                 <li><a href="#mengen">Mengen &amp; Mehrfach-Exemplare</a></li>
+                <li><a href="#verlagstisch">Verlagstisch</a></li>
                 <li><a href="#sammlung-link">Öffentlicher Link zur Sammlung</a></li>
                 <li><a href="#bgstats-import">BGStats-Import</a></li>
             </ul>
@@ -87,12 +88,15 @@
             <ul>
                 <li><a href="#events-anlegen">Event anlegen</a></li>
                 <li><a href="#events-regale">Regale je Event</a></li>
+                <li><a href="#events-regal-konflikt">Regal-Konflikt-Hinweis</a></li>
+                <li><a href="#events-bgg-suche">BGG-Suche: Treffer nach Relevanz</a></li>
                 <li><a href="#events-spiele">Spiele zum Event hinzufügen</a></li>
                 <li><a href="#events-sammlungen-bearbeiten">Verknüpfte Sammlungen nachträglich ändern</a></li>
                 <li><a href="#events-bulk-laden">Ganze Sammlung / Datenbank ins Event laden</a></li>
                 <li><a href="#events-schnellscan">Schnellscan im Event-Fenster</a></li>
                 <li><a href="#events-embed">Einbett-Code &amp; Tresen-Link</a></li>
                 <li><a href="#events-rueckgabemeldung">Ausleihe- &amp; Rückgabemeldung einstellen</a></li>
+                <li><a href="#events-ausleihdauer">Ausleihdauer anzeigen</a></li>
                 <li><a href="#events-aktiv">Aktives Event setzen/deaktivieren</a></li>
             </ul>
             <h4>Betrieb</h4>
@@ -103,6 +107,7 @@
                 <li><a href="#statistik">Statistik, CSV-Export &amp; Diagramm</a></li>
                 <li><a href="#oeffentlich">Öffentliche Übersicht (Events)</a></li>
                 <li><a href="#oeffentlich-sammlung">Öffentliche Übersicht (Sammlungen)</a></li>
+                <li><a href="#oeffentlich-preistraeger">Preisträger-Übersicht</a></li>
             </ul>
             <h4>Firestore</h4>
             <ul>
@@ -310,8 +315,20 @@ Hier sind meine EAN-Codes:
                 <ul class="doc-step-list">
                     <li>In einer Sammlung: Stückzahl = wie viele Exemplare diese Sammlung besitzt.</li>
                     <li>In einem Event: jeder Spiel-Eintrag hat eine Stückzahl (z.B. "2/3 verfügbar") statt nur Ja/Nein. +/− Buttons im Event-Fenster passen das an.</li>
-                    <li>Alle Exemplare eines Spiels liegen dabei im <strong>selben Regal</strong> — es gibt bewusst keine Verteilung auf mehrere Regale, das würde die Ausleihe unnötig kompliziert machen.</li>
+                    <li>Ein Spiel-Eintrag trägt technisch <strong>ein</strong> Regal-Feld — im Normalfall liegen alle Exemplare eines Spiels also im selben Regal. Bewusst möglich ist trotzdem, zwei Exemplare desselben Spiels auf zwei verschiedene Regale aufzuteilen (siehe <a href="#events-regal-konflikt">Regal-Konflikt-Hinweis</a>) — das System merkt sich dann nur noch eines der beiden Regale, bei der Rückgabe ist nicht mehr unterscheidbar, aus welchem Regal welches Exemplar kam.</li>
                     <li>Untergrenze ist immer <strong>0</strong>, nie negativ (auch technisch abgesichert, nicht nur über die deaktivierten Minus-Buttons).</li>
+                </ul>
+            </section>
+
+            <section id="verlagstisch">
+                <h2>Verlagstisch (permanent ausgestellte Exemplare)</h2>
+                <p>Für Spiele, die während eines Events dauerhaft auf einem Verlagstisch aufgebaut sind und nicht regulär ausgeliehen werden — z.B. Demo-Exemplare eines Verlags.</p>
+                <ul class="doc-step-list">
+                    <li>In der Tabelle "Spiele bei diesem Event" (Event-Fenster) gibt es je Spiel-Eintrag ein Zahlenfeld <strong>"Verlagstisch"</strong>: wie viele der insgesamt vorhandenen Exemplare permanent auf einem Verlagstisch stehen.</li>
+                    <li>Das ist bewusst eine <strong>Stückzahl</strong>, keine Ja/Nein-Checkbox: Hat ein Spiel z.B. 2 Exemplare und trägst du dort eine 1 ein, bleibt automatisch 1 Exemplar ganz normal ausleihbar (mit eigenem Verfügbar/Ausgeliehen-Status), während das andere fest dem Verlagstisch zugeteilt ist.</li>
+                    <li>Überall, wo der Status angezeigt wird (Verwaltungstool, Ausleihe-Tresen, Ansicht für Besucher:innen, Detailansicht), erscheint zusätzlich zum normalen Verfügbar/Ausgeliehen-Badge der Hinweis <strong>"🏢 X auf Verlagstisch"</strong> — die beiden schließen sich nicht mehr gegenseitig aus.</li>
+                    <li>Sind <strong>alle</strong> Exemplare eines Spiels dem Verlagstisch zugeteilt (kein normal ausleihbares Exemplar mehr übrig), zeigt ein Scan dieses Spiels am Ausleihe-Tresen einen Hinweis statt einer normalen Ausleihe/Rückgabe.</li>
+                    <li>Die Verlagstisch-Stückzahl reduziert sich nicht automatisch — sie muss am Ende des Events wieder manuell auf 0 zurückgesetzt werden, falls die Exemplare dann wieder regulär zur Verfügung stehen sollen.</li>
                 </ul>
             </section>
 
@@ -351,6 +368,29 @@ Hier sind meine EAN-Codes:
                 <ul class="doc-step-list">
                     <li>Event öffnen → Regal-Name eingeben → "Regal anlegen".</li>
                     <li>Ein Regal mit zugeordneten Spielen kann nicht gelöscht werden — zuerst die Spiele umlagern oder entfernen.</li>
+                    <li>Button <strong>"Umbenennen"</strong> auf jeder Regal-Karte: Spiele im Event verweisen nur auf die Regal-ID, nie auf den Namen selbst — eine Umbenennung wirkt daher sofort überall (Dropdowns, Ausleihe-Tresen, Rückgabe-Hinweise, Preisträger-Abgleich), ohne dass einzelne Spiel-Einträge angefasst werden müssen.</li>
+                    <li>Wird beim Umbenennen ein Name gewählt, den in diesem Event bereits ein <strong>anderes</strong> Regal trägt, erscheint statt einer stillen Umbenennung eine Rückfrage: Sollen wirklich alle Spiele aus dem umbenannten Regal dem bestehenden gleichnamigen Regal zugeordnet werden (= <strong>zusammenführen</strong>)? Erst nach Bestätigung werden die betroffenen Spiele umgehängt und das jetzt leere Regal automatisch gelöscht.</li>
+                </ul>
+            </section>
+
+            <section id="events-regal-konflikt">
+                <h2>Regal-Konflikt-Hinweis</h2>
+                <p>Relevant vor allem im Mehrgeräte-Betrieb (mehrere EAN-Scanner gleichzeitig im Einsatz beim Aufbau eines Events): Ohne Absprache kann es passieren, dass ein Spiel in Regal A schon eingeräumt ist, während an einem anderen Gerät dasselbe Spiel gerade für Regal C gescannt wird.</p>
+                <ul class="doc-step-list">
+                    <li>Im Event-Fenster unter den Event-Einstellungen die Checkbox <strong>"Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist"</strong> aktivieren — standardmäßig <strong>aus</strong>, muss also bewusst pro Event eingeschaltet werden.</li>
+                    <li>Bei aktivierter Checkbox erscheint sowohl bei der globalen Schnellerfassung als auch beim Schnellscan im Event-Fenster eine Rückfrage, sobald ein Spiel für ein anderes Regal gescannt wird als das, in dem es laut Datenbank schon steckt: "Soll das Spiel künftig diesem Regal zugeordnet sein statt dem bisherigen?"</li>
+                    <li>Bestätigt: der Eintrag wird komplett auf das neue Regal umgehängt. Abgebrochen: der bestehende Eintrag bleibt unverändert im alten Regal — die Stückzahl wird in <strong>beiden</strong> Fällen trotzdem um 1 erhöht, ein physisches Exemplar ist ja tatsächlich dazugekommen.</li>
+                    <li>Es ist also weiterhin bewusst möglich, zwei Exemplare desselben Spiels auf zwei unterschiedliche Regale aufzuteilen — der Hinweis ist reine Information, keine Sperre. Nachteil: Bei der Rückgabe ist dann nicht mehr unterscheidbar, welches konkrete Exemplar aus welchem Regal kam (siehe auch <a href="#mengen">Mengen &amp; Mehrfach-Exemplare</a>).</li>
+                    <li>Bei Bulk-Importwegen (BGStats-Import, ganze Sammlung ins Event laden) erscheint diese Rückfrage bewusst <strong>nie</strong> — dort läuft niemand interaktiv mit, der sie beantworten könnte.</li>
+                </ul>
+            </section>
+
+            <section id="events-bgg-suche">
+                <h2>BGG-Suche: Treffer nach Relevanz sortiert</h2>
+                <p>Die BGG-Such-API liefert Treffer nicht nach Relevanz, sondern in einer internen, nicht dokumentierten Reihenfolge zurück. Bei kurzen, häufigen Titeln (z.B. "Odin") kann der eigentlich gesuchte Treffer dadurch unter vielen Titeln verschwinden, die den Suchbegriff nur enthalten, und sogar aus den ersten angezeigten Ergebnissen herausfallen.</p>
+                <ul class="doc-step-list">
+                    <li>Sowohl die manuelle "🎲 BGG suchen"-Trefferliste im Spiel-Formular als auch der automatische Hintergrund-Abgleich (Scan-Warteschlange, Stufe-2-Übernahme, BGStats-Import) sortieren Treffer jetzt nach Relevanz: 1) exakte Namensübereinstimmung, 2) Titel beginnt mit dem Suchbegriff als eigenes Wort, 3) Suchbegriff kommt als eigenes Wort im Titel vor, 4)/5) sonstige Teilübereinstimmungen.</li>
+                    <li>Betrifft insbesondere den automatischen Hintergrund-Abgleich: dort wurde vorher unsortiert einfach der erste BGG-Treffer übernommen, jetzt der relevanteste.</li>
                 </ul>
             </section>
 
@@ -412,6 +452,17 @@ Hier sind meine EAN-Codes:
                 <p class="cl-muted">Das kleine, immer sichtbare Ergebnis-Feld unter dem Scan-Feld (siehe <a href="#tresen">Ausleihe-Tresen</a>) bleibt von beiden Einstellungen unberührt und zeigt weiterhin dauerhaft die letzte Aktion.</p>
             </section>
 
+            <section id="events-ausleihdauer">
+                <h2>Ausleihdauer anzeigen</h2>
+                <p>Zeigt an, wie lange ein Spiel-Exemplar schon draußen ist (h:mm), am Ausleihe-Tresen und in der Ansicht für Besucher:innen.</p>
+                <ul class="doc-step-list">
+                    <li>Im Event-Fenster unter den Event-Einstellungen die Checkbox <strong>"Ausleihdauer (h:mm) am Tresen und in der Ansicht für Besucher:innen anzeigen"</strong> aktivieren — standardmäßig aus.</li>
+                    <li>Nutzt die ohnehin schon vorhandene <code>loans</code>-Sammlung (ein Dokument pro Ausleihvorgang mit Zeitstempel) — kein zusätzliches Datenmodell nötig, kein eigenes Feld wird dafür gespeichert. Die Anzeige wird bei jedem Laden aus dem gespeicherten Zeitpunkt neu berechnet ("jetzt − Ausleihzeitpunkt"), nicht als fixer Wert abgelegt.</li>
+                    <li>Sind von einem Spiel gerade mehrere Exemplare gleichzeitig draußen, wird die am längsten laufende Ausleihe angezeigt.</li>
+                    <li>Damit die Spalte auch in der Ansicht für Besucher:innen Werte zeigt (nicht nur "—"), muss die Firestore-Regel für <code>loans</code> öffentliches Lesen erlauben — siehe <a href="#firestore-regeln">Firestore-Sicherheitsregeln</a>.</li>
+                </ul>
+            </section>
+
             <section id="events-aktiv">
                 <h2>Aktives Event setzen/deaktivieren</h2>
                 <p>Oben im Verwaltungstool wählt eine Dropdown-Liste das <strong>aktive Event</strong>. Alle Aktionen im Tab "Ausleihe/Rückgabe" und in der globalen Schnellerfassung beziehen sich ausschließlich auf dieses Event. Die Auswahl wird lokal im Browser gespeichert — jeder Rechner/jedes Gerät muss sein eigenes aktives Event setzen.</p>
@@ -433,9 +484,10 @@ Hier sind meine EAN-Codes:
                     <li>Immer sichtbar: eine Zeile mit der Anzahl <strong>gerade ausgeliehener Spiel-Exemplare</strong>.</li>
                     <li>Darunter eingeklappt der Button <strong>"📊 Statistik anzeigen"</strong> — öffnet bei Bedarf die volle Kennzahlen-Übersicht. Bewusst nicht permanent sichtbar, um am Tresen nicht abzulenken.</li>
                     <li>Großes Scan-Feld, darunter der Schieberegler "Scan-Feld immer aktiv halten" (siehe <a href="#einstellungen">Einstellungen</a>). Scannen läuft <strong>ohne Rückfrage</strong> in den allermeisten Fällen (siehe <a href="#ausleihe-logik">Ausleihe/Rückgabe-Logik</a>) — bei Erfolg piepst es kurz (falls aktiviert) und in der Bildschirmmitte erscheint eine Rückmeldung.</li>
-                    <li>Bei Rückgabe erscheint zusätzlich die große Regal-Hinweis-Karte, Verhalten je nach <a href="#events-rueckgabemeldung">Einstellung</a> dieses Events.</li>
-                    <li><strong>Spieleliste</strong>: zeigt immer alle Spiele des Events (nicht nur ausgeliehene), mit Suchfeld und einklappbarem <strong>"🔍 Filter &amp; Sortierung"</strong>-Panel — Spielerzahl, Komplexität, Bewertung, Sortierung, Status (Alle / Nur verfügbar / Nur ausgeliehen). Damit lassen sich Besucherfragen wie "Spiel für 2 Personen?" direkt am Tresen beantworten. Ein-Klick-Rückgabe-Button erscheint dort, wo etwas ausgeliehen ist.</li>
+                    <li>Bei Rückgabe erscheint zusätzlich die große Regal-Hinweis-Karte, Verhalten je nach <a href="#events-rueckgabemeldung">Einstellung</a> dieses Events. Die Bestätigen-Buttons (Regal-Hinweis-Karte, Ausleihen/Rückgabe-Auswahl bei mehrdeutigen Scans) sind deutlich größer dargestellt, um sie in hektischen Momenten leichter treffen zu können.</li>
+                    <li><strong>Spieleliste</strong>: zeigt immer alle Spiele des Events (nicht nur ausgeliehene), mit Bild-Thumbnail pro Zeile — Klick auf Bild oder Namen öffnet dieselbe Detailansicht wie in der Ansicht für Besucher:innen (größeres Bild, Beschreibung, BGG-Link). Suchfeld und einklappbares <strong>"🔍 Filter &amp; Sortierung"</strong>-Panel — Spielerzahl, Komplexität, Bewertung, Sortierung, Status (Alle / Nur verfügbar / Nur ausgeliehen). Damit lassen sich Besucherfragen wie "Spiel für 2 Personen?" direkt am Tresen beantworten. Ein-Klick-Rückgabe-Button erscheint dort, wo etwas ausgeliehen ist. Ist <a href="#events-ausleihdauer">Ausleihdauer anzeigen</a> für dieses Event aktiviert, erscheint zusätzlich eine Spalte "Ausgeliehen seit"; ist bei einem Spiel eine Verlagstisch-Stückzahl gesetzt, erscheint der Hinweis "🏢 X auf Verlagstisch" (siehe <a href="#verlagstisch">Verlagstisch</a>).</li>
                     <li>Manuelle Suche als Fallback, falls der Scanner ausfällt.</li>
+                    <li><strong>Unbekannte Scans</strong>: Wird eine EAN gescannt, die diesem Event nicht zugeordnet ist, erscheint sie zusätzlich in einem eigenen Panel "❓ Unbekannte Scans (diese Sitzung)" — mit Filterfeld und einem "📋 Liste kopieren"-Button, um die gesammelten EANs z.B. direkt in eine KI-Recherche (siehe <a href="#stufe2">Stufe 2: Titel-Liste importieren</a>) einzufügen. Diese Liste lebt nur im Browser der aktuellen Sitzung auf diesem einen Gerät, wie das Aktivitäts-Protokoll — sie wird beim Neuladen der Seite geleert und nicht zwischen mehreren gleichzeitig genutzten Tresen-Geräten abgeglichen.</li>
                     <li>Kein Zugriff auf Datenbank-Verwaltung, Sammlungen o.ä. — bewusst reduziert auf den reinen Tresen-Betrieb.</li>
                 </ul>
             </section>
@@ -494,7 +546,7 @@ Hier sind meine EAN-Codes:
                     <li>Die Tabelle zeigt neben Spieleranzahl, Alter, Dauer, Bewertung und Komplexität auch das Regal — beides weiterhin sichtbar, auch ohne eigenen Filter dafür.</li>
                     <li><strong>Pagination:</strong> Bei mehr als 50 Treffern erscheinen "← Zurück"/"Weiter →"-Pfeile oberhalb der Tabelle. Betrifft nur die Anzeige im Browser, nicht die Lesevorgänge — Suche und Filter laufen weiterhin über die komplette geladene Liste, damit sie zuverlässig alles finden.</li>
                     <li>Jede Zeile der Ergebnistabelle ist anklickbar und öffnet eine Detailkarte mit größerem Bild, Beschreibung, Kategorie und einem direkten Link zur BGG-Seite des Spiels.</li>
-                    <li>Bei Mehrfach-Exemplaren zeigt der Status z.B. "verfügbar (2/3)".</li>
+                    <li>Bei Mehrfach-Exemplaren zeigt der Status z.B. "verfügbar (2/3)". Ist bei einem Spiel eine Verlagstisch-Stückzahl gesetzt, erscheint zusätzlich "🏢 X auf Verlagstisch" (siehe <a href="#verlagstisch">Verlagstisch</a>). Ist <a href="#events-ausleihdauer">Ausleihdauer anzeigen</a> für dieses Event aktiviert, zeigt eine zusätzliche Spalte "Ausgeliehen seit" (h:mm) für gerade ausgeliehene Spiele.</li>
                     <li>Kein Login nötig, keine Bearbeitung möglich.</li>
                 </ul>
             </section>
@@ -515,6 +567,22 @@ Hier sind meine EAN-Codes:
                 </ul>
             </section>
 
+            <section id="oeffentlich-preistraeger">
+                <h2>Preisträger-Übersicht (preistraeger.html)</h2>
+                <p>Eigenständige Seite mit allen Gewinnern von Spiel des Jahres, Kennerspiel des Jahres, Kinderspiel des Jahres, Sonderpreis Kinderspiel (bis 2000), Deutschem und Österreichischem Spielepreis — 164 Einträge insgesamt, Quelle ist das separate "Spiel des Jahres"-Projekt (statisch eingebettet, keine eigene Datenbank-Anbindung dafür nötig).</p>
+                <p>Gehostet unter: <code>https://codelab365.github.io/LinzSpielt/preistraeger.html</code></p>
+                <ul class="doc-step-list">
+                    <li>Aufruf mit <code>?event=EVENT_ID</code> zeigt direkt dieses Event; auch über den Link "🏆 Preisträger" auf jeder Event-Karte im Verwaltungstool erreichbar.</li>
+                    <li>Ohne Parameter: Dropdown zur Event-Auswahl, wie bei den anderen öffentlichen Seiten.</li>
+                    <li>Sortierung standardmäßig nach <strong>Jahr absteigend</strong> (neuestes zuerst), umstellbar auf aufsteigend oder Titel A–Z.</li>
+                    <li>Filter: Kategorie (alle sechs Auszeichnungen einzeln wählbar) und Verfügbarkeit (Alle / Nur verfügbar / Vorhanden — egal ob ausgeliehen / Nicht in der Sammlung).</li>
+                    <li><strong>Abgleich per Titel:</strong> Für jeden Preisträger wird geprüft, ob ein gleichnamiges (oder unter bekanntem Alternativtitel geführtes) Spiel bei diesem Event vorhanden ist — Status wird als Badge angezeigt (Verfügbar/grün, Ausgeliehen/rot, Nicht in der Sammlung/grau), plus Regal bei Treffer.</li>
+                    <li>Der Abgleich ist ein Best-Effort-Titelvergleich (normalisiert, Groß-/Kleinschreibung und Sonderzeichen ignoriert) — bei stark abweichenden Editionsnamen kann er im Einzelfall daneben liegen; stichprobenartige Kontrolle empfohlen.</li>
+                    <li>Periodische Aktualisierung (60 Sek.) + "Jetzt aktualisieren"-Button, Pagination ab 50 Treffern — dieselben Prinzipien wie bei den anderen öffentlichen Seiten.</li>
+                    <li>Kein Login nötig, keine Bearbeitung möglich.</li>
+                </ul>
+            </section>
+
             <section id="firestore-regeln">
                 <h2>Firestore-Sicherheitsregeln</h2>
                 <p>Damit die öffentlichen Übersichtsseiten (Events <em>und</em> Sammlungen) ohne Login Daten anzeigen können, müssen in der Firebase-Konsole unter Firestore → Regeln alle dafür nötigen Collections auf <code>allow read: if true</code> stehen, Schreibzugriff bleibt weiterhin ausschließlich angemeldeten Nutzern vorbehalten:</p>
@@ -527,12 +595,15 @@ Hier sind meine EAN-Codes:
                         <tr><td><code>events</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
                         <tr><td><code>eventShelves</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
                         <tr><td><code>eventGames</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
-                        <tr><td><code>loans</code></td><td>nur angemeldet</td><td>nur angemeldet</td></tr>
+                        <tr><td><code>loans</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
                         <tr><td><code>config</code></td><td>öffentlich</td><td>nur angemeldet</td></tr>
                     </tbody>
                 </table>
                 <div class="doc-callout doc-callout--warn">
                     <p>Fehlt bei einer dieser Collections die öffentliche Leseberechtigung, bleibt die jeweils betroffene öffentliche Seite leer oder zeigt nur unvollständige Daten (z.B. Mengen ohne Bilder/Bewertungen), obwohl im Verwaltungstool selbst alles korrekt aussieht — dort ist man ja immer angemeldet.</p>
+                </div>
+                <div class="doc-callout">
+                    <p><code>loans</code> ist erst mit Einführung der <a href="#events-ausleihdauer">Ausleihdauer-Anzeige</a> öffentlich lesbar geworden — vorher genügte "nur angemeldet", da nur der Ausleihe-Tresen darauf zugegriffen hat. Inhaltlich unbedenklich: Ein <code>loans</code>-Dokument enthält nur EAN, Spielname, Event-Zuordnung, Regal-ID und Zeitstempel, keine Namen von Ausleiher:innen oder sonstige personenbezogene Daten.</p>
                 </div>
             </section>
 
@@ -580,6 +651,10 @@ Hier sind meine EAN-Codes:
                         <tr><td>Stückzahl</td><td>Wie viele Exemplare eines Spiels eine Sammlung besitzt bzw. bei einem Event im Regal stehen.</td></tr>
                         <tr><td>BGG-ID</td><td>Eindeutige Kennung eines Spiels bei BoardGameGeek — Grundlage für den automatischen BGStats-Import-Abgleich, da BGStats keine EAN kennt.</td></tr>
                         <tr><td>BGStats</td><td>Externe App zur Sammlungs- und Partieverwaltung; ihr JSON-Export lässt sich als neue Sammlung importieren (nur Besitz, keine Partien).</td></tr>
+                        <tr><td>Verlagstisch</td><td>Stückzahl je Spiel-Eintrag, die angibt, wie viele Exemplare permanent auf einem Verlagstisch ausgestellt sind und nicht regulär ausgeliehen werden — unabhängig von den übrigen, normal ausleihbaren Exemplaren desselben Spiels.</td></tr>
+                        <tr><td>Ausleihdauer</td><td>Optionale Anzeige (h:mm), wie lange ein Spiel-Exemplar schon durchgehend ausgeliehen ist — pro Event über eine Checkbox aktivierbar, berechnet live aus dem Ausleihzeitpunkt in der <code>loans</code>-Sammlung.</td></tr>
+                        <tr><td>Regal-Konflikt-Hinweis</td><td>Optionale, pro Event aktivierbare Rückfrage beim Einscannen, wenn ein Spiel in diesem Event bereits einem anderen Regal zugeordnet ist — verhindert stille Fehlzuordnungen bei mehreren gleichzeitig genutzten Scan-Geräten.</td></tr>
+                        <tr><td>Regale zusammenführen</td><td>Passiert automatisch (nach Bestätigung), wenn beim Umbenennen eines Regals der neue Name mit einem bereits bestehenden Regal desselben Events übereinstimmt — alle Spiele wandern ins bestehende Regal, das umbenannte (jetzt leere) Regal wird gelöscht.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -598,6 +673,8 @@ Hier sind meine EAN-Codes:
                         <tr><td>CSV-Export-Button tut nichts</td><td>Für dieses Event liegen noch keine Ausleihen vor — erst nach der ersten Ausleihe gibt es Daten zum Exportieren.</td></tr>
                         <tr><td>BGG-Suche liefert nichts</td><td>Titel evtl. zu ungenau/falsch geschrieben — im Bearbeiten-Formular Titel anpassen und BGG-Suche erneut starten.</td></tr>
                         <tr><td>Registrierung schlägt fehl</td><td>Zugangscode falsch oder E-Mail bereits vergeben — Zugangscode bei der Vereinsleitung erfragen.</td></tr>
+                        <tr><td>Ansicht für Besucher:innen zeigt gar keine Spiele (auch nicht nach "Jetzt aktualisieren")</td><td>Erst prüfen, ob dem Event im Verwaltungstool überhaupt Spiele zugeordnet sind (neue Events starten leer). Ist das nicht die Ursache: Browser-Konsole öffnen (F12 → Konsole) und auf rote Fehlermeldungen prüfen — häufigster Grund ist eine fehlende öffentliche Leseberechtigung bei einer der beteiligten Firestore-Collections, siehe <a href="#firestore-regeln">Firestore-Sicherheitsregeln</a>.</td></tr>
+                        <tr><td>Ansicht für Besucher:innen zeigt die Spieleliste, aber "Ausgeliehen seit" bleibt immer "—"</td><td>Firestore-Regel für <code>loans</code> prüfen — muss <code>allow read: if true;</code> sein, da die Ansicht für Besucher:innen ohne Login läuft. Ohne diese Freigabe schlägt nur die Ausleihdauer-Abfrage fehl, die restliche Liste bleibt aber sichtbar.</td></tr>
                     </tbody>
                 </table>
             </section>
