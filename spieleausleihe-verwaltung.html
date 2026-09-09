@@ -164,7 +164,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v59</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v60</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -717,6 +717,13 @@
                 <input type="checkbox" id="show-loan-duration-toggle">
                 Ausleihdauer (h:mm) am Tresen und in der Ansicht für Besucher:innen anzeigen
             </label>
+
+            <label class="cl-label" style="margin-top: var(--cl-space-3);">Regal-Konflikt-Hinweis</label>
+            <label class="sv-checkbox-chip" style="display:inline-flex;">
+                <input type="checkbox" id="warn-shelf-conflict-toggle">
+                Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist
+            </label>
+            <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 0 0;">Nur ein Hinweis, keine Sperre — zwei Exemplare desselben Spiels können trotzdem bewusst auf zwei Regale aufgeteilt werden (bei der Rückgabe ist dann aber nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
@@ -752,8 +759,24 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v59 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v60 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v60 — Regal-Konflikt-Hinweis (aus v57) ist jetzt per Checkbox pro
+//        Event aktivierbar ("Beim Einscannen warnen, wenn ein Spiel in
+//        diesem Event schon einem anderen Regal zugeordnet ist", neues
+//        Event-Feld warnOnShelfConflict, standardmäßig aus) statt fix
+//        eingeschaltet zu sein. Klarstellung im Bestätigungstext: Es ist
+//        weiterhin bewusst möglich, zwei Exemplare desselben Spiels auf
+//        zwei unterschiedliche Regale aufzuteilen (bei "Abbrechen" bleibt
+//        der bestehende Eintrag unverändert im alten Regal, die Stückzahl
+//        wird trotzdem erhöht) — nur bei der Rückgabe ist dann nicht mehr
+//        unterscheidbar, welches Exemplar aus welchem Regal kam.
+//        Außerdem: Dokumentation (spieleausleihe-dokumentation.html)
+//        umfassend aktualisiert — deckt jetzt Regal umbenennen/
+//        zusammenführen, Regal-Konflikt-Hinweis, Verlagstisch, Ausleihdauer,
+//        die nach Relevanz sortierte BGG-Suche, Tresen-Detailansicht mit
+//        Bild, größere Bestätigen-Buttons, das Unbekannte-Scans-Panel
+//        sowie die korrigierte Firestore-Regel für loans ab.
 //   v59 — Bugfix Ansicht für Besucher:innen: Bei aktivierter Ausleihdauer
 //        (v57) blieb die komplette Spieleliste leer, sobald die
 //        zusätzliche "loans"-Abfrage fehlschlug (z.B. weil diese Sammlung
@@ -1937,7 +1960,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelfId = document.getElementById('quick-shelf-select').value;
         if (activeEventId && shelfId) {
             try {
-                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: true });
+                const activeEv = allEvents.find(e => e.id === activeEventId);
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: !!activeEv?.warnOnShelfConflict });
             } catch (err) { console.error(err); }
         }
 
@@ -2911,6 +2935,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('borrow-msg-timer').checked = borrowMode === 'timer';
         document.getElementById('borrow-msg-seconds').value = ev.borrowMessageSeconds ?? 5;
         document.getElementById('show-loan-duration-toggle').checked = !!ev.showLoanDuration;
+        document.getElementById('warn-shelf-conflict-toggle').checked = !!ev.warnOnShelfConflict;
         renderEventShelfGrid();
         renderEventGamesTable();
         updateSetActiveEventBtnLabel();
@@ -2960,6 +2985,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('show-loan-duration-toggle').addEventListener('change', async (e) => {
         if (!currentEventId) return;
         try { await updateDoc(doc(db, 'events', currentEventId), { showLoanDuration: e.target.checked }); }
+        catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); e.target.checked = !e.target.checked; }
+    });
+
+    document.getElementById('warn-shelf-conflict-toggle').addEventListener('change', async (e) => {
+        if (!currentEventId) return;
+        try { await updateDoc(doc(db, 'events', currentEventId), { warnOnShelfConflict: e.target.checked }); }
         catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); e.target.checked = !e.target.checked; }
     });
 
@@ -3163,7 +3194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gameLabel = name || gameMeta?.name || ean;
                 const reassign = await confirmAsync(
                     'Regal-Konflikt',
-                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein Scan für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht.`,
+                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein Scan für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht — bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`,
                     'Ja, umhängen'
                 );
                 if (reassign) updateData.shelfId = shelfId;
@@ -3441,7 +3472,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let eventResult = null;
         try {
-            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: true });
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: !!ev?.warnOnShelfConflict });
         } catch (err) { console.error(err); }
 
         eventQuickScanCount++;
