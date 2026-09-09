@@ -518,12 +518,16 @@ Hier sind meine EAN-Codes:
                 <p>Tab <strong>Statistik</strong>. Event auswählen, um Kennzahlen zu sehen: Gesamtzahl Ausleihen, Anzahl verschiedener ausgeliehener Spiele, aktuell noch nicht zurückgegebene Spiele, sowie eine Rangliste der am häufigsten ausgeliehenen Spiele.</p>
                 <h3>CSV-Export</h3>
                 <ul class="doc-step-list">
-                    <li>Button <strong>"⬇️ Als CSV exportieren"</strong> lädt eine Datei mit einer Zeile pro Vorgang herunter.</li>
+                    <li>Button <strong>"⬇️ Als CSV exportieren"</strong> lädt eine Datei mit einer Zeile pro Vorgang herunter. Derselbe Export steht auch direkt im Event-Fenster als <strong>"⬇️ Ausleihe-Log als CSV"</strong> zur Verfügung, ohne den Umweg über den Statistik-Tab.</li>
                     <li>Spalten: <code>Datum</code>, <code>Uhrzeit</code>, <code>Spiel</code>, <code>Regal</code>, <code>Aktion</code>, <code>Wert</code>.</li>
                     <li>Jede Ausleihe erzeugt eine Zeile mit Wert <code>1</code> zum tatsächlichen Ausleihzeitpunkt; jede bereits erfolgte Rückgabe erzeugt zusätzlich eine eigene Zeile mit Wert <code>-1</code> zum echten Rückgabezeitpunkt.</li>
                     <li>Dadurch lässt sich in Excel/Numbers jederzeit nachvollziehen, wann genau was ausgeliehen und zurückgegeben wurde, und durch Aufsummieren der Werte über die Zeit der Verlauf der Auslastung rekonstruieren.</li>
                     <li>Am Ende der Datei folgt ein eigener Abschnitt <strong>"Zusammenfassung — Gesamtausleihen je Spiel"</strong> mit der Gesamtzahl an Ausleihen pro Spiel, absteigend sortiert. Spiele, die nie ausgeliehen wurden, tauchen dort naturgemäß nicht auf.</li>
+                    <li>Datenquelle ist die <code>loans</code>-Sammlung — ein Dokument pro Ausleihvorgang mit Ausleih- und (sobald erfolgt) Rückgabezeitpunkt. Das ist derselbe vollständige, dauerhaft in der Datenbank gespeicherte Ausleihe-Log, den auch das kleine, nur sitzungslokale "📝 Letzte Aktionen"-Protokoll am Ausleihe-Tresen ergänzt (dieses zeigt nur die letzten 10 Einträge des aktuellen Geräts, rein als Gedächtnisstütze — für die vollständige, dauerhafte Historie ist immer der CSV-Export die richtige Quelle).</li>
                 </ul>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Wird ein Event gelöscht, wird sein komplettes Ausleihe-Log (alle <code>loans</code>-Dokumente dieses Events) <strong>unwiderruflich mitgelöscht</strong> — die Löschbestätigung weist ausdrücklich darauf hin. Wer die Daten noch braucht, exportiert vorher als CSV.</p>
+                </div>
                 <h3>Zeitverlaufs-Diagramm</h3>
                 <ul class="doc-step-list">
                     <li>Button <strong>"📈 Diagramm anzeigen"</strong> — standardmäßig eingeklappt, öffnet ein Balkendiagramm (Plotly) über den zeitlichen Verlauf.</li>
@@ -671,6 +675,7 @@ Hier sind meine EAN-Codes:
                         <tr><td>Regal lässt sich nicht löschen</td><td>Enthält noch zugeordnete Spiele — zuerst umlagern oder aus dem Event entfernen.</td></tr>
                         <tr><td>Spiel taucht bei "Spiele zum Event hinzufügen" nicht auf</td><td>Es gehört zu keiner der für dieses Event ausgewählten Sammlungen, oder es ist noch keiner Sammlung zugeordnet.</td></tr>
                         <tr><td>CSV-Export-Button tut nichts</td><td>Für dieses Event liegen noch keine Ausleihen vor — erst nach der ersten Ausleihe gibt es Daten zum Exportieren.</td></tr>
+                        <tr><td>Ausleihe-Log eines gelöschten Events ist weg</td><td>Erwartetes Verhalten — beim Löschen eines Events wird sein komplettes Ausleihe-Log unwiderruflich mitgelöscht. Kein nachträglicher Export mehr möglich, auch nicht im Tab Statistik.</td></tr>
                         <tr><td>BGG-Suche liefert nichts</td><td>Titel evtl. zu ungenau/falsch geschrieben — im Bearbeiten-Formular Titel anpassen und BGG-Suche erneut starten.</td></tr>
                         <tr><td>Registrierung schlägt fehl</td><td>Zugangscode falsch oder E-Mail bereits vergeben — Zugangscode bei der Vereinsleitung erfragen.</td></tr>
                         <tr><td>Ansicht für Besucher:innen zeigt gar keine Spiele (auch nicht nach "Jetzt aktualisieren")</td><td>Erst prüfen, ob dem Event im Verwaltungstool überhaupt Spiele zugeordnet sind (neue Events starten leer). Ist das nicht die Ursache: Browser-Konsole öffnen (F12 → Konsole) und auf rote Fehlermeldungen prüfen — häufigster Grund ist eine fehlende öffentliche Leseberechtigung bei einer der beteiligten Firestore-Collections, siehe <a href="#firestore-regeln">Firestore-Sicherheitsregeln</a>.</td></tr>
