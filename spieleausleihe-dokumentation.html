@@ -378,8 +378,16 @@ Hier sind meine EAN-Codes:
                 <p>Relevant vor allem im Mehrgeräte-Betrieb (mehrere EAN-Scanner gleichzeitig im Einsatz beim Aufbau eines Events): Ohne Absprache kann es passieren, dass ein Spiel in Regal A schon eingeräumt ist, während an einem anderen Gerät dasselbe Spiel gerade für Regal C gescannt wird.</p>
                 <ul class="doc-step-list">
                     <li>Im Event-Fenster unter den Event-Einstellungen die Checkbox <strong>"Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist"</strong> aktivieren — standardmäßig <strong>aus</strong>, muss also bewusst pro Event eingeschaltet werden.</li>
-                    <li>Bei aktivierter Checkbox erscheint sowohl bei der globalen Schnellerfassung als auch beim Schnellscan im Event-Fenster eine Rückfrage, sobald ein Spiel für ein anderes Regal gescannt wird als das, in dem es laut Datenbank schon steckt: "Soll das Spiel künftig diesem Regal zugeordnet sein statt dem bisherigen?"</li>
-                    <li>Bestätigt: der Eintrag wird komplett auf das neue Regal umgehängt. Abgebrochen: der bestehende Eintrag bleibt unverändert im alten Regal — die Stückzahl wird in <strong>beiden</strong> Fällen trotzdem um 1 erhöht, ein physisches Exemplar ist ja tatsächlich dazugekommen.</li>
+                    <li>Das Verhalten unterscheidet sich bewusst je nachdem, wie die Zuordnung passiert:</li>
+                </ul>
+                <table class="doc-table">
+                    <thead><tr><th>Wo</th><th>Verhalten bei Konflikt</th></tr></thead>
+                    <tbody>
+                        <tr><td>Spiele manuell suchen (Event-Fenster) — bewusste Einzel-/Mehrfachauswahl mit Person am Schirm</td><td>Blockierende Rückfrage: "Soll das Spiel künftig diesem Regal zugeordnet sein?" — muss aktiv mit "Ja, umhängen" oder "Abbrechen" beantwortet werden, bevor es weitergeht. Bei mehreren gleichzeitig ausgewählten Spielen erscheint die Rückfrage nacheinander für jeden tatsächlichen Konflikt.</td></tr>
+                        <tr><td>Globale Schnellerfassung &amp; Schnellscan im Event-Fenster — schnelles, fortlaufendes Scannen</td><td>Kein blockierender Dialog (würde den Scan-Fluss unterbrechen) — stattdessen ein deutlich anderer <strong>Warnton</strong> (tiefer, kratzig, statt des üblichen zweitönigen Erfolgs-Klangs) sowie eine auffällige, orange eingefärbte Meldung mit längerer Anzeigedauer. Das Regal wird dabei <strong>nicht</strong> automatisch umgehängt — der bestehende Eintrag bleibt im bisherigen Regal, nur die Stückzahl wird erhöht. Bei Bedarf danach im Event-Fenster per Regal-Dropdown in der Spiele-Tabelle korrigieren.</td></tr>
+                    </tbody>
+                </table>
+                <ul class="doc-step-list">
                     <li>Es ist also weiterhin bewusst möglich, zwei Exemplare desselben Spiels auf zwei unterschiedliche Regale aufzuteilen — der Hinweis ist reine Information, keine Sperre. Nachteil: Bei der Rückgabe ist dann nicht mehr unterscheidbar, welches konkrete Exemplar aus welchem Regal kam (siehe auch <a href="#mengen">Mengen &amp; Mehrfach-Exemplare</a>).</li>
                     <li>Bei Bulk-Importwegen (BGStats-Import, ganze Sammlung ins Event laden) erscheint diese Rückfrage bewusst <strong>nie</strong> — dort läuft niemand interaktiv mit, der sie beantworten könnte.</li>
                 </ul>
