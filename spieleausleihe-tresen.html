@@ -240,6 +240,9 @@
                 <option value="available">Nur verfügbar</option>
                 <option value="borrowed">Nur ausgeliehen</option>
             </select>
+            <select id="desk-shelf-filter" class="cl-select">
+                <option value="all">Alle Regale</option>
+            </select>
             <select id="desk-players-filter" class="cl-select">
                 <option value="0">Jede Spielerzahl</option>
                 <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
@@ -674,8 +677,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Anspruchsvoll';
     }
     function renderDeskList() {
+        // Regal-Filter-Dropdown befüllen (Auswahl dabei erhalten, falls das
+        // Regal noch existiert) — praktisch z.B. für eine Regal-Kontrolle:
+        // "stimmt, was am Regal steht, mit dem überein, was das System
+        // dafür führt?"
+        const shelfFilterEl = document.getElementById('desk-shelf-filter');
+        const prevShelfFilter = shelfFilterEl.value;
+        shelfFilterEl.innerHTML = '<option value="all">Alle Regale</option>' + allEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...shelfFilterEl.options].some(o => o.value === prevShelfFilter)) shelfFilterEl.value = prevShelfFilter;
+
         const term = (document.getElementById('desk-list-search').value || '').trim().toLowerCase();
         const statusVal = document.getElementById('desk-status-filter').value;
+        const shelfVal = shelfFilterEl.value;
         const playersVal = parseInt(document.getElementById('desk-players-filter').value, 10);
         const complexityVal = document.getElementById('desk-complexity-filter').value;
         const ratingVal = document.getElementById('desk-rating-filter').value === 'all' ? 0 : parseFloat(document.getElementById('desk-rating-filter').value);
@@ -686,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const game = g;
             const nameMatch = !term || liveGameName(g).toLowerCase().includes(term);
             const statusMatch = statusVal === 'all' || (statusVal === 'borrowed' ? avail < qty : avail > 0);
+            const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
             const complexityMatch = complexityVal === 'all' || complexityBucketDesk(game?.complexity) === complexityVal;
             const ratingMatch = ratingVal === 0 || (game?.rating != null && game.rating >= ratingVal);
             let playersMatch = true;
@@ -694,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     playersMatch = playersVal < 7 ? (game.minPlayers <= playersVal && game.maxPlayers >= playersVal) : game.maxPlayers >= 7;
                 } else { playersMatch = false; }
             }
-            return nameMatch && statusMatch && complexityMatch && ratingMatch && playersMatch;
+            return nameMatch && statusMatch && shelfMatch && complexityMatch && ratingMatch && playersMatch;
         });
 
         if (sortVal === 'rating') {
@@ -741,7 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDeskFilterCount();
     }
     document.getElementById('desk-list-search').addEventListener('input', renderDeskList);
-    ['desk-status-filter', 'desk-players-filter', 'desk-complexity-filter', 'desk-rating-filter', 'desk-sort'].forEach(id => {
+    ['desk-status-filter', 'desk-shelf-filter', 'desk-players-filter', 'desk-complexity-filter', 'desk-rating-filter', 'desk-sort'].forEach(id => {
         document.getElementById(id).addEventListener('change', renderDeskList);
     });
 
@@ -750,6 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deskFilterToggle.addEventListener('click', () => deskFilterPanel.classList.toggle('cl-hidden'));
     document.getElementById('desk-filter-reset').addEventListener('click', () => {
         document.getElementById('desk-status-filter').value = 'all';
+        document.getElementById('desk-shelf-filter').value = 'all';
         document.getElementById('desk-players-filter').value = '0';
         document.getElementById('desk-complexity-filter').value = 'all';
         document.getElementById('desk-rating-filter').value = 'all';
@@ -759,6 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDeskFilterCount() {
         let n = 0;
         if (document.getElementById('desk-status-filter').value !== 'all') n++;
+        if (document.getElementById('desk-shelf-filter').value !== 'all') n++;
         if (document.getElementById('desk-players-filter').value !== '0') n++;
         if (document.getElementById('desk-complexity-filter').value !== 'all') n++;
         if (document.getElementById('desk-rating-filter').value !== 'all') n++;
