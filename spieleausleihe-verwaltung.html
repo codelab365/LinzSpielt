@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v65</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v66</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -797,8 +797,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v65 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v66 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v66 — Regal-Filter im "🔍 Filter & Sortierung"-Panel ergänzt, sowohl
+//        am Ausleihe-Tresen (Spieleliste) als auch in der Ansicht für
+//        Besucher:innen (dort war ein Regal-Filter zuvor bewusst
+//        weggelassen worden — jetzt mit aufgenommen). Praktisch z.B. für
+//        eine schnelle Regal-Kontrolle vor Ort: nach dem gewünschten
+//        Regal filtern und abgleichen, ob wirklich alles da steht, was
+//        das System dafür führt.
 //   v65 — Tabelle "Spiele bei diesem Event" (Event-Fenster):
 //        1) Suche (Name), Filter (Regal, Status: Alle/Verfügbar/
 //           Ausgeliehen/Verlagstisch) und Sortierung (Name, Regal, Status)
