@@ -131,6 +131,7 @@
                 <li><a href="#stufe2">Stufe 2 — Titel-Import</a></li>
                 <li><a href="#deutsche-titel">Deutsche Titel</a></li>
                 <li><a href="#datenbank-tabelle">Datenbank durchsuchen &amp; bearbeiten</a></li>
+                <li><a href="#ean-korrektur">EAN nachträglich korrigieren</a></li>
             </ul>
             <h4>Schnellerfassung</h4>
             <ul>
@@ -343,6 +344,25 @@ Hier sind meine EAN-Codes:
                     <li>Unter dem Namen steht klein die <strong>Titelquelle</strong> (GTNM-Referenz / manuell / Recherche-Import), damit immer nachvollziehbar bleibt, woher ein Titel kam.</li>
                     <li>Button <strong>"🔄 Fehlende Beschreibungen nachholen"</strong>: findet alle bereits "Fertig" angereicherten Spiele ohne Beschreibung (weil sie vor Einführung dieses Felds enzeichert wurden) und holt sie in einem Rutsch nach — gleicher 5-Sek.-Takt, Fortschrittsbalken.</li>
                 </ul>
+            </section>
+
+            <section id="ean-korrektur">
+                <h2>EAN nachträglich korrigieren</h2>
+                <p>Neuauflagen, überarbeitete Editionen oder ein anderer Vertrieb desselben Spiels bekommen häufig eine <strong>neue EAN</strong>, obwohl es inhaltlich dasselbe Spiel ist. Statt solche Fälle dauerhaft als Mehrfacheinträge stehen zu lassen, lässt sich die EAN eines bestehenden Spiels korrigieren.</p>
+                <ul class="doc-step-list">
+                    <li>Im Bearbeiten-Formular eines Spiels ist die EAN standardmäßig gesperrt (Schreibschutz, da die EAN gleichzeitig die interne Datenbank-ID ist) — darunter die Checkbox <strong>"EAN korrigieren"</strong> aktivieren, um sie freizugeben.</li>
+                    <li>Neue EAN eintragen und speichern. Was dann passiert, hängt davon ab, ob diese EAN schon existiert:</li>
+                </ul>
+                <table class="doc-table">
+                    <thead><tr><th>Fall</th><th>Verhalten</th></tr></thead>
+                    <tbody>
+                        <tr><td>Neue EAN ist noch <strong>nicht</strong> in der Datenbank</td><td>Reine Umbenennung — alle Sammlungs-Stückzahlen, Event-Zuordnungen und das gesamte Ausleihe-Log wandern automatisch mit auf die neue EAN, der alte Eintrag verschwindet. Sonstige im Formular geänderte Felder (Name, Bild, Beschreibung, …) werden dabei mit gespeichert.</td></tr>
+                        <tr><td>Neue EAN gehört bereits zu einem <strong>anderen</strong> Eintrag</td><td>Rückfrage, ob beide Einträge zusammengeführt werden sollen. Nach Bestätigung: Sammlungs-Stückzahlen werden addiert, Event-Zuordnungen und das Ausleihe-Log werden übernommen, der alte Eintrag wird gelöscht. Name, Bild und Beschreibung des <strong>bestehenden</strong> Eintrags bleiben dabei erhalten — andere Änderungen, die gerade im Formular standen, werden verworfen.</td></tr>
+                    </tbody>
+                </table>
+                <div class="doc-callout doc-callout--warn">
+                    <p>Vor dem Zusammenführen kurz prüfen, ob es wirklich dieselbe Edition ist: Manchmal steckt hinter einer neuen EAN tatsächlich eine andere Auflage mit eigenem BGG-Eintrag (anderes Cover, teils andere Komponenten) — beim Zusammenführen geht dieser Unterschied verloren. Deshalb läuft das nie automatisch, sondern immer nur bewusst ausgelöst über die Checkbox.</p>
+                </div>
             </section>
 
             <section id="schnellerfassung">
