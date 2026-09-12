@@ -123,6 +123,9 @@
                 <option value="verfügbar">Nur verfügbar</option>
                 <option value="ausgeliehen">Nur ausgeliehen</option>
             </select>
+            <select id="ov-shelf-filter" class="cl-select">
+                <option value="all">Alle Regale</option>
+            </select>
             <select id="ov-sort" class="cl-select">
                 <option value="name">Sortieren: Name (A–Z)</option>
                 <option value="rating">Sortieren: Beliebtheit</option>
@@ -237,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('ov-search');
     const playersFilter = document.getElementById('ov-players-filter');
     const statusFilter = document.getElementById('ov-status-filter');
+    const shelfFilter = document.getElementById('ov-shelf-filter');
     const complexityFilter = document.getElementById('ov-complexity-filter');
     const sortSelect = document.getElementById('ov-sort');
     const tableBody = document.getElementById('ov-table-body');
@@ -247,8 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = 1;
     function renderFromPage1() { currentPage = 1; render(); }
 
-    [searchInput, playersFilter, statusFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('input', renderFromPage1));
-    [playersFilter, statusFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
+    [searchInput, playersFilter, statusFilter, shelfFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('input', renderFromPage1));
+    [playersFilter, statusFilter, shelfFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
     document.getElementById('ov-page-prev').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     document.getElementById('ov-page-next').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
@@ -260,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filterPanel.classList.toggle('cl-hidden');
     });
     document.getElementById('ov-filter-reset').addEventListener('click', () => {
-        playersFilter.value = '0'; statusFilter.value = 'all';
+        playersFilter.value = '0'; statusFilter.value = 'all'; shelfFilter.value = 'all';
         complexityFilter.value = 'all'; sortSelect.value = 'name';
         renderFromPage1();
     });
@@ -268,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let n = 0;
         if (playersFilter.value !== '0') n++;
         if (statusFilter.value !== 'all') n++;
+        if (shelfFilter.value !== 'all') n++;
         if (complexityFilter.value !== 'all') n++;
         if (sortSelect.value !== 'name') n++;
         filterCount.textContent = n;
@@ -384,9 +389,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function render() {
         updateFilterCount();
+        // Regal-Filter-Dropdown befüllen (Auswahl dabei erhalten, falls das
+        // Regal noch existiert) — z.B. praktisch für eine Regal-Kontrolle
+        // vor Ort: stimmt, was im Regal steht, mit dem System überein?
+        const prevShelfFilter = shelfFilter.value;
+        shelfFilter.innerHTML = '<option value="all">Alle Regale</option>' + currentEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...shelfFilter.options].some(o => o.value === prevShelfFilter)) shelfFilter.value = prevShelfFilter;
+
         const term = searchInput.value.trim().toLowerCase();
         const playersVal = parseInt(playersFilter.value, 10);
         const statusVal = statusFilter.value;
+        const shelfVal = shelfFilter.value;
         const complexityVal = complexityFilter.value;
         const sortVal = sortSelect.value;
 
@@ -394,6 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const avail = g.availableQuantity ?? lendQty(g);
             const nameMatch = !term || displayName(g).toLowerCase().includes(term);
             const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
+            const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
             const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
             let playersMatch = true;
             if (playersVal > 0) {
@@ -401,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
                 } else { playersMatch = false; }
             }
-            return nameMatch && statusMatch && complexityMatch && playersMatch;
+            return nameMatch && statusMatch && shelfMatch && complexityMatch && playersMatch;
         });
 
         if (sortVal === 'rating') {
