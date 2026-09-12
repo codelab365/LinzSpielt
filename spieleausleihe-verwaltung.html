@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v67</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v68</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -804,8 +804,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v67 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v68 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v68 — Die drei Bestätigungstexte für "zusammenführen"/"umhängen"
+//        (Regal-Konflikt beim Scannen, Regale zusammenführen, EANs
+//        zusammenführen) deutlich gekürzt — waren als lange Fließtext-
+//        Absätze zu unübersichtlich, gerade beim schnellen Scannen. Die
+//        ausführlichen Erklärungen (was bei "Abbrechen" passiert, dass die
+//        Stückzahl in jedem Fall erhöht wird, …) stehen weiterhin in der
+//        Dokumentation, nicht mehr in jedem einzelnen Dialog.
 //   v67 — EAN nachträglich korrigierbar (Datenbank-Tab, Spiel bearbeiten):
 //        neue Checkbox "EAN korrigieren" schaltet das sonst gesperrte
 //        EAN-Feld frei (Sicherheitshürde gegen versehentliches Ändern,
@@ -2640,7 +2647,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetName = targetSnap.data().name || newEan;
             const confirmed = await confirmAsync(
                 'EANs zusammenführen?',
-                `Die EAN "${newEan}" gehört bereits zu einem anderen Eintrag ("${targetName}"). Wirklich zusammenführen? Sammlungs-Stückzahlen werden addiert, Event-Zuordnungen und das Ausleihe-Log werden übernommen, der Eintrag "${gameNameInput.value.trim() || oldEan}" (EAN ${oldEan}) wird danach gelöscht. Name/Bild/Beschreibung von "${targetName}" bleiben dabei erhalten — Änderungen an diesem Formular werden verworfen.`,
+                `EAN "${newEan}" gehört schon zu "${targetName}". Zusammenführen? (Name/Bild/Beschreibung von "${targetName}" bleiben erhalten, "${gameNameInput.value.trim() || oldEan}" wird gelöscht.)`,
                 'Ja, zusammenführen'
             );
             if (!confirmed) return false;
@@ -3468,7 +3475,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 okBtn.style.borderColor = '';
                 showConfirm(
                     'Regale zusammenführen?',
-                    `Ein Regal namens "${clash.name}" existiert in diesem Event bereits. Wenn du fortfährst, werden alle ${count} Spiel(e) aus "${shelf.name}" diesem bestehenden Regal "${clash.name}" zugeordnet, und "${shelf.name}" wird danach gelöscht. Wirklich fortfahren?`,
+                    `Name "${newName}" gehört schon zu "${clash.name}". ${count} Spiel(e) aus "${shelf.name}" dorthin verschieben und "${shelf.name}" löschen?`,
                     async () => {
                         try {
                             const games = allEventGames.filter(g => g.eventId === currentEventId && g.shelfId === shelfId);
@@ -3568,7 +3575,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 playWarnBeep();
                 const reassign = await confirmAsync(
                     'Regal-Konflikt',
-                    `"${gameLabel}" ist in diesem Event bereits im Regal "${existingShelfName}" eingetragen. Jetzt kam ein weiteres Exemplar für Regal "${targetShelfName}". Soll das Spiel künftig diesem Regal ("${targetShelfName}") zugeordnet sein statt "${existingShelfName}"? Die Stückzahl wird in jedem Fall erhöht.${isTimer ? ` Ohne Reaktion bleibt es in ${seconds} Sek. automatisch bei "${existingShelfName}".` : ` Bei "Abbrechen" bleibt der bestehende Eintrag unverändert bei "${existingShelfName}" (die Exemplare gelten dann bewusst als auf zwei Regale aufgeteilt; bei der Rückgabe ist nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam).`}`,
+                    `"${gameLabel}": schon in Regal "${existingShelfName}" — jetzt für "${targetShelfName}" gescannt. Umhängen?${isTimer ? ` (automatisch Nein in ${seconds} Sek.)` : ''}`,
                     'Ja, umhängen',
                     isTimer ? seconds * 1000 : null
                 );
