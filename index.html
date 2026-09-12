@@ -381,6 +381,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = currentEventShelves.find(s => s.id === id);
         return s ? s.name : '—';
     }
+    // Ein Spiel-Eintrag hat technisch nur EIN Regal-Feld. Wurde beim
+    // Einscannen ein Regal-Konflikt bewusst nicht umgehängt, merkt sich das
+    // System zusätzlich "steht auch in Regal X" — ohne Stückzahl-
+    // Aufteilung, nur als Hinweis.
+    function otherShelfNames(g) {
+        return (g.otherShelfIds || []).map(id => shelfName(id)).filter(n => n && n !== '—');
+    }
     function loanDurationLabel(ean) {
         const startMs = activeLoanStartByEan.get(ean);
         if (startMs == null) return '—';
@@ -447,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
                 <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
                 <td>${g.complexity ? `${complexityLabel(g.complexity)} (${g.complexity.toFixed(1)})` : '—'}</td>
-                <td>${escapeHTML(shelfName(g.shelfId))}</td>
+                <td>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? `<div class="cl-muted" style="font-size:.75rem;">+ auch in ${escapeHTML(otherShelfNames(g).join(', '))}</div>` : ''}</td>
                 ${showDuration ? `<td>${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
                 <td>
                     ${statusLabel ? `<span class="ov-badge ${statusCls}">${statusLabel}</span>` : ''}
@@ -500,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
             <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
             <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
-            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
+            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? ` <span class="cl-muted">(+ ${escapeHTML(otherShelfNames(g).join(', '))})</span>` : ''}</div>
             ${currentEventShowLoanDuration && qty > 0 ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
             ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
         `;
