@@ -558,6 +558,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = allEventShelves.find(s => s.id === shelfId);
         return s ? s.name : '—';
     }
+    // Ein Spiel-Eintrag hat technisch nur EIN Regal-Feld. Wurde beim Scannen
+    // ein Regal-Konflikt bewusst NICHT umgehängt (siehe Verwaltungstool),
+    // merkt sich das System zusätzlich "steht auch in Regal X" — ohne
+    // Stückzahl-Aufteilung, nur als Hinweis, damit das zweite Regal nicht
+    // komplett aus der Anzeige verschwindet.
+    function otherShelfNames(g) {
+        return (g.otherShelfIds || []).map(id => shelfName(id)).filter(n => n && n !== '—');
+    }
     // eventGames.gameName wird vom Verwaltungstool automatisch aktuell
     // gehalten, sobald ein Spiel bearbeitet wird (siehe propagateGameUpdate
     // dort) — kein zusätzlicher Live-Nachschlag pro EAN nötig.
@@ -740,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
                 <td>${game?.rating ? `⭐ ${game.rating.toFixed(1)}` : '—'}</td>
                 <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
-                <td>${escapeHTML(shelfName(g.shelfId))}</td>
+                <td>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? `<div class="cl-muted" style="font-size:.75rem;">+ auch in ${escapeHTML(otherShelfNames(g).join(', '))}</div>` : ''}</td>
                 ${showDuration ? `<td class="td-duration">${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
                 <td>
                     ${statusLabel ? `<span class="td-badge-status ${statusCls}">${statusLabel}</span>` : ''}
@@ -831,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
             <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
             <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
-            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}</div>
+            <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? ` <span class="cl-muted">(+ ${escapeHTML(otherShelfNames(g).join(', '))})</span>` : ''}</div>
             ${showDuration && qty > 0 ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
             ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
         `;
@@ -1009,10 +1017,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const snap = await getDocs(q);
             if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
-            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>`, cls: 'td-scan-result--in' });
+            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>${otherShelfNames(eg).length ? ` <span class="cl-muted">(oder ${escapeHTML(otherShelfNames(eg).join(', '))})</span>` : ''}`, cls: 'td-scan-result--in' });
             const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
             const seconds = currentEvent?.returnMessageSeconds ?? 5;
-            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId), borrowMode: false, mode, seconds });
+            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId) + (otherShelfNames(eg).length ? ` (oder ${otherShelfNames(eg).join(', ')})` : ''), borrowMode: false, mode, seconds });
             logActivity('in', liveGameName(eg), shelfName(eg.shelfId));
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
