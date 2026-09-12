@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v68</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v69</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -800,12 +800,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import {
     getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc,
-    addDoc, getDoc, getDocs, query, where, serverTimestamp, increment
+    addDoc, getDoc, getDocs, query, where, serverTimestamp, increment, arrayUnion
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v68 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v69 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v69 — Sichtbarkeit für auf zwei Regale aufgeteilte Spiele: Wird ein
+//        Regal-Konflikt bewusst nicht umgehängt (siehe v57/v63), merkt
+//        sich das System jetzt zusätzlich "steht auch in Regal X" (neues
+//        Feld eventGames.otherShelfIds, ohne Stückzahl-Aufteilung — reine
+//        Zusatzinfo) statt das zweite Regal komplett verschwinden zu
+//        lassen. Zeigt sich überall, wo das Regal angezeigt wird:
+//        Verwaltungstool (Event-Spiele-Tabelle), Ausleihe-Tresen
+//        (Spieleliste, Detailansicht, Rückgabe-Hinweis "bitte einräumen
+//        in: X (oder Y)"), Ansicht für Besucher:innen (Tabelle,
+//        Detailansicht). Wird das Regal später manuell über das Dropdown
+//        im Verwaltungstool geändert, gilt das als bewusste Konsolidierung
+//        — der Zusatz-Hinweis wird dabei automatisch gelöscht.
 //   v68 — Die drei Bestätigungstexte für "zusammenführen"/"umhängen"
 //        (Regal-Konflikt beim Scannen, Regale zusammenführen, EANs
 //        zusammenführen) deutlich gekürzt — waren als lange Fließtext-
@@ -3580,6 +3592,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     isTimer ? seconds * 1000 : null
                 );
                 if (reassign) updateData.shelfId = shelfId;
+                // Bei "Abbrechen"/Timeout bewusst gemerkt: das Spiel steht
+                // wirklich auf zwei (oder mehr) Regale verteilt — ohne
+                // Stückzahl-Aufteilung, nur als Hinweis, damit das zweite
+                // Regal nicht komplett aus der Anzeige verschwindet.
+                else updateData.otherShelfIds = arrayUnion(shelfId);
                 await updateDoc(doc(db, 'eventGames', egId), updateData);
                 return updateData.shelfId ? 'incremented-reassigned' : 'incremented-conflict';
             }
@@ -3787,6 +3804,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <select class="cl-select sv-event-game-shelf-select" data-id="${g.id}" style="min-width:100px;">
                         ${shelves.map(s => `<option value="${s.id}" ${s.id === g.shelfId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
                     </select>
+                    ${(g.otherShelfIds || []).length > 0 ? `<div class="cl-muted" style="font-size:.75rem; margin-top:.2rem;">+ auch in ${(g.otherShelfIds || []).map(id => escapeHTML(shelfNameFor(currentEventId, id))).join(', ')}</div>` : ''}
                 </td>
                 <td style="text-align:center;" title="Wie viele der ${qty} Exemplare stehen permanent auf einem Verlagstisch (gelten als dauerhaft ausgeliehen, unabhängig von den übrigen, normal ausleihbaren Exemplaren)?">
                     <input type="number" class="cl-input sv-eg-publisher-qty" data-id="${g.id}" min="0" max="${qty}" value="${pubQty}" style="width:4rem; text-align:center;">
@@ -3828,7 +3846,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('event-games-body').addEventListener('change', async (e) => {
         const sel = e.target.closest('.sv-event-game-shelf-select');
         if (sel) {
-            try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value }); }
+            // Manuelle Regal-Änderung gilt als bewusste Konsolidierung —
+            // ein evtl. gemerktes "steht auch in Regal X" wird dabei
+            // gelöscht, da das Team jetzt aktiv entschieden hat, wo es
+            // stehen soll.
+            try { await updateDoc(doc(db, 'eventGames', sel.dataset.id), { shelfId: sel.value, otherShelfIds: [] }); }
             catch (err) { console.error(err); showToast('Regal ändern fehlgeschlagen.', true); }
             return;
         }
