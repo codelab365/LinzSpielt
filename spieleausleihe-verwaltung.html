@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v69</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v70</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -804,8 +804,32 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v69 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v70 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v70 — Regal-Konflikt-Hinweis inhaltlich überarbeitet, passend zum
+//        eigentlichen Ziel "Spiele möglichst an einem Ort sammeln":
+//        - Wortwahl "umhängen" durch "umräumen" ersetzt.
+//        - Der Text lautet jetzt direkt als Anweisung: '"[Spiel]" ist
+//          bereits in Regal "[A]" — bitte dort einräumen.' statt einer
+//          abstrakten Ja/Nein-Frage.
+//        - Die beiden Buttons sind jetzt "Bestätigen" (Standardfall: im
+//          bestehenden Regal einräumen, keine Datenänderung) und "Trotzdem
+//          in [C] umräumen" (Ausnahmefall: Spiel wird bewusst in zwei
+//          Regalen geführt, siehe otherShelfIds aus v69) — bisher gab es
+//          stattdessen eine vollständige Verschiebung ins neue Regal als
+//          Standardoption, was dem eigentlichen Ziel (ein Ort pro Spiel)
+//          entgegenlief.
+//        - Bei "Automatisch weiter nach X Sekunden" gilt bei Zeitablauf
+//          jetzt "Trotzdem umräumen" als Standard (informationserhaltend:
+//          das System merkt sich beide Regale, statt eines unbeobachtet zu
+//          verwerfen) statt vorher "im alten Regal belassen".
+//        confirmAsync kann jetzt auch die Beschriftung des zweiten Buttons
+//        (bisher immer "Abbrechen") individuell setzen; resetConfirmModalStyle
+//        setzt sie danach wieder auf "Abbrechen" zurück, damit das nicht in
+//        andere, unabhängige Bestätigungs-Dialoge durchsickert. Den
+//        Rückgabewert 'incremented-reassigned' (vollständiges Umhängen)
+//        gibt es dadurch nicht mehr — an allen Aufrufstellen entsprechend
+//        angepasst.
 //   v69 — Sichtbarkeit für auf zwei Regale aufgeteilte Spiele: Wird ein
 //        Regal-Konflikt bewusst nicht umgehängt (siehe v57/v63), merkt
 //        sich das System jetzt zusätzlich "steht auch in Regal X" (neues
@@ -1696,20 +1720,26 @@ function resetConfirmModalStyle() {
     okBtn.textContent = 'Löschen';
     okBtn.style.background = 'var(--cl-err)';
     okBtn.style.borderColor = 'var(--cl-err)';
+    document.getElementById('confirm-modal-cancel').textContent = 'Abbrechen';
 }
 // Promise-basierte Variante von showConfirm — für Stellen im Code, die auf
 // die Entscheidung der Person warten müssen (z.B. mitten in einem
 // await-Ablauf wie addOrIncrementEventGame), statt nur einen Callback zu
-// übergeben. Setzt bei Bedarf eine eigene Beschriftung für den OK-Button.
-// Optionaler timeoutMs: schließt den Dialog automatisch (wie ein Abbrechen-
-// Klick) nach Ablauf der Zeit, falls bis dahin keine Entscheidung getroffen
-// wurde — für den "Automatisch weiter nach X Sekunden"-Modus, bei dem der
-// Scan-Fluss nicht auf eine manuelle Reaktion warten soll.
-function confirmAsync(title, text, okLabel, timeoutMs) {
+// übergeben. Setzt bei Bedarf eine eigene Beschriftung für den OK-Button
+// (okLabel) und optional auch für den zweiten Button (cancelLabel) — z.B.
+// wenn beide Optionen echte, gleichwertige Handlungen sind statt "OK" vs.
+// "Abbrechen" (siehe Regal-Konflikt-Hinweis).
+// Optionaler timeoutMs: schließt den Dialog automatisch (wie ein Klick auf
+// den zweiten Button) nach Ablauf der Zeit, falls bis dahin keine
+// Entscheidung getroffen wurde — für den "Automatisch weiter nach
+// X Sekunden"-Modus, bei dem der Scan-Fluss nicht auf eine manuelle
+// Reaktion warten soll.
+function confirmAsync(title, text, okLabel, timeoutMs, cancelLabel) {
     return new Promise((resolve) => {
         const okBtn = document.getElementById('confirm-modal-ok');
         const cancelBtn = document.getElementById('confirm-modal-cancel');
         if (okLabel) { okBtn.textContent = okLabel; okBtn.style.background = ''; okBtn.style.borderColor = ''; }
+        cancelBtn.textContent = cancelLabel || 'Abbrechen';
         let done = false;
         let timeoutHandle = null;
         function finish(result) {
@@ -2204,15 +2234,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (incrementedInCollections > 0) parts.push(`in ${incrementedInCollections} Sammlung(en) Stückzahl +1`);
         if (eventResult === 'added') parts.push('ins Event/Regal eingeräumt');
         if (eventResult === 'incremented') parts.push('Stückzahl im Event +1');
-        if (eventResult === 'incremented-reassigned') parts.push('Stückzahl im Event +1, Regal umgehängt');
         if (eventResult === 'incremented-conflict') {
             const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
-            parts.push(`⚠️ bereits im Regal "${shelfNameFor(activeEventId, eg?.shelfId)}" — NICHT umgehängt`);
+            parts.push(`⚠️ in Regal "${shelfNameFor(activeEventId, eg?.shelfId)}" eingeräumt lassen, jetzt zusätzlich in "${shelfNameFor(activeEventId, shelfId)}"`);
         }
         quickLog(`${ean} — ${displayName} (${parts.join(', ')})`, eventResult !== 'incremented-conflict');
         if (eventResult === 'incremented-conflict') {
             const eg = allEventGames.find(g => g.id === `${activeEventId}_${ean}`);
-            showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(shelfNameFor(activeEventId, eg?.shelfId))}" (Regal "${escapeHTML(shelfNameFor(activeEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
+            showToast(`⚠️ ${escapeHTML(displayName)}: schon in "${escapeHTML(shelfNameFor(activeEventId, eg?.shelfId))}", jetzt zusätzlich in "${escapeHTML(shelfNameFor(activeEventId, shelfId))}" geführt — bei Bedarf im Event-Fenster per Regal-Dropdown zusammenführen`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
         } else {
             playScanBeep();
             showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
@@ -3585,20 +3614,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isTimer = opts.shelfConflictMode === 'timer';
                 const seconds = Math.max(1, Math.min(60, opts.shelfConflictSeconds ?? 8));
                 playWarnBeep();
-                const reassign = await confirmAsync(
+                // Ziel ist immer, Spiele möglichst an einem einzigen Ort zu
+                // sammeln — daher ist "im bestehenden Regal einräumen" die
+                // naheliegende Standard-Aktion (auch bei Zeitablauf im
+                // Automatik-Modus), "umräumen" (= künftig in zwei Regalen
+                // geführt) die bewusste Ausnahme.
+                const putInExisting = await confirmAsync(
                     'Regal-Konflikt',
-                    `"${gameLabel}": schon in Regal "${existingShelfName}" — jetzt für "${targetShelfName}" gescannt. Umhängen?${isTimer ? ` (automatisch Nein in ${seconds} Sek.)` : ''}`,
-                    'Ja, umhängen',
-                    isTimer ? seconds * 1000 : null
+                    `"${gameLabel}" ist bereits in Regal "${existingShelfName}" — bitte dort einräumen.${isTimer ? ` (automatisch nach ${seconds} Sek.)` : ''}`,
+                    'Bestätigen',
+                    isTimer ? seconds * 1000 : null,
+                    `Trotzdem in "${targetShelfName}" umräumen`
                 );
-                if (reassign) updateData.shelfId = shelfId;
-                // Bei "Abbrechen"/Timeout bewusst gemerkt: das Spiel steht
-                // wirklich auf zwei (oder mehr) Regale verteilt — ohne
-                // Stückzahl-Aufteilung, nur als Hinweis, damit das zweite
-                // Regal nicht komplett aus der Anzeige verschwindet.
-                else updateData.otherShelfIds = arrayUnion(shelfId);
+                if (!putInExisting) {
+                    // "Umräumen" gewählt: Spiel wird ab jetzt bewusst in
+                    // zwei Regalen geführt — ohne Stückzahl-Aufteilung, nur
+                    // als Hinweis, damit das zweite Regal nicht komplett aus
+                    // der Anzeige verschwindet.
+                    updateData.otherShelfIds = arrayUnion(shelfId);
+                }
                 await updateDoc(doc(db, 'eventGames', egId), updateData);
-                return updateData.shelfId ? 'incremented-reassigned' : 'incremented-conflict';
+                return putInExisting ? 'incremented' : 'incremented-conflict';
             }
             await updateDoc(doc(db, 'eventGames', egId), updateData);
             return 'incremented';
@@ -3701,8 +3737,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
             eventAddSearch.value = '';
             eventAddResults.classList.add('cl-hidden');
-            if (result === 'incremented-reassigned') showToast(`"${name}" umgehängt und Stückzahl erhöht.`);
-            else if (result === 'incremented' || result === 'incremented-conflict') showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
+            if (result === 'incremented' || result === 'incremented-conflict') showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
             else showToast(`"${name}" zum Event hinzugefügt.`);
         } catch (err) { console.error(err); showToast('Hinzufügen fehlgeschlagen.', true); }
     });
@@ -3715,7 +3750,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shelfId = document.getElementById('event-add-shelf').value;
         if (!shelfId) { showToast('Bitte zuerst mindestens ein Regal für dieses Event anlegen.', true); return; }
         const ev = allEvents.find(e => e.id === currentEventId);
-        let added = 0, incremented = 0, reassigned = 0, failed = 0;
+        let added = 0, incremented = 0, split = 0, failed = 0;
         for (const { ean, collectionId, name } of eventAddSelection.values()) {
             const g = allGames.find(g => g.id === ean);
             try {
@@ -3725,7 +3760,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // wird (gesteuert über opts.checkShelfConflict/shelfConflictMode).
                 const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
                 if (result === 'added') added++;
-                else if (result === 'incremented-reassigned') reassigned++;
+                else if (result === 'incremented-conflict') split++;
                 else if (result === 'incremented') incremented++;
             } catch (err) { console.error(err); failed++; }
         }
@@ -3734,7 +3769,7 @@ document.addEventListener('DOMContentLoaded', () => {
         eventAddSearch.value = '';
         eventAddResults.classList.add('cl-hidden');
         const parts = [`${added} neu eingeräumt`, `${incremented} in Stückzahl erhöht`];
-        if (reassigned > 0) parts.push(`${reassigned} umgehängt`);
+        if (split > 0) parts.push(`${split} jetzt in zwei Regalen`);
         if (failed > 0) parts.push(`${failed} fehlgeschlagen`);
         showToast(`✅ ${parts.join(', ')}`, false, { variant: 'ok', duration: 3500 });
     });
@@ -3949,10 +3984,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eventResult === 'incremented-conflict') {
             const eg = allEventGames.find(g => g.id === `${currentEventId}_${ean}`);
             const existingShelfName = shelfNameFor(currentEventId, eg?.shelfId);
-            counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (⚠️ bereits im Regal "${existingShelfName}" — NICHT umgehängt)`;
-            showToast(`⚠️ ${escapeHTML(displayName)}: bereits im Regal "${escapeHTML(existingShelfName)}" (Regal "${escapeHTML(shelfNameFor(currentEventId, shelfId))}" gescannt, NICHT umgehängt — im Event-Fenster bei Bedarf per Regal-Dropdown korrigieren)`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
+            counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (⚠️ jetzt in zwei Regalen: "${existingShelfName}" + "${shelfNameFor(currentEventId, shelfId)}")`;
+            showToast(`⚠️ ${escapeHTML(displayName)}: schon in "${escapeHTML(existingShelfName)}", jetzt zusätzlich in "${escapeHTML(shelfNameFor(currentEventId, shelfId))}" geführt — bei Bedarf im Event-Fenster per Regal-Dropdown zusammenführen`, false, { variant: 'warn', duration: Math.max(6000, getScanToastDurationMs()) });
         } else {
-            const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : (eventResult === 'incremented-reassigned' ? 'Stückzahl +1, Regal umgehängt' : 'eingeräumt')];
+            const parts = [isNewGame ? 'neu in DB' : 'in DB vorhanden', eventResult === 'incremented' ? 'Stückzahl +1' : 'eingeräumt'];
             counterEl.textContent = `${eventQuickScanCount} gescannt in dieser Sitzung — zuletzt: ${displayName} (${parts.join(', ')})`;
             playScanBeep();
             showToast(`✅ ${escapeHTML(displayName)} erfasst`, false, { variant: 'ok', duration: getScanToastDurationMs() });
