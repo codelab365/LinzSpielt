@@ -3,79 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spieleübersicht – Linz Spielt</title>
+<title>Ausleihe-Tresen – Linz Spielt</title>
 <link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
 <style>
-    /* Schlanke Ansicht — gedacht zum Einbetten per <iframe> auf der Vereins-Website. */
-    body { background: transparent; }
-    .ov-wrap { padding: var(--cl-space-3); max-width: 78rem; margin: 0 auto; }
-    .ov-title { margin: 0 0 .2rem 0; }
-    .ov-sub { margin: 0 0 var(--cl-space-3) 0; }
-    .ov-event-picker { margin-bottom: var(--cl-space-3); }
-    .ov-stats { display: flex; flex-wrap: wrap; gap: var(--cl-space-3); margin-bottom: var(--cl-space-3); }
-    .ov-stat { font-size: .9rem; color: var(--cl-muted); }
-    .ov-stat strong { color: var(--cl-text); font-size: 1.1rem; }
-    .ov-searchbar { display: flex; flex-wrap: wrap; gap: var(--cl-space-2); margin-bottom: var(--cl-space-2); }
-    .ov-searchbar .cl-input { flex: 1; min-width: 160px; }
-    .ov-searchbar .cl-btn { white-space: nowrap; position: relative; }
-    .ov-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
-        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
-    .ov-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2);
-        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
-    .ov-filter-panel .cl-select { width: 100%; }
-    .ov-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
-    .ov-pagination { display: flex; align-items: center; justify-content: center; gap: var(--cl-space-3); margin-bottom: var(--cl-space-2); }
-    table.ov-table { width: 100%; border-collapse: collapse; min-width: 620px; }
-    table.ov-table th, table.ov-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
-    table.ov-table th { background: var(--cl-surface-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
-    table.ov-table tbody tr:last-child td { border-bottom: none; }
-    table.ov-table tbody tr { cursor: pointer; }
-    table.ov-table tbody tr:hover { background: var(--cl-surface-2); }
-    table.ov-table img.ov-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
-    .ov-thumb--placeholder { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
-        border-radius: 4px; background: var(--cl-surface-2); font-size: 1.2rem; opacity: .5; }
-    .ov-badge { font-size: .74rem; font-weight: 600; padding: .18rem .6rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
-    .ov-badge--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
-    .ov-badge--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
-    .ov-badge--publisher { background: color-mix(in srgb, var(--cl-signal) 20%, transparent); color: var(--cl-signal); }
-    .ov-rating { color: var(--cl-warn); font-weight: 600; white-space: nowrap; }
-    .ov-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
-    .ov-footer-note { margin-top: var(--cl-space-3); font-size: .78rem; color: var(--cl-muted); text-align: center; }
-    .bgg-attribution { display: inline-flex; align-items: center; opacity: .88; transition: opacity .15s ease; padding: .15rem; border-radius: var(--cl-radius-sm); flex-shrink: 0; }
+    .qb-header-actions { display: flex; align-items: center; gap: var(--cl-space-2); flex-wrap: wrap; justify-content: flex-end; }
+    .qb-error { color: var(--cl-err); text-align: center; margin-top: var(--cl-space-2); min-height: 1.25rem; font-size: .9rem; }
+    #toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100;
+        display: flex; flex-direction: column; gap: .5rem; align-items: center; pointer-events: none; }
+    .qb-toast { background: var(--cl-primary); color: var(--cl-on-primary); padding: 1.1rem 2rem;
+        border-radius: var(--cl-radius); box-shadow: var(--cl-shadow-lg); font-size: 1.15rem; font-weight: 600; max-width: 90vw; text-align: center; }
+    .qb-toast--err { background: var(--cl-err); }
+    .qb-toast--ok { background: var(--cl-ok); }
+    @keyframes qbFadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+    .toast-enter { animation: qbFadeIn .25s ease-out; }
+    .td-always-active-toggle { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--cl-muted); margin-top: .5rem; cursor: pointer; }
+    .bgg-attribution { display: inline-flex; align-items: center; opacity: .88; transition: opacity .15s ease; padding: .15rem; border-radius: var(--cl-radius-sm); }
     .bgg-attribution:hover, .bgg-attribution:focus-visible { opacity: 1; }
-    .bgg-attribution__img { height: 28px; width: auto; display: block; }
-    @media (max-width: 480px) { .bgg-attribution__img { height: 22px; } }
+    .bgg-attribution__img { height: 26px; width: auto; display: block; }
+    @media (max-width: 480px) { .bgg-attribution__img { height: 20px; } }
 
-    /* Detailansicht */
-    .ov-modal-overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
+    .td-login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+    .td-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--cl-space-2); margin-bottom: var(--cl-space-4); }
+    .td-stat-box { border: 1px solid var(--cl-line); border-radius: var(--cl-radius); padding: var(--cl-space-3); text-align: center; }
+    .td-stat-box__num { font-size: 2rem; font-weight: 700; font-family: var(--cl-font-display); }
+    .td-stat-box__label { color: var(--cl-muted); font-size: .82rem; }
+
+    .td-scan-card { text-align: center; }
+
+    .td-always-stat { font-size: 1.15rem; font-weight: 700; margin-bottom: .6rem; }
+    .td-always-stat span { color: var(--cl-signal); }
+
+    .td-scan-result { margin-top: var(--cl-space-3); padding: var(--cl-space-3); border-radius: var(--cl-radius);
+        border: 1px solid var(--cl-line); display: none; text-align: left; }
+    .td-scan-result.is-visible { display: flex; gap: var(--cl-space-3); align-items: center; }
+    .td-scan-result--out { background: color-mix(in srgb, var(--cl-signal) 12%, transparent); border-color: color-mix(in srgb, var(--cl-signal) 45%, transparent); }
+    .td-scan-result--in { background: color-mix(in srgb, var(--cl-ok) 12%, transparent); border-color: color-mix(in srgb, var(--cl-ok) 45%, transparent); }
+    .td-scan-result--unknown { background: color-mix(in srgb, var(--cl-warn) 14%, transparent); border-color: color-mix(in srgb, var(--cl-warn) 45%, transparent); }
+    .td-scan-result img { width: 56px; height: 56px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .td-scan-result__title { font-weight: 700; font-size: 1.05rem; margin: 0 0 .2rem 0; }
+    .td-scan-input { font-size: 1.4rem; text-align: center; letter-spacing: .05em; padding: 1.1rem !important; }
+    .td-activity-log__list { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); }
+    .td-activity-log__item { display: flex; align-items: center; gap: .5rem; padding: .45rem .6rem; font-size: .84rem; border-bottom: 1px solid var(--cl-line); }
+    .td-activity-log__item:last-child { border-bottom: none; }
+    .td-activity-log__item--out { color: var(--cl-signal); }
+    .td-activity-log__item--in { color: var(--cl-ok); }
+    .td-activity-log__time { color: var(--cl-muted); font-size: .76rem; margin-left: auto; white-space: nowrap; }
+    .td-manual-search { position: relative; margin-top: var(--cl-space-3); }
+    .td-manual-results { border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); background: var(--cl-surface);
+        margin-top: .3rem; max-height: 260px; overflow-y: auto; }
+    .td-manual-result-item { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem .75rem;
+        cursor: pointer; border-bottom: 1px solid var(--cl-line); align-items: center; }
+    .td-manual-result-item:last-child { border-bottom: none; }
+    .td-manual-result-item:hover { background: var(--cl-surface-2); }
+    .td-badge-status { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: var(--cl-radius-pill); white-space: nowrap; }
+    .td-badge-status--frei { background: color-mix(in srgb, var(--cl-ok) 20%, transparent); color: var(--cl-ok); }
+    .td-badge-status--aus { background: color-mix(in srgb, var(--cl-err) 20%, transparent); color: var(--cl-err); }
+
+    .td-table-wrap { overflow-x: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius); }
+    .td-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem;
+        padding: 0 .3rem; border-radius: var(--cl-radius-pill); background: var(--cl-signal); color: #fff; font-size: .72rem; font-weight: 700; margin-left: .3rem; }
+    .td-filter-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--cl-space-2);
+        margin-bottom: var(--cl-space-3); padding: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius); background: var(--cl-surface-2); }
+    .td-filter-panel .cl-select { width: 100%; }
+    table.td-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    table.td-table th, table.td-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid var(--cl-line); font-size: .9rem; vertical-align: middle; }
+    table.td-table th { background: var(--cl-surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--cl-muted); }
+    table.td-table tbody tr:last-child td { border-bottom: none; }
+    .td-empty { text-align: center; color: var(--cl-muted); padding: var(--cl-space-4) 0; }
+    .td-event-picker { max-width: 26rem; margin: 3rem auto; }
+
+    /* Bild-Thumbnail + klickbare Zeile, analog zur Ansicht für Besucher:innen */
+    table.td-table img.td-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 4px; background: var(--cl-surface-2); }
+    .td-thumb--placeholder { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; background: var(--cl-surface-2); font-size: 1.2rem; opacity: .5; }
+    .td-game-cell { cursor: pointer; }
+    .td-game-cell:hover { text-decoration: underline; }
+    .td-badge-status--publisher { background: color-mix(in srgb, var(--cl-signal) 20%, transparent); color: var(--cl-signal); }
+    .td-duration { font-variant-numeric: tabular-nums; color: var(--cl-muted); font-size: .85rem; white-space: nowrap; }
+
+    /* Detailansicht (identisch zur Ansicht für Besucher:innen) */
+    .td-detail-overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
         background: color-mix(in srgb, black 55%, transparent); padding: 1rem; }
-    .ov-modal-overlay.is-visible { display: flex; }
-    .ov-modal { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-4); max-width: 32rem; width: 100%;
+    .td-detail-overlay.is-visible { display: flex; }
+    .td-detail-modal { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-4); max-width: 32rem; width: 100%;
         max-height: 90vh; overflow-y: auto; position: relative; box-shadow: var(--cl-shadow-lg); }
-    .ov-modal-close { position: absolute; top: .8rem; right: .8rem; background: none; border: none; font-size: 1.6rem; line-height: 1;
+    .td-detail-close { position: absolute; top: .8rem; right: .8rem; background: none; border: none; font-size: 1.6rem; line-height: 1;
         color: var(--cl-muted); cursor: pointer; }
-    .ov-modal-close:hover { color: var(--cl-text); }
-    .ov-modal-head { display: flex; gap: var(--cl-space-3); align-items: flex-start; }
-    .ov-modal-head img { width: 96px; height: 96px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
-    .ov-modal-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .3rem 0; }
-    .ov-modal-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
-    .ov-modal-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: var(--cl-space-3) 0; font-size: .9rem; }
-    .ov-modal-meta-grid div span:first-child { color: var(--cl-muted); display: block; font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; }
-    .ov-modal-desc { font-size: .9rem; line-height: 1.5; white-space: pre-line; max-height: 220px; overflow-y: auto;
+    .td-detail-close:hover { color: var(--cl-text); }
+    .td-detail-head { display: flex; gap: var(--cl-space-3); align-items: flex-start; }
+    .td-detail-head img { width: 96px; height: 96px; object-fit: contain; border-radius: var(--cl-radius-sm); background: var(--cl-surface-2); flex-shrink: 0; }
+    .td-detail-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .3rem 0; }
+    .td-detail-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+    .td-detail-meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: var(--cl-space-3) 0; font-size: .9rem; }
+    .td-detail-meta-grid div span:first-child { color: var(--cl-muted); display: block; font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; }
+    .td-detail-desc { font-size: .9rem; line-height: 1.5; white-space: pre-line; max-height: 220px; overflow-y: auto;
         border-top: 1px solid var(--cl-line); padding-top: var(--cl-space-3); margin-top: var(--cl-space-3); }
-    .ov-modal-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
+    .td-detail-bgg-link { display: inline-block; margin-top: var(--cl-space-3); font-size: .85rem; }
+
+    /* Unbekannte Scans (nicht in der Datenbank/nicht in diesem Event) */
+    .td-unknown-panel { margin-top: var(--cl-space-3); }
+    .td-unknown-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm); margin-top: .5rem; }
+    .td-unknown-item { display: flex; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; font-size: .85rem; border-bottom: 1px solid var(--cl-line); }
+    .td-unknown-item:last-child { border-bottom: none; }
+    .td-unknown-item__time { color: var(--cl-muted); font-size: .76rem; white-space: nowrap; }
+
+    /* Rückgabe-Meldung: große, unübersehbare Overlay-Karte */
+    .td-return-overlay { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
+        background: color-mix(in srgb, black 60%, transparent); padding: 1rem; }
+    .td-return-overlay.is-visible { display: flex; }
+    .td-return-card { background: var(--cl-surface); border-radius: var(--cl-radius); padding: var(--cl-space-5); max-width: 30rem; width: 100%;
+        text-align: center; box-shadow: var(--cl-shadow-lg); border: 3px solid var(--cl-ok); }
+    .td-return-card--borrow { border-color: var(--cl-signal); }
+    .td-return-card__icon { font-size: 3rem; margin-bottom: .5rem; }
+    .td-return-card__title { font-size: 1.4rem; font-weight: 700; margin: 0 0 .5rem 0; }
+    .td-return-card__shelf { font-size: 1.8rem; font-weight: 700; color: var(--cl-ok); margin: .5rem 0; }
+    .td-return-card__timer { color: var(--cl-muted); font-size: .85rem; margin-top: .75rem; }
+
+    /* Feature-Wunsch vom letzten Membling-Treffen: Bestätigen-Buttons im
+       Ausleihsystem deutlich größer, damit sie am Tresen (oft hektisch,
+       manchmal am Tablet mit Handschuhen o.ä.) leichter zu treffen sind. */
+    .td-btn-xl { font-size: 1.4rem !important; padding: 1rem 2.2rem !important; }
 
     @media (max-width: 640px) {
-        .ov-filter-panel { grid-template-columns: 1fr 1fr; }
-        .ov-modal-head { flex-direction: column; align-items: center; text-align: center; }
-        .ov-modal-meta-grid { grid-template-columns: 1fr 1fr; }
+        .cl-card--pad { padding: var(--cl-space-3); }
+        .td-detail-head { flex-direction: column; align-items: center; text-align: center; }
+        .td-detail-meta-grid { grid-template-columns: 1fr 1fr; }
     }
 </style>
 </head>
 <body>
-<div class="ov-wrap">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
-        <h2 class="ov-title">🎲 Spieleübersicht</h2>
+
+<header class="cl-header">
+    <div class="cl-container cl-header__inner">
+        <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎟️</span><span class="cl-brand__name">Ausleihe<b>-Tresen</b></span></a>
         <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer" class="bgg-attribution" title="Powered by BoardGameGeek" aria-label="Powered by BoardGameGeek">
             <svg class="bgg-attribution__img" viewBox="0 0 342 76" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
                 <title>Powered by BGG</title>
@@ -86,93 +146,206 @@
                 </g>
             </svg>
         </a>
+        <div class="cl-header__spacer"></div>
+        <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
+        <div class="qb-header-actions" id="header-actions"></div>
     </div>
-    <p class="ov-sub cl-muted" id="ov-event-title">Stand der Spielothek — was ist gerade verfügbar, was ist ausgeliehen.</p>
-    <div style="display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem;">
-        <button type="button" id="ov-refresh-btn" class="cl-btn cl-btn--ghost cl-btn--sm">🔄 Jetzt aktualisieren</button>
-        <span id="ov-last-refresh" class="cl-muted" style="font-size:.78rem;"></span>
+</header>
+
+<!-- MODAL: PERSÖNLICHE EINSTELLUNGEN -->
+<div id="user-settings-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal modal-enter">
+        <button type="button" id="settings-modal-close" class="qb-modal-close" aria-label="Schließen">&times;</button>
+        <h2 style="margin-top:0;">Einstellungen</h2>
+        <p class="cl-muted" style="font-size:.85rem;">Gilt für dieses Gerät/diesen Browser.</p>
+        <label class="cl-label" for="settings-toast-duration">Anzeigedauer der Scan-Rückmeldung (Sekunden)</label>
+        <input type="number" id="settings-toast-duration" class="cl-input" min="0.5" max="10" step="0.5">
+        <label style="display:flex; align-items:center; gap:.5rem; font-size:.9rem; margin-top: var(--cl-space-3);">
+            <input type="checkbox" id="settings-scan-sound">
+            Ton bei erfolgreichem Scan abspielen
+        </label>
+        <button type="button" id="settings-save-btn" class="cl-btn cl-btn--signal" style="margin-top: var(--cl-space-3);">Speichern</button>
+    </div>
+</div>
+
+<main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
+
+    <!-- LOGIN -->
+    <div id="login-view" class="td-login-wrap">
+        <div class="cl-card cl-card--pad" style="max-width:26rem; width:100%;">
+            <h2 class="cl-center">Anmelden</h2>
+            <p class="cl-muted cl-center">Nur für Team-Mitglieder von Linz Spielt.</p>
+            <form id="login-form" class="cl-stack">
+                <div><label class="cl-label" for="login-email">E-Mail</label><input class="cl-input" id="login-email" type="email" required autocomplete="username"></div>
+                <div><label class="cl-label" for="login-password">Passwort</label><input class="cl-input" id="login-password" type="password" required autocomplete="current-password"></div>
+                <button class="cl-btn cl-btn--signal" type="submit" style="width:100%;">Einloggen</button>
+            </form>
+            <p id="login-error" class="qb-error"></p>
+            <p class="cl-muted cl-center" style="font-size:.85rem; margin-top:.5rem;">Noch kein Konto? Im Verwaltungstool registrieren.</p>
+        </div>
     </div>
 
-    <div class="ov-event-picker cl-hidden" id="ov-event-picker-wrap">
-        <label class="cl-label" for="ov-event-picker">Event auswählen</label>
-        <select id="ov-event-picker" class="cl-select" style="width:100%; max-width:24rem;"></select>
+    <!-- EVENT PICKER (falls kein ?event=... in der URL) -->
+    <div id="event-picker-view" class="cl-hidden td-event-picker">
+        <div class="cl-card cl-card--pad">
+            <h2 class="cl-center">Event wählen</h2>
+            <label class="cl-label" for="event-picker-select">Für welches Event möchtest du den Tresen öffnen?</label>
+            <select id="event-picker-select" class="cl-select" style="width:100%;"></select>
+            <button type="button" id="event-picker-go-btn" class="cl-btn cl-btn--signal" style="width:100%; margin-top:.75rem;">Tresen öffnen</button>
+        </div>
     </div>
 
-    <div id="ov-main" class="cl-hidden">
-        <div class="ov-stats" id="ov-stats"></div>
+    <!-- TRESEN -->
+    <div id="desk-view" class="cl-hidden">
+        <h1 id="desk-event-title" style="margin-bottom:.2rem;"></h1>
+        <p id="desk-event-meta" class="cl-muted" style="margin-top:0;"></p>
 
-        <div class="ov-searchbar">
-            <input type="text" id="ov-search" class="cl-input" placeholder="Spiel suchen…" autocomplete="off">
-            <button type="button" id="ov-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="ov-filter-count" class="ov-filter-count cl-hidden">0</span></button>
+        <div class="td-always-stat" id="desk-always-stat"></div>
+
+        <button type="button" id="desk-stats-toggle-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-bottom:.75rem;">📊 Statistik anzeigen</button>
+        <div class="td-stats cl-hidden" id="desk-stats"></div>
+
+        <div class="cl-card cl-card--pad td-scan-card">
+            <label class="cl-label" for="desk-scan-input">EAN scannen</label>
+            <input type="text" id="desk-scan-input" class="cl-input td-scan-input" placeholder="Barcode scannen…" autocomplete="off">
+            <label class="td-always-active-toggle">
+                <input type="checkbox" id="desk-scan-always-active-toggle">
+                Scan-Feld immer aktiv halten (Fokus automatisch zurückholen)
+            </label>
+            <label class="td-always-active-toggle">
+                <input type="checkbox" id="desk-scan-sound-toggle">
+                🔊 Ton bei erfolgreichem Scan
+            </label>
+            <div id="desk-scan-result" class="td-scan-result"></div>
+            <div id="desk-activity-log" class="td-activity-log cl-hidden">
+                <p class="cl-muted" style="font-size:.78rem; margin:.75rem 0 .3rem 0;">📝 Letzte Aktionen (nur diese Sitzung)</p>
+                <div id="desk-activity-log-list" class="td-activity-log__list"></div>
+            </div>
         </div>
 
-        <div id="ov-filter-panel" class="ov-filter-panel cl-hidden">
-            <select id="ov-players-filter" class="cl-select">
+        <div class="cl-card cl-card--pad td-manual-search">
+            <label class="cl-label" for="desk-manual-search">Spiel manuell suchen (falls Scanner nicht verfügbar)</label>
+            <input type="text" id="desk-manual-search" class="cl-input" placeholder="Spielname eingeben…" autocomplete="off">
+            <div id="desk-manual-results" class="td-manual-results cl-hidden"></div>
+        </div>
+
+        <h3 style="margin-top: var(--cl-space-4);">Spieleliste</h3>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem;">
+            <input type="text" id="desk-list-search" class="cl-input" placeholder="Spiel suchen…" style="flex:1; min-width:160px;" autocomplete="off">
+            <button type="button" id="desk-filter-toggle" class="cl-btn cl-btn--ghost">🔍 Filter &amp; Sortierung <span id="desk-filter-count" class="td-filter-count cl-hidden">0</span></button>
+        </div>
+        <div id="desk-filter-panel" class="td-filter-panel cl-hidden">
+            <select id="desk-status-filter" class="cl-select">
+                <option value="all">Alle Spiele</option>
+                <option value="available">Nur verfügbar</option>
+                <option value="borrowed">Nur ausgeliehen</option>
+            </select>
+            <select id="desk-shelf-filter" class="cl-select">
+                <option value="all">Alle Regale</option>
+            </select>
+            <select id="desk-players-filter" class="cl-select">
                 <option value="0">Jede Spielerzahl</option>
                 <option value="1">1 Spieler</option><option value="2">2 Spieler</option><option value="3">3 Spieler</option>
                 <option value="4">4 Spieler</option><option value="5">5 Spieler</option><option value="6">6 Spieler</option><option value="7">7+ Spieler</option>
             </select>
-            <select id="ov-complexity-filter" class="cl-select">
+            <select id="desk-complexity-filter" class="cl-select">
                 <option value="all">Jede Komplexität</option>
                 <option value="easy">Leicht (Einsteiger)</option>
                 <option value="medium">Mittel</option>
                 <option value="hard">Anspruchsvoll (Experten)</option>
             </select>
-            <select id="ov-status-filter" class="cl-select">
-                <option value="all">Alle Status</option>
-                <option value="verfügbar">Nur verfügbar</option>
-                <option value="ausgeliehen">Nur ausgeliehen</option>
+            <select id="desk-rating-filter" class="cl-select">
+                <option value="all">Jede Bewertung</option>
+                <option value="7">Gut bewertet (ab 7)</option>
+                <option value="8">Sehr gut bewertet (ab 8)</option>
             </select>
-            <select id="ov-shelf-filter" class="cl-select">
-                <option value="all">Alle Regale</option>
-            </select>
-            <select id="ov-sort" class="cl-select">
+            <select id="desk-sort" class="cl-select">
                 <option value="name">Sortieren: Name (A–Z)</option>
-                <option value="rating">Sortieren: Beliebtheit</option>
+                <option value="rating">Sortieren: Beliebtheit (BGG-Bewertung)</option>
+                <option value="complexity-asc">Sortieren: Komplexität, leicht zuerst</option>
+                <option value="complexity-desc">Sortieren: Komplexität, anspruchsvoll zuerst</option>
             </select>
-            <button type="button" id="ov-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
+            <button type="button" id="desk-filter-reset" class="cl-btn cl-btn--ghost cl-btn--sm">Filter zurücksetzen</button>
+        </div>
+        <div class="td-table-wrap">
+            <table class="td-table">
+                <thead><tr><th></th><th>Spiel</th><th>Spieler</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th id="desk-th-duration" class="cl-hidden">Ausgeliehen seit</th><th>Status</th><th></th></tr></thead>
+                <tbody id="desk-list-body"></tbody>
+            </table>
+            <p id="desk-list-empty" class="td-empty cl-hidden">Keine Spiele gefunden.</p>
         </div>
 
-        <div id="ov-pagination" class="ov-pagination cl-hidden">
-            <button type="button" id="ov-page-prev" class="cl-btn cl-btn--ghost cl-btn--sm">← Zurück</button>
-            <span id="ov-page-info" class="cl-muted" style="font-size:.85rem;"></span>
-            <button type="button" id="ov-page-next" class="cl-btn cl-btn--ghost cl-btn--sm">Weiter →</button>
+        <div class="cl-card cl-card--pad td-unknown-panel" id="desk-unknown-panel" style="display:none;">
+            <h3 style="margin-top:0;">❓ Unbekannte Scans (diese Sitzung)</h3>
+            <p class="cl-muted" style="font-size:.85rem;">EANs, die beim Scannen nicht bei diesem Event gefunden wurden — z.B. weil das Spiel noch nicht in der Datenbank angelegt ist. Diese Liste lebt nur auf diesem Gerät und in dieser Sitzung (wird beim Neuladen der Seite geleert).</p>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
+                <input type="text" id="desk-unknown-filter" class="cl-input" placeholder="EAN filtern…" style="flex:1; min-width:140px;" autocomplete="off">
+                <button type="button" id="desk-unknown-copy-btn" class="cl-btn cl-btn--ghost cl-btn--sm">📋 Liste kopieren</button>
+                <button type="button" id="desk-unknown-clear-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Liste leeren</button>
+            </div>
+            <div id="desk-unknown-list" class="td-unknown-list"></div>
         </div>
-        <div class="ov-table-wrap">
-            <table class="ov-table">
-                <thead>
-                    <tr><th></th><th>Name</th><th>Spieler</th><th>Alter ab</th><th>Dauer</th><th>Bewertung</th><th>Komplexität</th><th>Regal</th><th id="ov-th-duration" class="cl-hidden">Ausgeliehen seit</th><th>Status</th></tr>
-                </thead>
-                <tbody id="ov-table-body"></tbody>
-            </table>
-            <p id="ov-empty" class="ov-empty cl-hidden">Keine Spiele gefunden.</p>
-        </div>
-        <p class="ov-footer-note">Daten aktualisieren sich automatisch. Zeile anklicken für Details. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
     </div>
 
-    <p id="ov-loading" class="ov-empty">Lade Events…</p>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt — Ausleihe-Tresen</span></div>
+</footer>
+
+<div id="toast-container"></div>
+
+<!-- Rückgabe-/Ausleihe-Meldung -->
+<div id="return-overlay" class="td-return-overlay">
+    <div class="td-return-card" id="return-card">
+        <div class="td-return-card__icon" id="return-icon">✅</div>
+        <p class="td-return-card__title" id="return-title"></p>
+        <p class="td-return-card__shelf" id="return-shelf"></p>
+        <p class="cl-muted" id="return-sub"></p>
+        <button type="button" id="return-ok-btn" class="cl-btn cl-btn--signal td-btn-xl" style="margin-top:1rem;">OK</button>
+        <p class="td-return-card__timer" id="return-timer-text"></p>
+    </div>
 </div>
 
-<!-- Detailansicht -->
-<div id="ov-modal-overlay" class="ov-modal-overlay">
-    <div class="ov-modal">
-        <button type="button" id="ov-modal-close" class="ov-modal-close" aria-label="Schließen">&times;</button>
-        <div class="ov-modal-head">
-            <img id="ov-modal-img" src="" alt="" referrerpolicy="no-referrer" style="display:none;">
+<!-- Popup: entweder Auswahl (bei Mehrfach-Exemplaren mit gemischtem Status)
+     oder einfache Bestätigung (nur wenn "Vor jeder Aktion bestätigen" aktiv ist) -->
+<div id="confirm-action-overlay" class="td-return-overlay">
+    <div class="td-return-card" id="confirm-action-card">
+        <div class="td-return-card__icon" id="confirm-action-icon">📖</div>
+        <p class="td-return-card__title" id="confirm-action-title"></p>
+        <p class="cl-muted" id="confirm-action-sub"></p>
+        <div id="confirm-action-choice-buttons" style="display:flex; gap:.6rem; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+            <button type="button" id="confirm-action-choice-borrow-btn" class="cl-btn cl-btn--signal td-btn-xl">📖 Ausleihen</button>
+            <button type="button" id="confirm-action-choice-return-btn" class="cl-btn cl-btn--signal td-btn-xl" style="background:var(--cl-ok); border-color:var(--cl-ok);">↩️ Rückgabe</button>
+        </div>
+        <button type="button" id="confirm-action-choice-cancel-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.6rem;">Abbrechen</button>
+    </div>
+</div>
+
+<!-- Detailansicht (identisch zur Ansicht für Besucher:innen) -->
+<div id="td-detail-overlay" class="td-detail-overlay">
+    <div class="td-detail-modal">
+        <button type="button" id="td-detail-close" class="td-detail-close" aria-label="Schließen">&times;</button>
+        <div class="td-detail-head">
+            <img id="td-detail-img" src="" alt="" referrerpolicy="no-referrer" style="display:none;">
             <div>
-                <p class="ov-modal-title" id="ov-modal-title"></p>
-                <div class="ov-modal-badges" id="ov-modal-badges"></div>
+                <p class="td-detail-title" id="td-detail-title"></p>
+                <div class="td-detail-badges" id="td-detail-badges"></div>
             </div>
         </div>
-        <div class="ov-modal-meta-grid" id="ov-modal-meta"></div>
-        <p id="ov-modal-desc" class="ov-modal-desc" style="display:none;"></p>
-        <a id="ov-modal-bgg-link" class="ov-modal-bgg-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Auf BoardGameGeek ansehen ↗</a>
+        <div class="td-detail-meta-grid" id="td-detail-meta"></div>
+        <p id="td-detail-desc" class="td-detail-desc" style="display:none;"></p>
+        <a id="td-detail-bgg-link" class="td-detail-bgg-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Auf BoardGameGeek ansehen ↗</a>
     </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import {
+    getFirestore, collection, doc, onSnapshot, updateDoc,
+    addDoc, getDocs, query, where, serverTimestamp, increment
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCQWpmDhmzxBTX_ZglwrijOsL3qUGwngSo",
@@ -185,334 +358,493 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+// --- Einstellungen (pro Browser/Gerät, gemeinsam mit dem Verwaltungstool
+// über denselben localStorage genutzt, falls im selben Browser geöffnet) ---
+const DEFAULT_TOAST_DURATION_MS = 2200;
+function getScanToastDurationMs() {
+    const v = parseFloat(localStorage.getItem('sv_toast_duration_sec'));
+    return (!isNaN(v) && v > 0) ? Math.round(v * 1000) : DEFAULT_TOAST_DURATION_MS;
+}
+function isScanSoundEnabled() {
+    const v = localStorage.getItem('sv_scan_sound_enabled');
+    return v === null ? true : v === '1';
+}
+let sharedAudioCtx = null;
+async function playScanBeep() {
+    if (!isScanSoundEnabled()) return;
+    try {
+        sharedAudioCtx = sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = sharedAudioCtx;
+        // Wichtig: resume() abwarten, bevor Töne eingeplant werden — sonst
+        // kann es passieren, dass ctx.currentTime beim Einplanen noch nicht
+        // korrekt vorgerückt ist und beide Töne übereinander/verkürzt
+        // abgespielt werden (klingt dann fälschlich wie nur ein Ton).
+        if (ctx.state === 'suspended') await ctx.resume();
+        // Zweitöniger "Erfolgs"-Klang statt eines einzelnen kurzen Pieptons —
+        // deutlich länger, lauter und mit Dreieckswelle (mehr Obertöne, setzt
+        // sich in lauter Umgebung wie einem Brettspiel-Event besser durch).
+        const now = ctx.currentTime;
+        [{ freq: 659.25, start: 0, dur: 0.11 }, { freq: 987.77, start: 0.13, dur: 0.22 }].forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = n.freq;
+            const t0 = now + n.start;
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(0.45, t0 + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + n.dur + 0.02);
+        });
+    } catch (err) { console.error('Beep fehlgeschlagen:', err); }
+}
+function setupAlwaysActiveScan(inputId, toggleId) {
+    const input = document.getElementById(inputId);
+    const toggle = document.getElementById(toggleId);
+    if (!input || !toggle) return;
+    const storageKey = 'sv_always_active_' + inputId;
+    toggle.checked = localStorage.getItem(storageKey) === '1';
+    toggle.addEventListener('change', () => {
+        localStorage.setItem(storageKey, toggle.checked ? '1' : '0');
+        if (toggle.checked) input.focus();
+    });
+    input.addEventListener('blur', () => {
+        if (!toggle.checked) return;
+        setTimeout(() => {
+            const active = document.activeElement;
+            const isTyping = active && active !== document.body && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+            if (!isTyping) input.focus();
+        }, 150);
+    });
+}
 
 function escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
-function complexityLabel(c) {
-    if (c == null) return null;
-    if (c <= 2) return 'Leicht';
-    if (c <= 3.5) return 'Mittel';
-    return 'Anspruchsvoll';
+function showToast(message, isError = false, opts = {}) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    let cls = 'qb-toast toast-enter';
+    if (isError) cls += ' qb-toast--err';
+    else if (opts.variant === 'ok') cls += ' qb-toast--ok';
+    toast.className = cls;
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, opts.duration || getScanToastDurationMs());
 }
-function complexityBucket(c) {
-    if (c == null) return null;
-    if (c <= 2) return 'easy';
-    if (c <= 3.5) return 'medium';
-    return 'hard';
-}
-// eventGames enthält schon vollständige Anzeige-Daten als Momentaufnahme
-// (Name, Bild, Spieleranzahl, Bewertung, ...). Das Verwaltungstool hält diese
-// Momentaufnahme automatisch aktuell, sobald ein Spiel bearbeitet wird
-// (siehe propagateGameUpdate dort) — ein zusätzlicher Live-Nachschlag hier
-// wäre unnötig und würde bei vielen gleichzeitigen Besucher:innen unnötig
-// viele Firestore-Lesevorgänge kosten.
-function displayName(g) {
-    return g.gameName || g.ean;
-}
-function formatDuration(ms) {
-    if (ms == null || ms < 0) return '—';
-    const totalMin = Math.floor(ms / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return `${h}:${String(m).padStart(2, '0')}`;
-}
-// Manche Exemplare können permanent auf einem Verlagstisch stehen, während
-// andere Exemplare desselben Spiels ganz normal ausgeliehen werden können.
-function pubQty(g) { return g.publisherTableQuantity ?? 0; }
-function lendQty(g) { return Math.max(0, (g.quantity ?? 1) - pubQty(g)); }
 
+let currentUser = null;
+let currentEvent = null;
+let currentEventId = new URLSearchParams(location.search).get('event') || '';
+let allEventGames = [];
+let allEventShelves = [];
 let allEvents = [];
-let currentEventGames = [];
-let currentEventShelves = [];
-let currentEventShowLoanDuration = false;
-let activeLoanStartByEan = new Map();
-let selectedEventId = new URLSearchParams(location.search).get('event') || '';
+let unsubs = [];
+let returnTimerHandle = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const loadingEl = document.getElementById('ov-loading');
-    const pickerWrap = document.getElementById('ov-event-picker-wrap');
-    const picker = document.getElementById('ov-event-picker');
-    const mainEl = document.getElementById('ov-main');
-    const eventTitleEl = document.getElementById('ov-event-title');
+    const loginView = document.getElementById('login-view');
+    const eventPickerView = document.getElementById('event-picker-view');
+    const deskView = document.getElementById('desk-view');
+    const headerActions = document.getElementById('header-actions');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
 
-    const searchInput = document.getElementById('ov-search');
-    const playersFilter = document.getElementById('ov-players-filter');
-    const statusFilter = document.getElementById('ov-status-filter');
-    const shelfFilter = document.getElementById('ov-shelf-filter');
-    const complexityFilter = document.getElementById('ov-complexity-filter');
-    const sortSelect = document.getElementById('ov-sort');
-    const tableBody = document.getElementById('ov-table-body');
-    const emptyEl = document.getElementById('ov-empty');
-    const statsEl = document.getElementById('ov-stats');
-
-    const PAGE_SIZE = 50;
-    let currentPage = 1;
-    function renderFromPage1() { currentPage = 1; render(); }
-
-    [searchInput, playersFilter, statusFilter, shelfFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('input', renderFromPage1));
-    [playersFilter, statusFilter, shelfFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
-    document.getElementById('ov-page-prev').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-    document.getElementById('ov-page-next').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-
-    // --- Kompaktes Filter-Panel: eingeklappt per Default, zeigt Anzahl aktiver Filter ---
-    const filterToggle = document.getElementById('ov-filter-toggle');
-    const filterPanel = document.getElementById('ov-filter-panel');
-    const filterCount = document.getElementById('ov-filter-count');
-    filterToggle.addEventListener('click', () => {
-        filterPanel.classList.toggle('cl-hidden');
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        loginError.textContent = '';
+        signInWithEmailAndPassword(auth, email, password)
+            .catch(err => {
+                console.error('Login-Fehler:', err.code, err.message);
+                loginError.textContent = 'Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.';
+            });
     });
-    document.getElementById('ov-filter-reset').addEventListener('click', () => {
-        playersFilter.value = '0'; statusFilter.value = 'all'; shelfFilter.value = 'all';
-        complexityFilter.value = 'all'; sortSelect.value = 'name';
-        renderFromPage1();
-    });
-    function updateFilterCount() {
-        let n = 0;
-        if (playersFilter.value !== '0') n++;
-        if (statusFilter.value !== 'all') n++;
-        if (shelfFilter.value !== 'all') n++;
-        if (complexityFilter.value !== 'all') n++;
-        if (sortSelect.value !== 'name') n++;
-        filterCount.textContent = n;
-        filterCount.classList.toggle('cl-hidden', n === 0);
+
+    function renderHeaderActions() {
+        if (currentUser) {
+            headerActions.innerHTML = `
+                <span class="cl-muted" style="font-size:.85rem;">${escapeHTML(currentUser.email)}</span>
+                <button type="button" id="user-settings-btn" class="cl-btn cl-btn--ghost cl-btn--sm">⚙️ Einstellungen</button>
+                <button type="button" id="logout-btn" class="cl-btn cl-btn--ghost cl-btn--sm">Abmelden</button>`;
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            document.getElementById('user-settings-btn').addEventListener('click', openUserSettingsModal);
+        } else {
+            headerActions.innerHTML = '';
+        }
     }
 
-    onSnapshot(collection(db, 'events'), (snap) => {
-        allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-        loadingEl.classList.add('cl-hidden');
+    function openUserSettingsModal() {
+        document.getElementById('settings-toast-duration').value = (getScanToastDurationMs() / 1000).toFixed(1);
+        document.getElementById('settings-scan-sound').checked = isScanSoundEnabled();
+        document.getElementById('user-settings-modal-overlay').classList.remove('cl-hidden');
+    }
+    document.getElementById('settings-modal-close').addEventListener('click', () => {
+        document.getElementById('user-settings-modal-overlay').classList.add('cl-hidden');
+    });
+    document.getElementById('user-settings-modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'user-settings-modal-overlay') e.currentTarget.classList.add('cl-hidden');
+    });
+    document.getElementById('settings-save-btn').addEventListener('click', () => {
+        const sec = parseFloat(document.getElementById('settings-toast-duration').value);
+        localStorage.setItem('sv_toast_duration_sec', (!isNaN(sec) && sec > 0) ? String(sec) : String(DEFAULT_TOAST_DURATION_MS / 1000));
+        const soundOn = document.getElementById('settings-scan-sound').checked;
+        localStorage.setItem('sv_scan_sound_enabled', soundOn ? '1' : '0');
+        document.getElementById('desk-scan-sound-toggle').checked = soundOn;
+        document.getElementById('user-settings-modal-overlay').classList.add('cl-hidden');
+        playScanBeep();
+        showToast('✅ Einstellungen gespeichert', false, { variant: 'ok', duration: getScanToastDurationMs() });
+    });
+    setupAlwaysActiveScan('desk-scan-input', 'desk-scan-always-active-toggle');
 
-        if (allEvents.length === 0) {
-            loadingEl.textContent = 'Aktuell sind keine Events verfügbar.';
-            loadingEl.classList.remove('cl-hidden');
-            return;
-        }
-
-        picker.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('');
-
-        if (!selectedEventId || !allEvents.some(ev => ev.id === selectedEventId)) {
-            selectedEventId = allEvents[0].id;
-        }
-        picker.value = selectedEventId;
-
-        if (!new URLSearchParams(location.search).get('event')) {
-            pickerWrap.classList.remove('cl-hidden');
-        }
-
-        loadEvent(selectedEventId);
-    }, err => {
-        console.error('events onSnapshot Fehler:', err);
-        loadingEl.textContent = 'Events konnten nicht geladen werden.';
+    // Schnellzugriff-Ton-Regler direkt unterm Scan-Feld — greift auf denselben
+    // localStorage-Wert zu wie das "⚙️ Einstellungen"-Fenster, bleibt also
+    // immer synchron, egal wo man den Ton umschaltet.
+    const quickSoundToggle = document.getElementById('desk-scan-sound-toggle');
+    quickSoundToggle.checked = isScanSoundEnabled();
+    quickSoundToggle.addEventListener('change', () => {
+        localStorage.setItem('sv_scan_sound_enabled', quickSoundToggle.checked ? '1' : '0');
+        if (quickSoundToggle.checked) playScanBeep();
     });
 
-    picker.addEventListener('change', () => {
-        selectedEventId = picker.value;
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        renderHeaderActions();
+        if (user) {
+            loginView.classList.add('cl-hidden');
+            startUp();
+        } else {
+            loginView.classList.remove('cl-hidden');
+            eventPickerView.classList.add('cl-hidden');
+            deskView.classList.add('cl-hidden');
+            stopListeners();
+        }
+    });
+
+    function stopListeners() {
+        unsubs.forEach(u => u());
+        unsubs = [];
+    }
+
+    function startUp() {
+        if (currentEventId) {
+            openDesk(currentEventId);
+        } else {
+            eventPickerView.classList.remove('cl-hidden');
+            onSnapshot(collection(db, 'events'), (snap) => {
+                allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                const select = document.getElementById('event-picker-select');
+                select.innerHTML = allEvents.map(ev => `<option value="${ev.id}">${escapeHTML(ev.name)}${ev.date ? ' (' + ev.date + ')' : ''}</option>`).join('') || '<option value="">— keine Events —</option>';
+            });
+        }
+    }
+    document.getElementById('event-picker-go-btn').addEventListener('click', () => {
+        const id = document.getElementById('event-picker-select').value;
+        if (!id) return;
+        currentEventId = id;
         const url = new URL(location.href);
-        url.searchParams.set('event', selectedEventId);
+        url.searchParams.set('event', id);
         history.replaceState(null, '', url);
-        loadEvent(selectedEventId);
+        document.getElementById('event-picker-view').classList.add('cl-hidden');
+        openDesk(id);
     });
 
-    const REFRESH_INTERVAL_MS = 60000; // 60 Sek. — Kompromiss aus Aktualität und Lesevorgängen
-    let refreshTimer = null;
-
-    function loadEvent(eventId) {
-        const ev = allEvents.find(e => e.id === eventId);
-        eventTitleEl.textContent = ev ? `Stand für "${ev.name}"${ev.date ? ' · ' + ev.date : ''} — aktualisiert sich automatisch` : 'Stand der Spielothek';
-        mainEl.classList.remove('cl-hidden');
-        currentEventShowLoanDuration = !!ev?.showLoanDuration;
-        document.getElementById('ov-th-duration').classList.toggle('cl-hidden', !currentEventShowLoanDuration);
-
-        if (refreshTimer) clearInterval(refreshTimer);
-
-        async function fetchData() {
-            try {
-                const [shelvesSnap, gamesSnap] = await Promise.all([
-                    getDocs(query(collection(db, 'eventShelves'), where('eventId', '==', eventId))),
-                    getDocs(query(collection(db, 'eventGames'), where('eventId', '==', eventId)))
-                ]);
-                currentEventShelves = shelvesSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
-                currentEventGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                // Ausleihdauer nur abfragen, wenn das Event sie aktiviert hat —
-                // ein zusätzlicher Lesevorgang, den die meisten Events gar
-                // nicht brauchen. Bewusst in einem EIGENEN try/catch und NICHT
-                // Teil des obigen Promise.all: schlägt diese Abfrage fehl
-                // (z.B. weil die "loans"-Sammlung andere Zugriffsrechte hat als
-                // eventShelves/eventGames), soll das nicht die ganze
-                // Spieleliste verschwinden lassen — im schlimmsten Fall fehlt
-                // dann nur die Ausleihdauer-Spalte.
-                if (ev?.showLoanDuration) {
-                    try {
-                        const loansSnap = await getDocs(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null)));
-                        const map = new Map();
-                        loansSnap.docs.forEach(d => {
-                            const l = d.data();
-                            const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
-                            if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
-                        });
-                        activeLoanStartByEan = map;
-                    } catch (loanErr) {
-                        console.error('Ausleihdauer konnte nicht geladen werden:', loanErr);
-                        activeLoanStartByEan = new Map();
-                    }
-                } else {
-                    activeLoanStartByEan = new Map();
-                }
-                render();
-                const refreshEl = document.getElementById('ov-last-refresh');
-                if (refreshEl) refreshEl.textContent = 'Stand: ' + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
-            } catch (err) { console.error('Aktualisieren fehlgeschlagen:', err); }
-        }
-
-        // Statt eines dauerhaften Live-Listeners (der bei jedem einzelnen
-        // Scan am Tresen sofort an JEDE offene Besucher-Seite ein Update
-        // schickt — bei vielen gleichzeitig offenen Seiten der größte
-        // Kostentreiber) wird nur noch periodisch neu geladen. Das senkt die
-        // Lesevorgänge drastisch, bei nur geringfügig weniger Aktualität.
-        fetchData();
-        refreshTimer = setInterval(fetchData, REFRESH_INTERVAL_MS);
-        document.getElementById('ov-refresh-btn').onclick = fetchData;
-    }
-
-    function shelfName(id) {
-        if (!id) return '—';
-        const s = currentEventShelves.find(s => s.id === id);
+    function shelfName(shelfId) {
+        const s = allEventShelves.find(s => s.id === shelfId);
         return s ? s.name : '—';
     }
-    // Ein Spiel-Eintrag hat technisch nur EIN Regal-Feld. Wurde beim
-    // Einscannen ein Regal-Konflikt bewusst nicht umgehängt, merkt sich das
-    // System zusätzlich "steht auch in Regal X" — ohne Stückzahl-
-    // Aufteilung, nur als Hinweis.
+    // Ein Spiel-Eintrag hat technisch nur EIN Regal-Feld. Wurde beim Scannen
+    // ein Regal-Konflikt bewusst NICHT umgehängt (siehe Verwaltungstool),
+    // merkt sich das System zusätzlich "steht auch in Regal X" — ohne
+    // Stückzahl-Aufteilung, nur als Hinweis, damit das zweite Regal nicht
+    // komplett aus der Anzeige verschwindet.
     function otherShelfNames(g) {
         return (g.otherShelfIds || []).map(id => shelfName(id)).filter(n => n && n !== '—');
+    }
+    // eventGames.gameName wird vom Verwaltungstool automatisch aktuell
+    // gehalten, sobald ein Spiel bearbeitet wird (siehe propagateGameUpdate
+    // dort) — kein zusätzlicher Live-Nachschlag pro EAN nötig.
+    function liveGameName(eg) {
+        return eg.gameName || eg.ean;
+    }
+    // Manche Exemplare können permanent auf einem Verlagstisch stehen,
+    // während andere Exemplare desselben Spiels ganz normal im Regal
+    // ausgeliehen werden können — publisherTableQuantity zählt nur die
+    // fest zugeteilten, lendQty gibt den ausleihbaren Rest zurück.
+    function pubQty(g) { return g.publisherTableQuantity ?? 0; }
+    function lendQty(g) { return Math.max(0, (g.quantity ?? 1) - pubQty(g)); }
+
+    // --- Ausleihdauer: aus der bestehenden "loans"-Sammlung (ein Dokument
+    // pro Ausleihvorgang, mit borrowedAt/returnedAt) — dort steht bereits
+    // alles Nötige, ganz ohne neues Datenmodell. Bei mehreren gleichzeitig
+    // ausgeliehenen Exemplaren desselben Spiels wird der älteste noch offene
+    // Ausleihzeitpunkt verwendet (die längste laufende Ausleihe ist die, die
+    // am ehesten nachgefragt werden sollte).
+    let activeLoanStartByEan = new Map();
+    function formatDuration(ms) {
+        if (ms == null || ms < 0) return '—';
+        const totalMin = Math.floor(ms / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return `${h}:${String(m).padStart(2, '0')}`;
     }
     function loanDurationLabel(ean) {
         const startMs = activeLoanStartByEan.get(ean);
         if (startMs == null) return '—';
         return formatDuration(Date.now() - startMs);
     }
+    let durationTickHandle = null;
 
-    function render() {
-        updateFilterCount();
+    function openDesk(eventId) {
+        deskView.classList.remove('cl-hidden');
+
+        unsubs.push(onSnapshot(doc(db, 'events', eventId), (snap) => {
+            currentEvent = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+            if (currentEvent) {
+                document.getElementById('desk-event-title').textContent = currentEvent.name;
+                document.getElementById('desk-event-meta').textContent = currentEvent.date || '';
+            }
+            // z.B. "Ausleihdauer anzeigen" kann sich im Verwaltungstool
+            // während des laufenden Events ändern — Spalte/Anzeige sofort
+            // nachziehen, nicht erst beim nächsten Neuladen.
+            renderDeskList();
+        }, err => console.error('event onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(query(collection(db, 'eventShelves'), where('eventId', '==', eventId)), (snap) => {
+            allEventShelves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDesk();
+        }, err => console.error('eventShelves onSnapshot Fehler:', err)));
+
+        unsubs.push(onSnapshot(query(collection(db, 'eventGames'), where('eventId', '==', eventId)), (snap) => {
+            allEventGames = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderDesk();
+        }, err => console.error('eventGames onSnapshot Fehler:', err)));
+
+        // Aktive (noch nicht zurückgegebene) Ausleihen dieses Events — Basis
+        // für die Ausleihdauer-Anzeige. Läuft unabhängig davon, ob die
+        // Anzeige gerade eingeschaltet ist (billige Abfrage, nur wenige
+        // Dokumente gleichzeitig offen) — so steht die Zeitleiste sofort zur
+        // Verfügung, sobald das Häkchen im Verwaltungstool gesetzt wird.
+        unsubs.push(onSnapshot(query(collection(db, 'loans'), where('eventId', '==', eventId), where('returnedAt', '==', null)), (snap) => {
+            const map = new Map();
+            snap.docs.forEach(d => {
+                const l = d.data();
+                const ms = l.borrowedAt ? l.borrowedAt.toMillis() : Date.now();
+                if (!map.has(l.ean) || ms < map.get(l.ean)) map.set(l.ean, ms);
+            });
+            activeLoanStartByEan = map;
+            renderDeskList();
+        }, err => console.error('loans onSnapshot Fehler:', err)));
+
+        // Ticker für die laufende Anzeige der Ausleihdauer (h:mm) — die
+        // Minuten sollen weiterlaufen, auch ohne dass sich an den Daten
+        // selbst etwas ändert.
+        if (durationTickHandle) clearInterval(durationTickHandle);
+        durationTickHandle = setInterval(() => { if (currentEvent?.showLoanDuration) renderDeskList(); }, 30000);
+    }
+
+    function renderDesk() {
+        const total = allEventGames.reduce((sum, g) => sum + (g.quantity ?? 1), 0);
+        const available = allEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
+        const borrowedTotal = total - available;
+        const distinctBorrowed = allEventGames.filter(g => (g.availableQuantity ?? (g.quantity ?? 1)) < (g.quantity ?? 1)).length;
+
+        document.getElementById('desk-always-stat').innerHTML = `<span>${borrowedTotal}</span> Spiel-Exemplar(e) gerade ausgeliehen`;
+
+        document.getElementById('desk-stats').innerHTML = `
+            <div class="td-stat-box"><div class="td-stat-box__num">${total}</div><div class="td-stat-box__label">Spiele gesamt</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${available}</div><div class="td-stat-box__label">Verfügbar</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${borrowedTotal}</div><div class="td-stat-box__label">Exemplare draußen</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${distinctBorrowed}</div><div class="td-stat-box__label">Verschiedene Spiele draußen</div></div>`;
+
+        renderDeskList();
+    }
+
+    // Spieleliste: immer alle Spiele des Events, mit Suche und Status-Filter
+    // (Alle / Nur verfügbar / Nur ausgeliehen) statt einer fest auf
+    // "ausgeliehen" beschränkten Ansicht.
+    // Spieleliste: immer alle Spiele des Events, mit Suche und einem
+    // kompakten, einklappbaren Filter- & Sortierungs-Panel — dieselbe
+    // Bedienung wie in der öffentlichen Übersicht, damit man am Tresen auch
+    // Fragen wie "Spiel für 2 Personen?" schnell selbst beantworten kann.
+    function complexityBucketDesk(c) {
+        if (c == null) return null;
+        if (c <= 2) return 'easy';
+        if (c <= 3.5) return 'medium';
+        return 'hard';
+    }
+    function complexityLabelDesk(c) {
+        if (c == null) return null;
+        if (c <= 2) return 'Leicht';
+        if (c <= 3.5) return 'Mittel';
+        return 'Anspruchsvoll';
+    }
+    function renderDeskList() {
         // Regal-Filter-Dropdown befüllen (Auswahl dabei erhalten, falls das
-        // Regal noch existiert) — z.B. praktisch für eine Regal-Kontrolle
-        // vor Ort: stimmt, was im Regal steht, mit dem System überein?
-        const prevShelfFilter = shelfFilter.value;
-        shelfFilter.innerHTML = '<option value="all">Alle Regale</option>' + currentEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
-        if ([...shelfFilter.options].some(o => o.value === prevShelfFilter)) shelfFilter.value = prevShelfFilter;
+        // Regal noch existiert) — praktisch z.B. für eine Regal-Kontrolle:
+        // "stimmt, was am Regal steht, mit dem überein, was das System
+        // dafür führt?"
+        const shelfFilterEl = document.getElementById('desk-shelf-filter');
+        const prevShelfFilter = shelfFilterEl.value;
+        shelfFilterEl.innerHTML = '<option value="all">Alle Regale</option>' + allEventShelves.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        if ([...shelfFilterEl.options].some(o => o.value === prevShelfFilter)) shelfFilterEl.value = prevShelfFilter;
 
-        const term = searchInput.value.trim().toLowerCase();
-        const playersVal = parseInt(playersFilter.value, 10);
-        const statusVal = statusFilter.value;
-        const shelfVal = shelfFilter.value;
-        const complexityVal = complexityFilter.value;
-        const sortVal = sortSelect.value;
+        const term = (document.getElementById('desk-list-search').value || '').trim().toLowerCase();
+        const statusVal = document.getElementById('desk-status-filter').value;
+        const shelfVal = shelfFilterEl.value;
+        const playersVal = parseInt(document.getElementById('desk-players-filter').value, 10);
+        const complexityVal = document.getElementById('desk-complexity-filter').value;
+        const ratingVal = document.getElementById('desk-rating-filter').value === 'all' ? 0 : parseFloat(document.getElementById('desk-rating-filter').value);
+        const sortVal = document.getElementById('desk-sort').value;
 
-        let filtered = currentEventGames.filter(g => {
-            const avail = g.availableQuantity ?? lendQty(g);
-            const nameMatch = !term || displayName(g).toLowerCase().includes(term);
-            const statusMatch = statusVal === 'all' || (statusVal === 'ausgeliehen' ? avail <= 0 : avail > 0);
+        let list = allEventGames.filter(g => {
+            const qty = lendQty(g), avail = g.availableQuantity ?? qty;
+            const game = g;
+            const nameMatch = !term || liveGameName(g).toLowerCase().includes(term);
+            const statusMatch = statusVal === 'all' || (statusVal === 'borrowed' ? avail < qty : avail > 0);
             const shelfMatch = shelfVal === 'all' || g.shelfId === shelfVal;
-            const complexityMatch = complexityVal === 'all' || complexityBucket(g.complexity) === complexityVal;
+            const complexityMatch = complexityVal === 'all' || complexityBucketDesk(game?.complexity) === complexityVal;
+            const ratingMatch = ratingVal === 0 || (game?.rating != null && game.rating >= ratingVal);
             let playersMatch = true;
             if (playersVal > 0) {
-                if (g.minPlayers != null && g.maxPlayers != null) {
-                    playersMatch = playersVal < 7 ? (g.minPlayers <= playersVal && g.maxPlayers >= playersVal) : g.maxPlayers >= 7;
+                if (game?.minPlayers != null && game?.maxPlayers != null) {
+                    playersMatch = playersVal < 7 ? (game.minPlayers <= playersVal && game.maxPlayers >= playersVal) : game.maxPlayers >= 7;
                 } else { playersMatch = false; }
             }
-            return nameMatch && statusMatch && shelfMatch && complexityMatch && playersMatch;
+            return nameMatch && statusMatch && shelfMatch && complexityMatch && ratingMatch && playersMatch;
         });
 
         if (sortVal === 'rating') {
-            filtered.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || displayName(a).localeCompare(displayName(b), 'de'));
+            list.sort((a, b) => ((b.rating) ?? -1) - ((a.rating) ?? -1) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        } else if (sortVal === 'complexity-asc') {
+            list.sort((a, b) => ((a.complexity) ?? Infinity) - ((b.complexity) ?? Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
+        } else if (sortVal === 'complexity-desc') {
+            list.sort((a, b) => ((b.complexity) ?? -Infinity) - ((a.complexity) ?? -Infinity) || liveGameName(a).localeCompare(liveGameName(b), 'de'));
         } else {
-            filtered.sort((a, b) => displayName(a).localeCompare(displayName(b), 'de'));
+            list.sort((a, b) => liveGameName(a).localeCompare(liveGameName(b), 'de'));
         }
 
-        // Pagination: nur PAGE_SIZE Zeilen auf einmal anzeigen — bei großen
-        // Sammlungen (100+ Spiele) deutlich angenehmer zu überblicken.
-        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-        const startIdx = (currentPage - 1) * PAGE_SIZE;
-        const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-        emptyEl.classList.toggle('cl-hidden', filtered.length > 0);
-        const showDuration = currentEventShowLoanDuration;
-        tableBody.innerHTML = pageItems.map(g => {
-            const qty = lendQty(g), avail = g.availableQuantity ?? qty;
+        const body = document.getElementById('desk-list-body');
+        document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
+        const showDuration = !!currentEvent?.showLoanDuration;
+        document.getElementById('desk-th-duration').classList.toggle('cl-hidden', !showDuration);
+        body.innerHTML = list.map(g => {
+            const qty = lendQty(g), avail = g.availableQuantity ?? qty, out = qty - avail;
             const publisherQty = pubQty(g);
-            const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `verfügbar (${avail}/${qty})` : 'verfügbar') : 'ausgeliehen') : null;
-            const statusCls = avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus';
-            return `<tr data-id="${g.id}">
-                <td>${g.bggImageUrl ? `<img class="ov-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="ov-thumb ov-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
-                <td>${escapeHTML(displayName(g))}</td>
-                <td>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</td>
-                <td>${g.minAge ? `${g.minAge}+` : '—'}</td>
-                <td>${g.Duration ? `${g.Duration} Min.` : '—'}</td>
-                <td>${g.rating ? `<span class="ov-rating">⭐ ${g.rating.toFixed(1)}</span>` : '—'}</td>
-                <td>${g.complexity ? `${complexityLabel(g.complexity)} (${g.complexity.toFixed(1)})` : '—'}</td>
+            const game = g;
+            // Ausleihbare Exemplare und Verlagstisch-Exemplare schließen sich
+            // nicht mehr aus — ein Spiel kann beides gleichzeitig sein, daher
+            // eigener Zusatz-Badge statt eines exklusiven Status.
+            const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen') : null;
+            const statusCls = avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus';
+            return `<tr>
+                <td class="td-game-cell" data-id="${g.id}">${g.bggImageUrl ? `<img class="td-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="td-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
+                <td class="td-game-cell" data-id="${g.id}">${escapeHTML(liveGameName(g))}</td>
+                <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
+                <td>${game?.rating ? `⭐ ${game.rating.toFixed(1)}` : '—'}</td>
+                <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
                 <td>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? `<div class="cl-muted" style="font-size:.75rem;">+ auch in ${escapeHTML(otherShelfNames(g).join(', '))}</div>` : ''}</td>
-                ${showDuration ? `<td>${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
+                ${showDuration ? `<td class="td-duration">${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
                 <td>
-                    ${statusLabel ? `<span class="ov-badge ${statusCls}">${statusLabel}</span>` : ''}
-                    ${publisherQty > 0 ? `<span class="ov-badge ov-badge--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
+                    ${statusLabel ? `<span class="td-badge-status ${statusCls}">${statusLabel}</span>` : ''}
+                    ${publisherQty > 0 ? `<span class="td-badge-status td-badge-status--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
+                </td>
+                <td>
+                    ${avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
+                    ${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
                 </td>
             </tr>`;
         }).join('');
-
-        const total = currentEventGames.reduce((sum, g) => sum + (g.quantity ?? 1), 0);
-        const available = currentEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
-        const borrowed = total - available;
-        statsEl.innerHTML = `
-            <span class="ov-stat"><strong>${total}</strong> Spiele gesamt</span>
-            <span class="ov-stat"><strong>${available}</strong> verfügbar</span>
-            <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>`;
-
-        document.getElementById('ov-pagination').classList.toggle('cl-hidden', filtered.length <= PAGE_SIZE);
-        document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
-        document.getElementById('ov-page-prev').disabled = currentPage <= 1;
-        document.getElementById('ov-page-next').disabled = currentPage >= totalPages;
+        updateDeskFilterCount();
     }
-
-    tableBody.addEventListener('click', (e) => {
-        const row = e.target.closest('tr[data-id]');
-        if (!row) return;
-        const g = currentEventGames.find(x => x.id === row.dataset.id);
-        if (g) openDetail(g);
+    document.getElementById('desk-list-search').addEventListener('input', renderDeskList);
+    ['desk-status-filter', 'desk-shelf-filter', 'desk-players-filter', 'desk-complexity-filter', 'desk-rating-filter', 'desk-sort'].forEach(id => {
+        document.getElementById(id).addEventListener('change', renderDeskList);
     });
 
-    // --- Detailansicht ---
-    const modalOverlay = document.getElementById('ov-modal-overlay');
-    function openDetail(g) {
-        document.getElementById('ov-modal-title').textContent = displayName(g);
-        const img = document.getElementById('ov-modal-img');
+    const deskFilterToggle = document.getElementById('desk-filter-toggle');
+    const deskFilterPanel = document.getElementById('desk-filter-panel');
+    deskFilterToggle.addEventListener('click', () => deskFilterPanel.classList.toggle('cl-hidden'));
+    document.getElementById('desk-filter-reset').addEventListener('click', () => {
+        document.getElementById('desk-status-filter').value = 'all';
+        document.getElementById('desk-shelf-filter').value = 'all';
+        document.getElementById('desk-players-filter').value = '0';
+        document.getElementById('desk-complexity-filter').value = 'all';
+        document.getElementById('desk-rating-filter').value = 'all';
+        document.getElementById('desk-sort').value = 'name';
+        renderDeskList();
+    });
+    function updateDeskFilterCount() {
+        let n = 0;
+        if (document.getElementById('desk-status-filter').value !== 'all') n++;
+        if (document.getElementById('desk-shelf-filter').value !== 'all') n++;
+        if (document.getElementById('desk-players-filter').value !== '0') n++;
+        if (document.getElementById('desk-complexity-filter').value !== 'all') n++;
+        if (document.getElementById('desk-rating-filter').value !== 'all') n++;
+        if (document.getElementById('desk-sort').value !== 'name') n++;
+        const countEl = document.getElementById('desk-filter-count');
+        countEl.textContent = n;
+        countEl.classList.toggle('cl-hidden', n === 0);
+    }
+
+    document.getElementById('desk-list-body').addEventListener('click', (e) => {
+        const returnBtn = e.target.closest('.td-return-btn');
+        if (returnBtn) {
+            const eg = allEventGames.find(g => g.id === returnBtn.dataset.id);
+            if (eg) { returnOne(eg); playScanBeep(); }
+            return;
+        }
+        const borrowBtn = e.target.closest('.td-borrow-btn');
+        if (borrowBtn) {
+            const eg = allEventGames.find(g => g.id === borrowBtn.dataset.id);
+            if (eg) { borrowOne(eg); playScanBeep(); }
+            return;
+        }
+        const gameCell = e.target.closest('.td-game-cell');
+        if (gameCell) {
+            const eg = allEventGames.find(g => g.id === gameCell.dataset.id);
+            if (eg) openDeskDetail(eg);
+        }
+    });
+
+    // --- Detailansicht (Bild, Beschreibung, BGG-Link) — dieselbe Ansicht
+    // wie in der öffentlichen Übersicht für Besucher:innen, aufrufbar durch
+    // Klick auf Bild oder Namen in der Spieleliste. ---
+    const deskDetailOverlay = document.getElementById('td-detail-overlay');
+    function complexityLabelForDetail(c) { return complexityLabelDesk(c); }
+    function openDeskDetail(g) {
+        document.getElementById('td-detail-title').textContent = liveGameName(g);
+        const img = document.getElementById('td-detail-img');
         if (g.bggImageUrl) { img.src = g.bggImageUrl; img.style.display = ''; } else { img.style.display = 'none'; }
 
         const qty = lendQty(g), avail = g.availableQuantity ?? qty;
         const publisherQty = pubQty(g);
         const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen') : null;
-        const statusCls = avail > 0 ? 'ov-badge--frei' : 'ov-badge--aus';
-        const cLabel = complexityLabel(g.complexity);
-        document.getElementById('ov-modal-badges').innerHTML = `
-            ${statusLabel ? `<span class="ov-badge ${statusCls}">${statusLabel}</span>` : ''}
-            ${publisherQty > 0 ? `<span class="ov-badge ov-badge--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
-            ${g.rating ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
-            ${cLabel ? `<span class="ov-badge" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
+        const statusCls = avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus';
+        const cLabel = complexityLabelForDetail(g.complexity);
+        document.getElementById('td-detail-badges').innerHTML = `
+            ${statusLabel ? `<span class="td-badge-status ${statusCls}">${statusLabel}</span>` : ''}
+            ${publisherQty > 0 ? `<span class="td-badge-status td-badge-status--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
+            ${g.rating ? `<span class="td-badge-status" style="background:color-mix(in srgb, var(--cl-warn) 18%, transparent); color:var(--cl-warn);">⭐ ${g.rating.toFixed(1)}</span>` : ''}
+            ${cLabel ? `<span class="td-badge-status" style="background:color-mix(in srgb, var(--cl-signal) 18%, transparent); color:var(--cl-signal);">⚙️ ${cLabel} (${g.complexity.toFixed(1)})</span>` : ''}
         `;
 
-        document.getElementById('ov-modal-meta').innerHTML = `
+        const showDuration = !!currentEvent?.showLoanDuration;
+        document.getElementById('td-detail-meta').innerHTML = `
             <div><span>Spieler</span>${g.minPlayers && g.maxPlayers ? `${g.minPlayers}–${g.maxPlayers}` : '—'}</div>
             <div><span>Alter ab</span>${g.minAge ? `${g.minAge}+` : '—'}</div>
             <div><span>Dauer</span>${g.Duration ? `${g.Duration} Min.` : '—'}</div>
             <div><span>Regal</span>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? ` <span class="cl-muted">(+ ${escapeHTML(otherShelfNames(g).join(', '))})</span>` : ''}</div>
-            ${currentEventShowLoanDuration && qty > 0 ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
+            ${showDuration && qty > 0 ? `<div><span>Ausgeliehen seit</span>${loanDurationLabel(g.ean)}</div>` : ''}
             ${g.category ? `<div><span>Kategorie</span>${escapeHTML(g.category)}</div>` : ''}
         `;
 
-        const descEl = document.getElementById('ov-modal-desc');
+        const descEl = document.getElementById('td-detail-desc');
         if (g.description) {
             const short = g.description.length > 700 ? g.description.slice(0, 700).trim() + '…' : g.description;
             descEl.textContent = short;
@@ -521,16 +853,266 @@ document.addEventListener('DOMContentLoaded', () => {
             descEl.style.display = 'none';
         }
 
-        const bggLink = document.getElementById('ov-modal-bgg-link');
+        const bggLink = document.getElementById('td-detail-bgg-link');
         if (g.bggId) { bggLink.href = `https://boardgamegeek.com/boardgame/${g.bggId}`; bggLink.style.display = ''; }
         else { bggLink.style.display = 'none'; }
 
-        modalOverlay.classList.add('is-visible');
+        deskDetailOverlay.classList.add('is-visible');
     }
-    function closeDetail() { modalOverlay.classList.remove('is-visible'); }
-    document.getElementById('ov-modal-close').addEventListener('click', closeDetail);
-    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeDetail(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+    function closeDeskDetail() { deskDetailOverlay.classList.remove('is-visible'); }
+    document.getElementById('td-detail-close').addEventListener('click', closeDeskDetail);
+    deskDetailOverlay.addEventListener('click', (e) => { if (e.target === deskDetailOverlay) closeDeskDetail(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDeskDetail(); });
+
+    const statsToggleBtn = document.getElementById('desk-stats-toggle-btn');
+    statsToggleBtn.addEventListener('click', () => {
+        const statsEl = document.getElementById('desk-stats');
+        const nowHidden = statsEl.classList.toggle('cl-hidden');
+        statsToggleBtn.textContent = nowHidden ? '📊 Statistik anzeigen' : '📊 Statistik verbergen';
+    });
+
+    // --- Immer sichtbares Ergebnis-Feld unterhalb des Scan-Felds ---
+    const scanResultBox = document.getElementById('desk-scan-result');
+    function showScanResultBox({ icon, title, sub, cls }) {
+        scanResultBox.className = 'td-scan-result is-visible ' + cls;
+        scanResultBox.innerHTML = `
+            <div style="font-size:2rem; line-height:1;">${icon}</div>
+            <div>
+                <p class="td-scan-result__title">${escapeHTML(title)}</p>
+                <p class="cl-muted" style="margin:0;">${sub}</p>
+            </div>`;
+    }
+
+    // --- Unbekannte Scans (diese Sitzung, nur im Browser-Speicher) —
+    // damit das Team am Ende des Events eine Liste der noch nicht bei
+    // diesem Event erfassten EANs hat, statt sich jede einzeln zu merken. ---
+    let unknownScans = []; // [{ ean, count, lastTime }], neueste zuerst
+    function trackUnknownScan(ean) {
+        const existing = unknownScans.find(u => u.ean === ean);
+        if (existing) { existing.count++; existing.lastTime = new Date(); }
+        else { unknownScans.unshift({ ean, count: 1, lastTime: new Date() }); }
+        renderUnknownScans();
+    }
+    function renderUnknownScans() {
+        const panel = document.getElementById('desk-unknown-panel');
+        panel.style.display = unknownScans.length > 0 ? '' : 'none';
+        if (unknownScans.length === 0) return;
+        const term = (document.getElementById('desk-unknown-filter').value || '').trim();
+        const filtered = term ? unknownScans.filter(u => u.ean.includes(term)) : unknownScans;
+        const listEl = document.getElementById('desk-unknown-list');
+        listEl.innerHTML = filtered.map(u => `<div class="td-unknown-item">
+            <span>${escapeHTML(u.ean)}${u.count > 1 ? ` <span class="cl-muted">(${u.count}×)</span>` : ''}</span>
+            <span class="td-unknown-item__time">${u.lastTime.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>`).join('') || '<div class="cl-muted" style="padding:.6rem;">Kein Treffer für diesen Filter.</div>';
+    }
+    document.getElementById('desk-unknown-filter').addEventListener('input', renderUnknownScans);
+    document.getElementById('desk-unknown-copy-btn').addEventListener('click', () => {
+        const term = (document.getElementById('desk-unknown-filter').value || '').trim();
+        const filtered = term ? unknownScans.filter(u => u.ean.includes(term)) : unknownScans;
+        const text = filtered.map(u => u.ean).join('\n');
+        navigator.clipboard?.writeText(text).then(() => showToast('✅ Liste kopiert', false, { variant: 'ok' })).catch(() => showToast('Kopieren fehlgeschlagen.', true));
+    });
+    document.getElementById('desk-unknown-clear-btn').addEventListener('click', () => {
+        unknownScans = [];
+        document.getElementById('desk-unknown-filter').value = '';
+        renderUnknownScans();
+    });
+
+    // --- Scannen ---
+    const scanInput = document.getElementById('desk-scan-input');
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = scanInput.value.trim();
+            scanInput.value = '';
+            if (value) handleScan(value);
+        }
+    });
+
+    function handleScan(ean) {
+        const eg = allEventGames.find(g => g.ean === ean);
+        if (!eg) {
+            showScanResultBox({ icon: '❓', title: `Unbekannte EAN: ${ean}`, sub: 'Nicht bei diesem Event erfasst. Bitte im Verwaltungstool ergänzen.', cls: 'td-scan-result--unknown' });
+            trackUnknownScan(ean);
+            scanInput.focus();
+            return;
+        }
+        processEventGameAction(eg);
+    }
+
+    // Es wird nur nachgefragt, wenn es wirklich mehrdeutig ist (manche
+    // Exemplare verfügbar UND manche draußen). In jedem anderen Fall — nur
+    // 1 Exemplar, alle verfügbar, oder alle draußen — gibt es ohnehin nur
+    // eine sinnvolle Aktion, die dann automatisch ausgeführt wird.
+    // Rechnet dabei nur mit den ausleihbaren Exemplaren (lendQty) — auf dem
+    // Verlagstisch fest zugeteilte Exemplare zählen hier nicht mit.
+    function resolveScanAction(eg) {
+        const qty = lendQty(eg), avail = eg.availableQuantity ?? qty;
+        if (avail >= qty) return 'borrow';
+        if (avail <= 0) return 'return';
+        return 'ambiguous';
+    }
+
+    function processEventGameAction(eg) {
+        if (lendQty(eg) <= 0) {
+            showScanResultBox({ icon: '🏢', title: `${liveGameName(eg)} — Verlagstisch`, sub: 'Alle Exemplare dieses Spiels sind dauerhaft auf einem Verlagstisch aufgebaut und werden nicht regulär aus-/eingebucht. Menge bei Bedarf im Verwaltungstool anpassen.', cls: 'td-scan-result--unknown' });
+            return;
+        }
+        const action = resolveScanAction(eg);
+        if (action === 'ambiguous') { showChoicePopup(eg); return; }
+        commitAction(eg, action);
+    }
+
+    function showChoicePopup(eg) {
+        document.getElementById('confirm-action-icon').textContent = '🤔';
+        document.getElementById('confirm-action-title').textContent = liveGameName(eg);
+        document.getElementById('confirm-action-sub').textContent = 'Manche Exemplare sind draußen, manche verfügbar — was ist das hier?';
+        document.getElementById('confirm-action-choice-buttons').classList.remove('cl-hidden');
+        document.getElementById('confirm-action-overlay').classList.add('is-visible');
+        pendingAction = eg;
+    }
+    let pendingAction = null;
+    document.getElementById('confirm-action-choice-borrow-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        if (pendingAction) commitAction(pendingAction, 'borrow');
+        pendingAction = null;
+    });
+    document.getElementById('confirm-action-choice-return-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        if (pendingAction) commitAction(pendingAction, 'return');
+        pendingAction = null;
+    });
+    document.getElementById('confirm-action-choice-cancel-btn').addEventListener('click', () => {
+        document.getElementById('confirm-action-overlay').classList.remove('is-visible');
+        pendingAction = null;
+        scanInput.focus();
+    });
+
+    async function commitAction(eg, action) {
+        if (action === 'borrow') await borrowOne(eg); else await returnOne(eg);
+        playScanBeep();
+        scanInput.focus();
+    }
+
+    async function borrowOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        try {
+            await addDoc(collection(db, 'loans'), {
+                ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: currentEvent ? currentEvent.name : '',
+                shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+            });
+            await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
+            showScanResultBox({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
+            const mode = currentEvent?.borrowMessageMode === 'timer' ? 'timer' : 'confirm';
+            const seconds = currentEvent?.borrowMessageSeconds ?? 5;
+            showActionOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: shelfName(eg.shelfId), borrowMode: true, mode, seconds });
+            logActivity('out', liveGameName(eg), shelfName(eg.shelfId));
+        } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
+    }
+
+    async function returnOne(eg) {
+        const egRef = doc(db, 'eventGames', eg.id);
+        try {
+            const q = query(collection(db, 'loans'), where('eventId', '==', eg.eventId), where('ean', '==', eg.ean), where('returnedAt', '==', null));
+            const snap = await getDocs(q);
+            if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
+            await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
+            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>${otherShelfNames(eg).length ? ` <span class="cl-muted">(oder ${escapeHTML(otherShelfNames(eg).join(', '))})</span>` : ''}`, cls: 'td-scan-result--in' });
+            const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
+            const seconds = currentEvent?.returnMessageSeconds ?? 5;
+            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId) + (otherShelfNames(eg).length ? ` (oder ${otherShelfNames(eg).join(', ')})` : ''), borrowMode: false, mode, seconds });
+            logActivity('in', liveGameName(eg), shelfName(eg.shelfId));
+        } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
+    }
+
+    // --- Manuelle Suche ---
+    const manualSearch = document.getElementById('desk-manual-search');
+    const manualResults = document.getElementById('desk-manual-results');
+    manualSearch.addEventListener('input', () => {
+        const term = manualSearch.value.trim().toLowerCase();
+        if (!term) { manualResults.classList.add('cl-hidden'); manualResults.innerHTML = ''; return; }
+        const matches = allEventGames.filter(g => liveGameName(g).toLowerCase().includes(term)).slice(0, 15);
+        manualResults.innerHTML = matches.length ? matches.map(g => {
+            const qty = lendQty(g), avail = g.availableQuantity ?? qty;
+            return `<div class="td-manual-result-item" data-id="${g.id}">
+                <span>${escapeHTML(liveGameName(g))} <span class="cl-muted" style="font-size:.8rem;">(${escapeHTML(shelfName(g.shelfId))})</span></span>
+                <span class="td-badge-status ${avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus'}">${qty > 0 ? `${avail}/${qty} verfügbar` : '🏢 Verlagstisch'}</span>
+            </div>`;
+        }).join('') : '<div class="cl-muted" style="padding:.6rem;">Keine Treffer.</div>';
+        manualResults.classList.remove('cl-hidden');
+    });
+    manualResults.addEventListener('click', (e) => {
+        const item = e.target.closest('.td-manual-result-item');
+        if (!item) return;
+        const eg = allEventGames.find(g => g.id === item.dataset.id);
+        if (eg) { processEventGameAction(eg); manualSearch.value = ''; manualResults.classList.add('cl-hidden'); }
+    });
+
+    // --- Kleines Sitzungs-Protokoll: nur im Browser-Speicher, wird nirgends
+    // in Firestore abgelegt — reine Gedächtnisstütze für den Tresen. ---
+    let activityLog = [];
+    function logActivity(type, gameName, shelf) {
+        activityLog.unshift({ type, gameName, shelf, time: new Date() });
+        if (activityLog.length > 10) activityLog.length = 10;
+        renderActivityLog();
+    }
+    function renderActivityLog() {
+        const wrap = document.getElementById('desk-activity-log');
+        const list = document.getElementById('desk-activity-log-list');
+        if (activityLog.length === 0) { wrap.classList.add('cl-hidden'); return; }
+        wrap.classList.remove('cl-hidden');
+        list.innerHTML = activityLog.map(entry => {
+            const timeStr = entry.time.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+            const icon = entry.type === 'out' ? '📖' : '✅';
+            const verb = entry.type === 'out' ? 'ausgeliehen' : 'zurückgelegt';
+            return `<div class="td-activity-log__item td-activity-log__item--${entry.type}">
+                <span>${icon}</span>
+                <span>${escapeHTML(entry.gameName)} ${verb}${entry.shelf ? ` (${escapeHTML(entry.shelf)})` : ''}</span>
+                <span class="td-activity-log__time">${timeStr}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // --- Rückgabe-/Ausleihe-Meldung (je Event separat konfigurierbar) ---
+    const returnOverlay = document.getElementById('return-overlay');
+    const returnCard = document.getElementById('return-card');
+    let activeOverlayMode = 'confirm';
+    function showActionOverlay({ icon, title, sub, shelf, borrowMode, mode, seconds }) {
+        if (returnTimerHandle) { clearTimeout(returnTimerHandle); returnTimerHandle = null; }
+        document.getElementById('return-icon').textContent = icon;
+        document.getElementById('return-title').textContent = title;
+        document.getElementById('return-sub').textContent = sub;
+        document.getElementById('return-shelf').textContent = shelf;
+        document.getElementById('return-shelf').style.display = shelf ? '' : 'none';
+        returnCard.classList.toggle('td-return-card--borrow', !!borrowMode);
+        returnOverlay.classList.add('is-visible');
+
+        activeOverlayMode = mode === 'timer' ? 'timer' : 'confirm';
+        const okBtn = document.getElementById('return-ok-btn');
+        const timerText = document.getElementById('return-timer-text');
+        if (activeOverlayMode === 'timer') {
+            okBtn.classList.add('cl-hidden');
+            let remaining = seconds ?? 5;
+            timerText.textContent = `Schließt automatisch in ${remaining} Sek. …`;
+            const tick = () => {
+                remaining--;
+                if (remaining <= 0) { hideReturnOverlay(); return; }
+                timerText.textContent = `Schließt automatisch in ${remaining} Sek. …`;
+                returnTimerHandle = setTimeout(tick, 1000);
+            };
+            returnTimerHandle = setTimeout(tick, 1000);
+        } else {
+            okBtn.classList.remove('cl-hidden');
+            timerText.textContent = '';
+        }
+    }
+    function hideReturnOverlay() {
+        if (returnTimerHandle) { clearTimeout(returnTimerHandle); returnTimerHandle = null; }
+        returnOverlay.classList.remove('is-visible');
+        scanInput.focus();
+    }
+    document.getElementById('return-ok-btn').addEventListener('click', hideReturnOverlay);
+    returnOverlay.addEventListener('click', (e) => { if (e.target === returnOverlay && activeOverlayMode !== 'timer') hideReturnOverlay(); });
 });
 </script>
 </body>
