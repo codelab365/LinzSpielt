@@ -6,35 +6,85 @@
 <title>Dokumentation – Spieleausleihe Linz Spielt</title>
 <link rel="stylesheet" href="https://codelab365.github.io/Spielesammlung-Genduron/codelab365.css">
 <style>
-    .doc-layout { display: grid; grid-template-columns: 240px 1fr; gap: var(--cl-space-4); align-items: start; }
+    /* ---------- Layout & Grundrhythmus ---------- */
+    .doc-layout { display: grid; grid-template-columns: 260px 1fr; gap: var(--cl-space-5); align-items: start; }
+    main.cl-container.cl-section { max-width: 1180px; }
+    .doc-intro { max-width: 62ch; line-height: 1.6; font-size: 1.02rem; }
+
+    /* ---------- Sidebar / Inhaltsverzeichnis ---------- */
     .doc-toc { position: sticky; top: var(--cl-space-3); border: 1px solid var(--cl-line); border-radius: var(--cl-radius);
-        padding: var(--cl-space-3); font-size: .88rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
-    .doc-toc h4 { margin: .9rem 0 .3rem 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--cl-muted); }
-    .doc-toc h4:first-child { margin-top: 0; }
+        padding: var(--cl-space-3); font-size: .9rem; max-height: calc(100vh - 3rem); overflow-y: auto; background: var(--cl-surface); }
+    .doc-search-wrap { position: relative; margin-bottom: var(--cl-space-3); }
+    .doc-search-wrap input { width: 100%; box-sizing: border-box; padding: .6rem .7rem .6rem 2.1rem; border-radius: var(--cl-radius-pill);
+        border: 1px solid var(--cl-line); background: var(--cl-surface-2); font-size: .92rem; color: var(--cl-text); }
+    .doc-search-wrap input:focus { outline: 2px solid var(--cl-signal); outline-offset: 1px; }
+    .doc-search-wrap__icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); opacity: .55; pointer-events: none; font-size: .95rem; }
+    .doc-search-clear { position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); border: none; background: none;
+        color: var(--cl-muted); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: .2rem .35rem; display: none; }
+    .doc-search-clear:hover { color: var(--cl-text); }
+    .doc-search-wrap.has-value .doc-search-clear { display: block; }
+    .doc-search-count { font-size: .78rem; color: var(--cl-muted); margin: -.4rem 0 .8rem 0; min-height: 1em; }
+
+    .doc-toc h4 { display: flex; align-items: center; gap: .4rem; margin: 1.3rem 0 .5rem 0; font-size: .78rem;
+        text-transform: uppercase; letter-spacing: .05em; color: var(--cl-muted); }
+    .doc-toc h4:first-of-type { margin-top: 0; }
     .doc-toc ul { list-style: none; margin: 0; padding: 0; }
-    .doc-toc li { margin: .15rem 0; }
-    .doc-toc a { color: var(--cl-text); text-decoration: none; display: block; padding: .2rem 0; }
-    .doc-toc a:hover { color: var(--cl-signal); }
-    .doc-content section { margin-bottom: var(--cl-space-5); scroll-margin-top: 1rem; }
-    .doc-content h2 { border-bottom: 2px solid var(--cl-line); padding-bottom: .4rem; margin-top: 0; }
-    .doc-content h3 { margin-top: var(--cl-space-4); }
-    .doc-step-list { padding-left: 1.3rem; }
-    .doc-step-list li { margin-bottom: .5rem; }
+    .doc-toc li { margin: .1rem 0; }
+    .doc-toc a { color: var(--cl-text); text-decoration: none; display: block; padding: .42rem .6rem; border-radius: var(--cl-radius-sm);
+        line-height: 1.35; transition: background .12s ease, color .12s ease; }
+    .doc-toc a:hover { background: var(--cl-surface-2); color: var(--cl-signal); }
+    .doc-toc a.is-active { background: color-mix(in srgb, var(--cl-signal) 12%, transparent); color: var(--cl-signal); font-weight: 600; }
+    .doc-toc li.doc-hidden, .doc-toc h4.doc-hidden { display: none; }
+
+    /* ---------- Inhalt: mehr Luft zwischen den Themen ---------- */
+    .doc-content section { margin-bottom: var(--cl-space-6, 4rem); scroll-margin-top: 1.2rem;
+        padding: var(--cl-space-4) var(--cl-space-4); border: 1px solid var(--cl-line); border-radius: var(--cl-radius);
+        background: var(--cl-surface); }
+    .doc-content section.doc-hidden { display: none; }
+    .doc-content h2 { margin-top: 0; margin-bottom: var(--cl-space-3); padding-bottom: 0; border-bottom: none;
+        font-size: 1.45rem; display: flex; align-items: center; gap: .5rem; }
+    .doc-content h3 { margin-top: var(--cl-space-5); margin-bottom: .8rem; font-size: 1.12rem; }
+    .doc-content > section > p, .doc-content > section > div > p { line-height: 1.65; max-width: 68ch; }
+    .doc-content > section > p.cl-muted { margin-top: -.3rem; margin-bottom: var(--cl-space-3); }
+
+    .doc-step-list { padding-left: 1.4rem; line-height: 1.6; }
+    .doc-step-list li { margin-bottom: .85rem; max-width: 68ch; }
+    .doc-step-list li:last-child { margin-bottom: 0; }
+    .doc-step-list li::marker { color: var(--cl-signal); }
+
     .doc-callout { border-left: 4px solid var(--cl-signal); background: color-mix(in srgb, var(--cl-signal) 8%, transparent);
-        padding: var(--cl-space-2) var(--cl-space-3); border-radius: 0 var(--cl-radius-sm) var(--cl-radius-sm) 0; margin: var(--cl-space-3) 0; }
+        padding: var(--cl-space-3) var(--cl-space-3); border-radius: 0 var(--cl-radius-sm) var(--cl-radius-sm) 0; margin: var(--cl-space-4) 0; line-height: 1.6; }
     .doc-callout--warn { border-left-color: var(--cl-warn); background: color-mix(in srgb, var(--cl-warn) 10%, transparent); }
     .doc-callout--err { border-left-color: var(--cl-err); background: color-mix(in srgb, var(--cl-err) 8%, transparent); }
     .doc-callout p:first-child { margin-top: 0; }
     .doc-callout p:last-child { margin-bottom: 0; }
-    table.doc-table { width: 100%; border-collapse: collapse; margin: var(--cl-space-2) 0 var(--cl-space-3) 0; }
-    table.doc-table th, table.doc-table td { border: 1px solid var(--cl-line); padding: .5rem .7rem; text-align: left; font-size: .9rem; vertical-align: top; }
+
+    table.doc-table { width: 100%; border-collapse: collapse; margin: var(--cl-space-3) 0 var(--cl-space-4) 0; }
+    table.doc-table th, table.doc-table td { border: 1px solid var(--cl-line); padding: .7rem .85rem; text-align: left; font-size: .92rem; vertical-align: top; line-height: 1.5; }
     table.doc-table th { background: var(--cl-surface-2); }
-    code { background: var(--cl-surface-2); padding: .1rem .35rem; border-radius: 4px; font-size: .88em; }
+
+    code { background: var(--cl-surface-2); padding: .12rem .4rem; border-radius: 4px; font-size: .88em; }
+    mark.doc-hit { background: color-mix(in srgb, var(--cl-signal) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 .1rem; }
     .doc-badge { display: inline-block; font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: var(--cl-radius-pill);
         background: color-mix(in srgb, var(--cl-signal) 18%, transparent); color: var(--cl-signal); margin-left: .4rem; }
+
+    /* ---------- Kein-Treffer-Zustand ---------- */
+    .doc-no-results { display: none; text-align: center; padding: var(--cl-space-6, 4rem) var(--cl-space-3); color: var(--cl-muted); }
+    .doc-no-results.is-visible { display: block; }
+    .doc-no-results__emoji { font-size: 2.4rem; margin-bottom: .8rem; }
+
+    /* ---------- Mobile Inhaltsverzeichnis-Umschalter ---------- */
+    .doc-toc-toggle { display: none; }
+
     @media (max-width: 900px) {
         .doc-layout { grid-template-columns: 1fr; }
         .doc-toc { position: static; max-height: none; }
+        .doc-toc-toggle { display: flex; align-items: center; gap: .5rem; width: 100%; margin-bottom: var(--cl-space-2);
+            padding: .7rem 1rem; border-radius: var(--cl-radius); border: 1px solid var(--cl-line); background: var(--cl-surface);
+            font-weight: 600; cursor: pointer; color: var(--cl-text); }
+        .doc-toc-body { display: none; }
+        .doc-toc-body.is-open { display: block; }
+        .doc-content section { padding: var(--cl-space-3); }
     }
 </style>
 </head>
@@ -50,10 +100,20 @@
 
 <main class="cl-container cl-section" style="padding-top: var(--cl-space-3);">
     <h1>Dokumentation: Spieleausleihe-System</h1>
-    <p class="cl-muted">Diese Seite beschreibt alle vier Bausteine des Systems: das <strong>Verwaltungstool</strong> (Datenbank, Sammlungen, Events, Statistik), den <strong>Ausleihe-Tresen</strong> (Betrieb während der Veranstaltung), die <strong>öffentliche Übersicht</strong> (für Besucher) und die dahinterliegende <strong>GTNM-Referenzdatei</strong>.</p>
+    <p class="cl-muted doc-intro">Diese Seite beschreibt alle vier Bausteine des Systems: das <strong>Verwaltungstool</strong> (Datenbank, Sammlungen, Events, Statistik), den <strong>Ausleihe-Tresen</strong> (Betrieb während der Veranstaltung), die <strong>öffentliche Übersicht</strong> (für Besucher) und die dahinterliegende <strong>GTNM-Referenzdatei</strong>. Am schnellsten findest du etwas über die Suche links oder über <a href="#schnellstart">die Schnellstartanleitung</a>.</p>
 
     <div class="doc-layout">
         <nav class="doc-toc">
+            <button type="button" class="doc-toc-toggle" id="doc-toc-toggle-btn" aria-expanded="false">
+                <span>📖 Inhaltsverzeichnis</span>
+            </button>
+            <div class="doc-search-wrap" id="doc-search-wrap">
+                <span class="doc-search-wrap__icon">🔍</span>
+                <input type="text" id="doc-search-input" placeholder="Doku durchsuchen …" autocomplete="off">
+                <button type="button" class="doc-search-clear" id="doc-search-clear" aria-label="Suche leeren">&times;</button>
+            </div>
+            <p class="doc-search-count" id="doc-search-count"></p>
+            <div class="doc-toc-body" id="doc-toc-body">
             <h4>Schnellstart</h4>
             <ul>
                 <li><a href="#schnellstart">⚡ Schnellstartanleitung</a></li>
@@ -119,9 +179,16 @@
                 <li><a href="#glossar">Glossar</a></li>
                 <li><a href="#troubleshooting">Häufige Probleme</a></li>
             </ul>
+            </div>
         </nav>
 
         <div class="doc-content">
+
+            <div class="doc-no-results" id="doc-no-results">
+                <div class="doc-no-results__emoji">🔍</div>
+                <p>Keine Treffer für "<strong><span id="doc-no-results-term"></span></strong>".</p>
+                <p class="cl-muted">Versuch's mit einem kürzeren oder anderen Begriff.</p>
+            </div>
 
             <section id="schnellstart">
                 <h2>⚡ Schnellstartanleitung</h2>
@@ -701,6 +768,155 @@ Hier sind meine EAN-Codes:
 <footer class="cl-footer">
     <div class="cl-container cl-center"><span class="cl-muted">Spieleversum · Linz Spielt — Interne Dokumentation</span></div>
 </footer>
+
+<script>
+(function() {
+    const searchInput = document.getElementById('doc-search-input');
+    const searchWrap = document.getElementById('doc-search-wrap');
+    const clearBtn = document.getElementById('doc-search-clear');
+    const countEl = document.getElementById('doc-search-count');
+    const noResultsEl = document.getElementById('doc-no-results');
+    const noResultsTermEl = document.getElementById('doc-no-results-term');
+    const sections = Array.from(document.querySelectorAll('.doc-content > section'));
+    // Original-Inhalt je Abschnitt einmalig sichern — vor jeder neuen Suche
+    // wird daraus zurückgesetzt, statt vorherige <mark>-Hervorhebungen
+    // mühsam wieder zu entfernen. Einfacher und robuster.
+    const originalHtml = new Map(sections.map(s => [s, s.innerHTML]));
+
+    // Inhaltsverzeichnis in Gruppen (h4 + zugehörige ul) zerlegen, damit sich
+    // bei der Suche auch leere Kategorien (kein Treffer mehr darin) mit
+    // ausblenden lassen.
+    const tocBody = document.getElementById('doc-toc-body');
+    const tocGroups = [];
+    Array.from(tocBody.children).forEach((el, i, arr) => {
+        if (el.tagName === 'H4') {
+            const ul = arr[i + 1] && arr[i + 1].tagName === 'UL' ? arr[i + 1] : null;
+            if (ul) {
+                const links = Array.from(ul.querySelectorAll('a')).map(a => ({
+                    a, li: a.closest('li'), sectionId: (a.getAttribute('href') || '').replace('#', '')
+                }));
+                tocGroups.push({ h4: el, ul, links });
+            }
+        }
+    });
+    const allTocLinks = tocGroups.flatMap(g => g.links);
+
+    // Läuft nur über Text-Knoten (kein innerHTML-Regex-Ersetzen) — so bleiben
+    // bestehende Links, <code>, <strong> usw. unangetastet, auch wenn der
+    // Suchbegriff mitten in einem solchen Element vorkommt.
+    function highlightAndCount(root, query) {
+        let count = 0;
+        const lowerQuery = query.toLowerCase();
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+                const tag = node.parentNode.nodeName;
+                if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK') return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        const textNodes = [];
+        let n;
+        while ((n = walker.nextNode())) textNodes.push(n);
+        textNodes.forEach(node => {
+            const text = node.nodeValue;
+            const lowerText = text.toLowerCase();
+            let idx = lowerText.indexOf(lowerQuery);
+            if (idx === -1) return;
+            const frag = document.createDocumentFragment();
+            let lastIndex = 0;
+            while (idx !== -1) {
+                count++;
+                if (idx > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, idx)));
+                const mark = document.createElement('mark');
+                mark.className = 'doc-hit';
+                mark.textContent = text.slice(idx, idx + query.length);
+                frag.appendChild(mark);
+                lastIndex = idx + query.length;
+                idx = lowerText.indexOf(lowerQuery, lastIndex);
+            }
+            if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+            node.parentNode.replaceChild(frag, node);
+        });
+        return count;
+    }
+
+    function runSearch(rawQuery) {
+        const query = (rawQuery || '').trim();
+        searchWrap.classList.toggle('has-value', query.length > 0);
+
+        if (!query) {
+            sections.forEach(s => { s.innerHTML = originalHtml.get(s); s.classList.remove('doc-hidden'); });
+            tocGroups.forEach(g => {
+                g.h4.classList.remove('doc-hidden'); g.ul.classList.remove('doc-hidden');
+                g.links.forEach(l => l.li.classList.remove('doc-hidden'));
+            });
+            countEl.textContent = '';
+            noResultsEl.classList.remove('is-visible');
+            return;
+        }
+
+        let matchedSections = 0, totalHits = 0;
+        sections.forEach(s => {
+            s.innerHTML = originalHtml.get(s);
+            const hits = highlightAndCount(s, query);
+            s.classList.toggle('doc-hidden', hits === 0);
+            if (hits > 0) { matchedSections++; totalHits += hits; }
+        });
+
+        const visibleIds = new Set(sections.filter(s => !s.classList.contains('doc-hidden')).map(s => s.id));
+        tocGroups.forEach(g => {
+            let groupHasVisible = false;
+            g.links.forEach(l => {
+                const visible = visibleIds.has(l.sectionId);
+                l.li.classList.toggle('doc-hidden', !visible);
+                if (visible) groupHasVisible = true;
+            });
+            g.h4.classList.toggle('doc-hidden', !groupHasVisible);
+            g.ul.classList.toggle('doc-hidden', !groupHasVisible);
+        });
+
+        noResultsEl.classList.toggle('is-visible', matchedSections === 0);
+        noResultsTermEl.textContent = query;
+        countEl.textContent = matchedSections === 0 ? '' : `${matchedSections} von ${sections.length} Themen · ${totalHits} Treffer`;
+    }
+
+    let debounceHandle = null;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounceHandle);
+        debounceHandle = setTimeout(() => runSearch(searchInput.value), 120);
+    });
+    clearBtn.addEventListener('click', () => { searchInput.value = ''; runSearch(''); searchInput.focus(); });
+    document.addEventListener('keydown', (e) => {
+        const typingElsewhere = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        if (e.key === '/' && !typingElsewhere) { e.preventDefault(); searchInput.focus(); }
+        if (e.key === 'Escape' && document.activeElement === searchInput) { searchInput.value = ''; runSearch(''); searchInput.blur(); }
+    });
+
+    // Mobiler Umschalter fürs Inhaltsverzeichnis (auf schmalen Bildschirmen
+    // sonst zu viel Scrollen, bevor überhaupt Inhalt sichtbar wird).
+    const tocToggleBtn = document.getElementById('doc-toc-toggle-btn');
+    tocToggleBtn.addEventListener('click', () => {
+        const isOpen = tocBody.classList.toggle('is-open');
+        tocToggleBtn.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    // Aktuell sichtbaren Abschnitt im Inhaltsverzeichnis hervorheben, damit
+    // man beim Scrollen jederzeit sieht, wo man gerade ist.
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const link = allTocLinks.find(l => l.sectionId === entry.target.id);
+                if (!link) return;
+                allTocLinks.forEach(l => l.a.classList.remove('is-active'));
+                link.a.classList.add('is-active');
+            });
+        }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+        sections.forEach(s => observer.observe(s));
+    }
+})();
+</script>
 
 </body>
 </html>
