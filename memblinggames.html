@@ -213,11 +213,16 @@
                     <h2 style="margin-bottom:0;">Diese Spiele werden mitgebracht <span id="mbCount" class="cl-muted"></span></h2>
                 </div>
                 <div class="st-filter-row" style="margin-top:.75rem;">
-                    <input type="text" id="mbSearchInput" class="cl-input" style="width:100%;" placeholder="🔍 Liste durchsuchen…">
-                    <div class="st-sort-row" role="group" aria-label="Sortierung">
-                        <button type="button" class="st-sort-btn st-sort-btn--active" data-sort="name" title="Nach Name sortieren" aria-label="Nach Name sortieren">🔤</button>
-                        <button type="button" class="st-sort-btn" data-sort="rating" title="Nach BGG-Bewertung sortieren" aria-label="Nach BGG-Bewertung sortieren">⭐</button>
-                        <button type="button" class="st-sort-btn" data-sort="weight" title="Nach Komplexität sortieren" aria-label="Nach Komplexität sortieren">⚙️</button>
+                    <input type="text" id="mbSearchInput" class="cl-input" style="width:100%;" placeholder="🔍 Spiel oder Mitbringer:in durchsuchen…">
+                    <div class="cl-flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-top:.6rem;">
+                        <div class="st-sort-row" role="group" aria-label="Sortierung" style="margin-top:0;">
+                            <button type="button" class="st-sort-btn st-sort-btn--active" data-sort="name" title="Nach Name sortieren" aria-label="Nach Name sortieren">🔤</button>
+                            <button type="button" class="st-sort-btn" data-sort="rating" title="Nach BGG-Bewertung sortieren" aria-label="Nach BGG-Bewertung sortieren">⭐</button>
+                            <button type="button" class="st-sort-btn" data-sort="weight" title="Nach Komplexität sortieren" aria-label="Nach Komplexität sortieren">⚙️</button>
+                        </div>
+                        <select id="mbBringerFilter" class="cl-input" style="flex:0 0 auto; max-width:180px;" title="Nach Mitbringer:in filtern">
+                            <option value="">👤 Alle</option>
+                        </select>
                     </div>
                 </div>
                 <div id="mbList"><p class="st-empty-hint">Noch keine Spiele eingetragen.</p></div>
@@ -287,7 +292,7 @@
 </main>
 
 <footer class="cl-footer">
-    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.4</span></div>
+    <div class="cl-container cl-center">Spieleversum · Mitgliedertreffen · codeLAB365 · <span id="appVersion">v2.5</span></div>
 </footer>
 
 <script type="module">
@@ -597,6 +602,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mbRef = collection(db, `spieleversum_treffen/${currentTreffenId}/mitgebracht`);
     unsubMitgebracht = onSnapshot(mbRef, (snap) => {
       mitgebracht = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateMbBringerFilterOptions();
       renderMb();
     }, (e) => { console.error(e); mbError.textContent = `Liste konnte nicht geladen werden (${e.code || e.message}).`; });
 
@@ -786,6 +792,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mbList = document.getElementById('mbList');
   const mbCount = document.getElementById('mbCount');
   const mbSearchInput = document.getElementById('mbSearchInput');
+  const mbBringerFilter = document.getElementById('mbBringerFilter');
   const mbSortButtons = document.querySelectorAll('#panelMitgebracht .st-sort-btn');
   let mbSortMode = 'name';
   mbSortButtons.forEach(btn => {
@@ -810,12 +817,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   mbSearchInput.addEventListener('input', renderMb);
+  mbBringerFilter.addEventListener('change', renderMb);
 
   // Liest die Mitbringer-Liste eines Eintrags, kompatibel mit alten Einträgen
   // (die noch das einzelne Feld "mitbringer" statt "mitbringerListe" hatten).
   function getMitbringerListe(item) {
     if (Array.isArray(item.mitbringerListe)) return item.mitbringerListe;
     return item.mitbringer ? [item.mitbringer] : [];
+  }
+
+  // Befüllt das Personen-Filter-Dropdown mit allen aktuell bekannten
+  // Mitbringer:innen-Namen (dedupliziert, alphabetisch), Auswahl bleibt erhalten.
+  function updateMbBringerFilterOptions() {
+    const namen = new Set();
+    mitgebracht.forEach(m => getMitbringerListe(m).forEach(n => { if (n && n.trim()) namen.add(n.trim()); }));
+    const sortiert = Array.from(namen).sort((a, b) => a.localeCompare(b, 'de'));
+    const aktuelleAuswahl = mbBringerFilter.value;
+    mbBringerFilter.innerHTML = '<option value="">👤 Alle</option>' +
+      sortiert.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
+    if (sortiert.includes(aktuelleAuswahl)) mbBringerFilter.value = aktuelleAuswahl;
   }
 
   // Findet ein bereits vorhandenes Spiel in der aktuellen Liste (per BGG-ID
@@ -977,7 +997,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderMb() {
     const filter = mbSearchInput.value.trim().toLowerCase();
-    const filtered = mitgebracht.filter(m => !filter || (m.name || '').toLowerCase().includes(filter));
+    const bringerAuswahl = mbBringerFilter.value;
+    const filtered = mitgebracht.filter(m => {
+      const bringerListeM = getMitbringerListe(m);
+      const textTreffer = !filter
+        || (m.name || '').toLowerCase().includes(filter)
+        || bringerListeM.some(n => (n || '').toLowerCase().includes(filter));
+      const personTreffer = !bringerAuswahl || bringerListeM.some(n => (n || '').trim() === bringerAuswahl);
+      return textTreffer && personTreffer;
+    });
     const sorted = sortListe(filtered, mbSortMode);
     mbCount.textContent = mitgebracht.length ? `(${mitgebracht.length})` : '';
 
@@ -986,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     if (sorted.length === 0) {
-      mbList.innerHTML = '<p class="st-empty-hint">Keine Treffer für die Suche.</p>';
+      mbList.innerHTML = '<p class="st-empty-hint">Keine Treffer für Suche/Filter.</p>';
       return;
     }
     mbList.innerHTML = sorted.map(m => {
