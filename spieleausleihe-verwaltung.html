@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v66</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v67</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -531,6 +531,13 @@
                 <div>
                     <label class="cl-label" for="game-ean">EAN / Barcode</label>
                     <input type="text" id="game-ean" class="cl-input" required autocomplete="off">
+                    <div id="game-ean-edit-wrap" class="cl-hidden" style="margin-top:.4rem;">
+                        <label class="sv-checkbox-chip" style="display:inline-flex;">
+                            <input type="checkbox" id="game-ean-edit-toggle">
+                            EAN korrigieren
+                        </label>
+                        <p class="cl-muted" style="font-size:.78rem; margin:.3rem 0 0 0;">Für Tippfehler oder wenn eine Neuauflage eine neue EAN hat. Verschiebt alle Sammlungs-, Event- und Ausleihe-Zuordnungen automatisch mit. Existiert die neue EAN schon als eigener Eintrag, wird nachgefragt, ob beide zusammengeführt werden sollen (Stückzahlen werden addiert) — dabei bleiben Name/Bild/Beschreibung des bestehenden Eintrags erhalten, Änderungen an diesem Formular werden dann verworfen.</p>
+                    </div>
                 </div>
                 <div>
                     <label class="cl-label" for="game-name-input">Spielname</label>
@@ -797,8 +804,26 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v66 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v67 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v67 — EAN nachträglich korrigierbar (Datenbank-Tab, Spiel bearbeiten):
+//        neue Checkbox "EAN korrigieren" schaltet das sonst gesperrte
+//        EAN-Feld frei (Sicherheitshürde gegen versehentliches Ändern,
+//        da die EAN gleichzeitig die Datenbank-ID ist). Zwei Fälle:
+//        1) Neue EAN existiert noch nicht → reine Umbenennung, alle
+//           Sammlungs-Stückzahlen, Event-Zuordnungen und das komplette
+//           Ausleihe-Log (loans) wandern automatisch mit, alter Eintrag
+//           wird gelöscht.
+//        2) Neue EAN gehört schon zu einem anderen Eintrag → Rückfrage,
+//           ob zusammengeführt werden soll (analog zum Regale-
+//           Zusammenführen). Nach Bestätigung: Stückzahlen addiert,
+//           Event-Zuordnungen und Ausleihe-Log übernommen, alter Eintrag
+//           gelöscht — Name/Bild/Beschreibung des bestehenden Eintrags
+//           bleiben dabei maßgeblich, andere Formular-Änderungen werden
+//           verworfen.
+//        Neue Hilfsfunktion moveEanReferences() für beide Fälle gemeinsam
+//        genutzt. Gedacht für Neuauflagen/überarbeitete Editionen, die auf
+//        BGG oft eine neue EAN bekommen, obwohl es dasselbe Spiel ist.
 //   v66 — Regal-Filter im "🔍 Filter & Sortierung"-Panel ergänzt, sowohl
 //        am Ausleihe-Tresen (Spieleliste) als auch in der Ansicht für
 //        Besucher:innen (dort war ein Regal-Filter zuvor bewusst
@@ -2456,11 +2481,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function openGameModal(game, prefillEan) {
         clearBggMatch();
         gameForm.reset();
+        const eanEditWrap = document.getElementById('game-ean-edit-wrap');
+        const eanEditToggle = document.getElementById('game-ean-edit-toggle');
+        eanEditToggle.checked = false;
         if (game) {
             editingGameId = game.id;
             gameModalTitle.textContent = 'Spiel bearbeiten';
             gameEanInput.value = game.id;
             gameEanInput.disabled = true;
+            eanEditWrap.classList.remove('cl-hidden');
             gameNameInput.value = game.name || '';
             gameMinPlayers.value = game.minPlayers ?? '';
             gameMaxPlayers.value = game.maxPlayers ?? '';
@@ -2478,6 +2507,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameModalTitle.textContent = 'Neues Spiel anlegen';
             gameEanInput.value = prefillEan || '';
             gameEanInput.disabled = false;
+            eanEditWrap.classList.add('cl-hidden');
             deleteGameBtn.classList.add('cl-hidden');
         }
         showModal(gameModalOverlay);
@@ -2487,6 +2517,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('game-modal-close').addEventListener('click', () => hideModal(gameModalOverlay));
     document.getElementById('game-modal-cancel').addEventListener('click', () => hideModal(gameModalOverlay));
     gameModalOverlay.addEventListener('click', (e) => { if (e.target === gameModalOverlay) hideModal(gameModalOverlay); });
+    document.getElementById('game-ean-edit-toggle').addEventListener('change', (e) => { gameEanInput.disabled = !e.target.checked; });
 
     document.getElementById('bgg-search-btn').addEventListener('click', async () => {
         const q = gameNameInput.value.trim();
@@ -2553,6 +2584,106 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('bgg-search-panel').classList.add('cl-hidden');
     }
 
+    // Verschiebt alle Zuordnungen (Sammlungen, Events, Ausleihe-Log) von
+    // einer EAN auf eine andere — für Tippfehler-Korrekturen oder wenn eine
+    // Neuauflage desselben Spiels eine neue EAN bekommen hat.
+    //   merge=false → reine Umbenennung, newEan existiert noch nicht als
+    //                 eigener games-Eintrag.
+    //   merge=true  → newEan existiert bereits; dessen Name/Bild/
+    //                 Beschreibung bleiben erhalten, nur die Zuordnungen
+    //                 (Stückzahlen, Event-Einträge, Ausleihe-Log) werden
+    //                 dorthin verschoben bzw. addiert.
+    async function moveEanReferences(oldEan, newEan) {
+        const citemsSnap = await getDocs(query(collection(db, 'collectionItems'), where('ean', '==', oldEan)));
+        for (const d of citemsSnap.docs) {
+            const ci = d.data();
+            const newId = `${ci.collectionId}_${newEan}`;
+            const targetSnap = await getDoc(doc(db, 'collectionItems', newId));
+            if (targetSnap.exists()) {
+                await updateDoc(doc(db, 'collectionItems', newId), { quantity: increment(ci.quantity ?? 1) });
+            } else {
+                const { gameName, ...rest } = ci; // gameName wird unten per propagateGameUpdate ohnehin aktualisiert
+                await setDoc(doc(db, 'collectionItems', newId), { ...rest, ean: newEan, gameName: gameName || newEan });
+            }
+            await deleteDoc(doc(db, 'collectionItems', d.id));
+        }
+
+        const egSnap = await getDocs(query(collection(db, 'eventGames'), where('ean', '==', oldEan)));
+        for (const d of egSnap.docs) {
+            const eg = d.data();
+            const newId = `${eg.eventId}_${newEan}`;
+            const targetSnap = await getDoc(doc(db, 'eventGames', newId));
+            if (targetSnap.exists()) {
+                await updateDoc(doc(db, 'eventGames', newId), {
+                    quantity: increment(eg.quantity ?? 1),
+                    availableQuantity: increment(eg.availableQuantity ?? 0),
+                    publisherTableQuantity: increment(eg.publisherTableQuantity ?? 0)
+                });
+            } else {
+                const { gameName, ...rest } = eg;
+                await setDoc(doc(db, 'eventGames', newId), { ...rest, ean: newEan, gameName: gameName || newEan });
+            }
+            await deleteDoc(doc(db, 'eventGames', d.id));
+        }
+
+        const loansSnap = await getDocs(query(collection(db, 'loans'), where('ean', '==', oldEan)));
+        for (const d of loansSnap.docs) {
+            await updateDoc(doc(db, 'loans', d.id), { ean: newEan });
+        }
+
+        return { collections: citemsSnap.size, events: egSnap.size, loans: loansSnap.size };
+    }
+
+    async function handleEanChange(oldEan, newEan, payload) {
+        const targetSnap = await getDoc(doc(db, 'games', newEan));
+        if (targetSnap.exists()) {
+            const targetName = targetSnap.data().name || newEan;
+            const confirmed = await confirmAsync(
+                'EANs zusammenführen?',
+                `Die EAN "${newEan}" gehört bereits zu einem anderen Eintrag ("${targetName}"). Wirklich zusammenführen? Sammlungs-Stückzahlen werden addiert, Event-Zuordnungen und das Ausleihe-Log werden übernommen, der Eintrag "${gameNameInput.value.trim() || oldEan}" (EAN ${oldEan}) wird danach gelöscht. Name/Bild/Beschreibung von "${targetName}" bleiben dabei erhalten — Änderungen an diesem Formular werden verworfen.`,
+                'Ja, zusammenführen'
+            );
+            if (!confirmed) return false;
+            const submitBtn = gameForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            try {
+                const counts = await moveEanReferences(oldEan, newEan);
+                await deleteDoc(doc(db, 'games', oldEan));
+                showToast(`Zusammengeführt: ${counts.collections} Sammlung(en), ${counts.events} Event(s), ${counts.loans} Ausleihe(n) übernommen.`);
+                hideModal(gameModalOverlay);
+            } catch (err) {
+                console.error('Zusammenführen fehlgeschlagen:', err);
+                showToast('Zusammenführen fehlgeschlagen.', true);
+            } finally {
+                submitBtn.disabled = false;
+            }
+            return true;
+        }
+        // Reine Umbenennung: neuer games-Eintrag mit den (ggf. bearbeiteten)
+        // Formulardaten, alte Zuordnungen verschieben, alten Eintrag löschen.
+        const submitBtn = gameForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        try {
+            await setDoc(doc(db, 'games', newEan), { ...payload, ean: newEan, addedAt: serverTimestamp() });
+            const counts = await moveEanReferences(oldEan, newEan);
+            await deleteDoc(doc(db, 'games', oldEan));
+            propagateGameUpdate(newEan, {
+                gameName: payload.name, bggId: payload.bggId, bggImageUrl: payload.bggImageUrl,
+                minPlayers: payload.minPlayers, maxPlayers: payload.maxPlayers, minAge: payload.minAge,
+                Duration: payload.Duration, rating: payload.rating, complexity: payload.complexity, category: payload.category,
+                description: payload.description
+            });
+            showToast(`EAN korrigiert: ${counts.collections} Sammlung(en), ${counts.events} Event(s), ${counts.loans} Ausleihe(n) mitverschoben.`);
+            hideModal(gameModalOverlay);
+        } catch (err) {
+            console.error('EAN-Korrektur fehlgeschlagen:', err);
+            showToast('EAN-Korrektur fehlgeschlagen.', true);
+        } finally {
+            submitBtn.disabled = false;
+        }
+        return true;
+    }
+
     gameForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const ean = gameEanInput.value.trim();
@@ -2575,6 +2706,10 @@ document.addEventListener('DOMContentLoaded', () => {
             updatedAt: serverTimestamp()
         };
         try {
+            if (editingGameId && ean !== editingGameId) {
+                await handleEanChange(editingGameId, ean, payload);
+                return;
+            }
             if (editingGameId) {
                 await updateDoc(doc(db, 'games', editingGameId), payload);
                 showToast('Spiel aktualisiert.');
