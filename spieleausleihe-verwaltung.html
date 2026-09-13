@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v71</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v72</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -804,8 +804,20 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v71 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v72 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v72 — Verwirrende Doppeldeutigkeit von "Spiele" behoben: Sowohl in der
+//        Ansicht für Besucher:innen als auch am Ausleihe-Tresen wurden mit
+//        demselben Wort "Spiele" zwei unterschiedliche Zähleinheiten
+//        bezeichnet — einmal die Summe aller Exemplare (Stückzahlen
+//        aufaddiert), einmal die Anzahl unterschiedlicher Titel/Einträge.
+//        Das konnte z.B. so aussehen: "115 Spiele gesamt" oben, aber
+//        "Seite 3 von 3 (111 Spiele)" bei der Pagination — beides korrekt,
+//        nur zwei verschiedene Zahlen für dasselbe Wort. Jetzt konsequent
+//        benannt: "Exemplare gesamt" für die Stückzahl-Summe, "Titel" für
+//        die Anzahl unterschiedlicher Spiele — inkl. neuer eigener
+//        "Titel"-Kennzahl an beiden Stellen, damit beide Zahlen sichtbar
+//        und klar zugeordnet sind statt nur eine davon unbenannt zu lassen.
 //   v71 — Ansicht für Besucher:innen (index.html): Pagination-Pfeile
 //        ("← Zurück"/"Weiter →") erscheinen jetzt sowohl oberhalb als auch
 //        unterhalb der Tabelle, nicht mehr nur oben — bei langen Listen
