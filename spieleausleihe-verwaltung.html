@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v72</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v73</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -757,15 +757,22 @@
 
             <label class="cl-label" style="margin-top: var(--cl-space-3);">Regal-Konflikt-Hinweis</label>
             <label class="sv-checkbox-chip" style="display:inline-flex;">
-                <input type="checkbox" id="warn-shelf-conflict-toggle">
-                Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist
+                <input type="checkbox" id="enforce-single-shelf-toggle">
+                Ein Regal pro Spiel erzwingen (Standard bei neuen Events)
             </label>
-            <div id="shelf-conflict-mode-row" class="sv-checkbox-list" style="margin-bottom:0; margin-top:.5rem;">
-                <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-confirm" value="confirm"> Manuell bestätigen (unterbricht den Scan-Vorgang)</label>
-                <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-timer" value="timer"> Automatisch weiter nach</label>
-                <input type="number" id="shelf-conflict-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="8"> Sek.
+            <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 .6rem 0;">Jedes Spiel bleibt fix in dem Regal, in dem es zuerst eingeräumt wurde ("Basisregal"). Wird es für ein anderes Regal gescannt, muss das erst bestätigt werden, bevor es weitergeht ("bitte im Basisregal einräumen") — ein Aufteilen auf mehrere Regale ist dann nicht möglich. Das erspart bei der Ausleihe die Frage "aus welchem Regal kommt dieses Exemplar?" (siehe <a href="#ausleihe-logik">Ausleihe-Logik</a>), macht aber bei Bedarf mehr manuelles Umräumen nötig.</p>
+            <div id="shelf-conflict-flex-settings" class="cl-hidden">
+                <label class="sv-checkbox-chip" style="display:inline-flex;">
+                    <input type="checkbox" id="warn-shelf-conflict-toggle">
+                    Stattdessen nur warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist (Aufteilen auf mehrere Regale bleibt möglich)
+                </label>
+                <div id="shelf-conflict-mode-row" class="sv-checkbox-list" style="margin-bottom:0; margin-top:.5rem;">
+                    <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-confirm" value="confirm"> Manuell bestätigen (unterbricht den Scan-Vorgang)</label>
+                    <label class="sv-checkbox-chip"><input type="radio" name="shelf-conflict-mode" id="shelf-conflict-timer" value="timer"> Automatisch weiter nach</label>
+                    <input type="number" id="shelf-conflict-seconds" class="cl-input" min="1" max="60" style="width:5rem;" value="8"> Sek.
+                </div>
+                <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 0 0;">Zwei Exemplare desselben Spiels können dann bewusst auf zwei Regale aufgeteilt werden (bei der Rückgabe ist dann aber nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam — bei der Ausleihe wird deshalb nachgefragt, aus welchem Regal). Bei "Manuell bestätigen" gilt das auch beim schnellen Durchscannen; bei "Automatisch weiter" läuft der Scan-Vorgang ohne Warten durch, mit Warnton und auffälliger Meldung statt Rückfrage.</p>
             </div>
-            <p class="cl-muted" style="font-size:.8rem; margin:.35rem 0 0 0;">Nur ein Hinweis, keine Sperre — zwei Exemplare desselben Spiels können trotzdem bewusst auf zwei Regale aufgeteilt werden (bei der Rückgabe ist dann aber nicht mehr unterscheidbar, welches Exemplar aus welchem Regal kam). Bei "Manuell bestätigen" gilt das auch beim schnellen Durchscannen — praktisch, wenn Spiele möglichst konsequent im gleichen Regal bleiben sollen; bei "Automatisch weiter" läuft der Scan-Vorgang ohne Warten durch, mit Warnton und auffälliger Meldung statt Rückfrage.</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; margin-top: var(--cl-space-3); flex-wrap: wrap; gap:.5rem;">
@@ -795,6 +802,20 @@
     </div>
 </div>
 
+<!-- Regal-Auswahl vor dem Ausleihen, nur wenn ein Spiel auf mehr als ein
+     Regal aufgeteilt ist (siehe Regal-Konflikt-Hinweis) -->
+<div id="shelf-pick-modal-overlay" class="qb-modal-overlay cl-hidden">
+    <div class="cl-card cl-card--pad qb-modal modal-enter">
+        <h2 id="shelf-pick-modal-title" style="margin-top:0;"></h2>
+        <p class="cl-muted">Aus welchem Regal wird dieses Exemplar entnommen?</p>
+        <select id="shelf-pick-modal-select" class="cl-select" style="width:100%;"></select>
+        <div style="display:flex; justify-content:flex-end; gap:.5rem; margin-top: var(--cl-space-3);">
+            <button type="button" id="shelf-pick-modal-cancel" class="cl-btn cl-btn--ghost">Abbrechen</button>
+            <button type="button" id="shelf-pick-modal-ok" class="cl-btn cl-btn--signal">Bestätigen</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -804,8 +825,32 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v72 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v73 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v73 — Zwei Ergänzungen rund ums Regal-Thema:
+//        1) "Ein Regal pro Spiel erzwingen": neue Checkbox in den
+//           Event-Einstellungen, bei neu angelegten Events standardmäßig
+//           aktiv. Bei Konflikt gibt es dann nur noch einen Button
+//           "Bestätigen" (Basisregal = erstes Regal, dem das Spiel
+//           zugeordnet wurde), kein Aufteilen auf mehrere Regale mehr
+//           möglich, keine Zeitautomatik. Die bisherige flexible Variante
+//           (Warnen + Umräumen erlauben, siehe v70/v63) bleibt über eine
+//           zweite, darunter eingeblendete Checkbox weiterhin verfügbar.
+//        2) Regal-Auswahl beim Ausleihen: Ist ein Spiel (weil "Ein Regal
+//           pro Spiel erzwingen" deaktiviert war) tatsächlich auf zwei
+//           Regale aufgeteilt, fragt sowohl der Ausleihe-Tresen als auch
+//           das Verwaltungstool beim Ausleihen jetzt aktiv per Auswahl-
+//           Fenster nach, aus welchem der beiden Regale das Exemplar
+//           entnommen wird. Diese Auswahl wird im Ausleihe-Log (loans)
+//           gespeichert — die Rückgabe-Meldung nennt danach exakt das
+//           richtige Regal statt nur eine "oder"-Vermutung.
+//        3) Verlagstisch-Exemplare erscheinen jetzt als eigene Tabellen-
+//           zeile statt als Zusatz-Badge in derselben Zeile wie die
+//           ausleihbaren Exemplare — sowohl in der Ansicht für
+//           Besucher:innen als auch am Ausleihe-Tresen. Die Verlagstisch-
+//           Zeile hat keinen Ausleihen/Rückgabe-Button und reagiert nicht
+//           auf Scans (weiterhin nur im Verwaltungstool entfernbar, siehe
+//           v57/v58).
 //   v72 — Verwirrende Doppeldeutigkeit von "Spiele" behoben: Sowohl in der
 //        Ansicht für Besucher:innen als auch am Ausleihe-Tresen wurden mit
 //        demselben Wort "Spiele" zwei unterschiedliche Zähleinheiten
@@ -1737,7 +1782,9 @@ function resetConfirmModalStyle() {
     okBtn.textContent = 'Löschen';
     okBtn.style.background = 'var(--cl-err)';
     okBtn.style.borderColor = 'var(--cl-err)';
-    document.getElementById('confirm-modal-cancel').textContent = 'Abbrechen';
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    cancelBtn.textContent = 'Abbrechen';
+    cancelBtn.classList.remove('cl-hidden');
 }
 // Promise-basierte Variante von showConfirm — für Stellen im Code, die auf
 // die Entscheidung der Person warten müssen (z.B. mitten in einem
@@ -1745,18 +1792,21 @@ function resetConfirmModalStyle() {
 // übergeben. Setzt bei Bedarf eine eigene Beschriftung für den OK-Button
 // (okLabel) und optional auch für den zweiten Button (cancelLabel) — z.B.
 // wenn beide Optionen echte, gleichwertige Handlungen sind statt "OK" vs.
-// "Abbrechen" (siehe Regal-Konflikt-Hinweis).
+// "Abbrechen" (siehe Regal-Konflikt-Hinweis). hideCancelBtn blendet den
+// zweiten Button komplett aus — für reine "einmal bestätigen, es gibt
+// keine Alternative"-Fälle (z.B. Ein-Regal-Zwang).
 // Optionaler timeoutMs: schließt den Dialog automatisch (wie ein Klick auf
 // den zweiten Button) nach Ablauf der Zeit, falls bis dahin keine
 // Entscheidung getroffen wurde — für den "Automatisch weiter nach
 // X Sekunden"-Modus, bei dem der Scan-Fluss nicht auf eine manuelle
 // Reaktion warten soll.
-function confirmAsync(title, text, okLabel, timeoutMs, cancelLabel) {
+function confirmAsync(title, text, okLabel, timeoutMs, cancelLabel, hideCancelBtn) {
     return new Promise((resolve) => {
         const okBtn = document.getElementById('confirm-modal-ok');
         const cancelBtn = document.getElementById('confirm-modal-cancel');
         if (okLabel) { okBtn.textContent = okLabel; okBtn.style.background = ''; okBtn.style.borderColor = ''; }
         cancelBtn.textContent = cancelLabel || 'Abbrechen';
+        cancelBtn.classList.toggle('cl-hidden', !!hideCancelBtn);
         let done = false;
         let timeoutHandle = null;
         function finish(result) {
@@ -2240,7 +2290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeEventId && shelfId) {
             try {
                 const activeEv = allEvents.find(e => e.id === activeEventId);
-                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: !!activeEv?.warnOnShelfConflict, shelfConflictMode: activeEv?.shelfConflictMode, shelfConflictSeconds: activeEv?.shelfConflictSeconds });
+                eventResult = await addOrIncrementEventGame(activeEventId, ean, shelfId, checkedCollections[0] || null, game, game.name, { checkShelfConflict: !!activeEv?.warnOnShelfConflict, shelfConflictMode: activeEv?.shelfConflictMode, shelfConflictSeconds: activeEv?.shelfConflictSeconds, enforceSingleShelf: !!activeEv?.enforceSingleShelf });
             } catch (err) { console.error(err); }
         }
 
@@ -3187,7 +3237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const loadAll = document.getElementById('new-event-load-all').checked;
         if (!name) { feedback.textContent = 'Bitte einen Namen eingeben.'; feedback.style.color = 'var(--cl-err)'; return; }
         try {
-            const evRef = await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp() });
+            const evRef = await addDoc(collection(db, 'events'), { name, date: dateInput.value || null, sourceCollectionIds: selectedCollections, createdAt: serverTimestamp(), enforceSingleShelf: true });
             nameInput.value = ''; dateInput.value = '';
             document.querySelectorAll('#new-event-collections input:checked').forEach(cb => cb.checked = false);
             document.getElementById('new-event-load-all').checked = false;
@@ -3338,6 +3388,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('borrow-msg-timer').checked = borrowMode === 'timer';
         document.getElementById('borrow-msg-seconds').value = ev.borrowMessageSeconds ?? 5;
         document.getElementById('show-loan-duration-toggle').checked = !!ev.showLoanDuration;
+        document.getElementById('enforce-single-shelf-toggle').checked = !!ev.enforceSingleShelf;
+        document.getElementById('shelf-conflict-flex-settings').classList.toggle('cl-hidden', !!ev.enforceSingleShelf);
         document.getElementById('warn-shelf-conflict-toggle').checked = !!ev.warnOnShelfConflict;
         const shelfConflictMode = ev.shelfConflictMode === 'timer' ? 'timer' : 'confirm';
         document.getElementById('shelf-conflict-confirm').checked = shelfConflictMode === 'confirm';
@@ -3393,6 +3445,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentEventId) return;
         try { await updateDoc(doc(db, 'events', currentEventId), { showLoanDuration: e.target.checked }); }
         catch (err) { console.error(err); showToast('Einstellung speichern fehlgeschlagen.', true); e.target.checked = !e.target.checked; }
+    });
+
+    document.getElementById('enforce-single-shelf-toggle').addEventListener('change', async (e) => {
+        if (!currentEventId) return;
+        document.getElementById('shelf-conflict-flex-settings').classList.toggle('cl-hidden', e.target.checked);
+        try { await updateDoc(doc(db, 'events', currentEventId), { enforceSingleShelf: e.target.checked }); }
+        catch (err) {
+            console.error(err);
+            showToast('Einstellung speichern fehlgeschlagen.', true);
+            e.target.checked = !e.target.checked;
+            document.getElementById('shelf-conflict-flex-settings').classList.toggle('cl-hidden', e.target.checked);
+        }
     });
 
     document.getElementById('warn-shelf-conflict-toggle').addEventListener('change', async (e) => {
@@ -3623,14 +3687,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const existing = allEventGames.find(g => g.id === egId);
         if (existing) {
             const updateData = { quantity: increment(1), availableQuantity: increment(1), lastActivityAt: serverTimestamp() };
-            const hasConflict = opts.checkShelfConflict && shelfId && existing.shelfId && existing.shelfId !== shelfId;
+            const hasConflict = (opts.checkShelfConflict || opts.enforceSingleShelf) && shelfId && existing.shelfId && existing.shelfId !== shelfId;
             if (hasConflict) {
                 const existingShelfName = shelfNameFor(eventId, existing.shelfId);
                 const targetShelfName = shelfNameFor(eventId, shelfId);
                 const gameLabel = name || gameMeta?.name || ean;
+                playWarnBeep();
+                if (opts.enforceSingleShelf) {
+                    // Ein-Regal-Zwang: kein Aufteilen möglich, keine
+                    // Zeitautomatik — es muss aktiv bestätigt werden, dass
+                    // das Exemplar ins Basisregal (das erste Regal, dem
+                    // dieses Spiel zugeordnet wurde) eingeräumt wird.
+                    await confirmAsync(
+                        'Regal-Konflikt',
+                        `"${gameLabel}" ist bereits in Regal "${existingShelfName}" (Basisregal) — bitte dort einräumen.`,
+                        'Bestätigen',
+                        null, null, true
+                    );
+                    await updateDoc(doc(db, 'eventGames', egId), updateData);
+                    return 'incremented-conflict';
+                }
                 const isTimer = opts.shelfConflictMode === 'timer';
                 const seconds = Math.max(1, Math.min(60, opts.shelfConflictSeconds ?? 8));
-                playWarnBeep();
                 // Ziel ist immer, Spiele möglichst an einem einzigen Ort zu
                 // sammeln — daher ist "im bestehenden Regal einräumen" die
                 // naheliegende Standard-Aktion (auch bei Zeitablauf im
@@ -3751,7 +3829,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const g = allGames.find(g => g.id === ean);
         const ev = allEvents.find(e => e.id === currentEventId);
         try {
-            const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
+            const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds, enforceSingleShelf: !!ev?.enforceSingleShelf });
             eventAddSearch.value = '';
             eventAddResults.classList.add('cl-hidden');
             if (result === 'incremented' || result === 'incremented-conflict') showToast(`Ein weiteres Exemplar von "${name}" ergänzt.`);
@@ -3775,7 +3853,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // still den bestehenden übernehmen) — addOrIncrementEventGame
                 // entscheidet bei einem Regal-Konflikt selbst, ob nachgefragt
                 // wird (gesteuert über opts.checkShelfConflict/shelfConflictMode).
-                const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
+                const result = await addOrIncrementEventGame(currentEventId, ean, shelfId, collectionId, g, name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds, enforceSingleShelf: !!ev?.enforceSingleShelf });
                 if (result === 'added') added++;
                 else if (result === 'incremented-conflict') split++;
                 else if (result === 'incremented') incremented++;
@@ -3993,7 +4071,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let eventResult = null;
         try {
-            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds });
+            eventResult = await addOrIncrementEventGame(currentEventId, ean, shelfId, sourceIds[0] || null, game, game.name, { checkShelfConflict: !!ev?.warnOnShelfConflict, shelfConflictMode: ev?.shelfConflictMode, shelfConflictSeconds: ev?.shelfConflictSeconds, enforceSingleShelf: !!ev?.enforceSingleShelf });
         } catch (err) { console.error(err); }
 
         eventQuickScanCount++;
@@ -4116,13 +4194,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // Zeigt das Regal-Auswahl-Fenster und löst mit der gewählten Regal-ID
+    // auf, oder mit null bei "Abbrechen".
+    function pickShelfForBorrow(eg) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('shelf-pick-modal-overlay');
+            const select = document.getElementById('shelf-pick-modal-select');
+            document.getElementById('shelf-pick-modal-title').textContent = liveGameName(eg);
+            const choices = [eg.shelfId, ...(eg.otherShelfIds || [])];
+            select.innerHTML = choices.map(id => `<option value="${id}">${escapeHTML(shelfNameFor(eg.eventId, id))}</option>`).join('');
+            showModal(overlay);
+            function cleanup() {
+                hideModal(overlay);
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+            }
+            const okBtn = document.getElementById('shelf-pick-modal-ok');
+            const cancelBtn = document.getElementById('shelf-pick-modal-cancel');
+            function onOk() { cleanup(); resolve(select.value); }
+            function onCancel() { cleanup(); resolve(null); }
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+        });
+    }
+
     async function borrowOne(eg) {
+        // Ist das Spiel auf mehr als ein Regal aufgeteilt (siehe Regal-
+        // Konflikt-Hinweis), muss angegeben werden, aus welchem Regal das
+        // Exemplar tatsächlich entnommen wird — sonst weiß später niemand
+        // mehr, wohin es bei der Rückgabe wieder gehört.
+        let shelfIdForLoan = eg.shelfId;
+        if ((eg.otherShelfIds || []).length > 0) {
+            const picked = await pickShelfForBorrow(eg);
+            if (picked === null) return; // Abgebrochen — keine Ausleihe durchführen
+            shelfIdForLoan = picked;
+        }
         const egRef = doc(db, 'eventGames', eg.id);
         const ev = allEvents.find(e => e.id === eg.eventId);
         try {
             await addDoc(collection(db, 'loans'), {
                 ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: ev ? ev.name : '',
-                shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+                shelfId: shelfIdForLoan, borrowedAt: serverTimestamp(), returnedAt: null
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
             const restLeft = (eg.availableQuantity ?? 1) - 1;
@@ -4131,7 +4243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}
                 <div class="sv-scan-result__body">
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} ausgeliehen 📖</p>
-                    <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
+                    <p class="cl-muted" style="margin:0;">War in <strong>${escapeHTML(shelfNameFor(eg.eventId, shelfIdForLoan))}</strong>. Noch ${restLeft} von ${eg.quantity ?? 1} verfügbar. Viel Spaß!</p>
                 </div>`;
             playScanBeep();
             showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> ausgeliehen.`, false, { duration: getScanToastDurationMs() });
@@ -4143,17 +4255,19 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const q = query(collection(db, 'loans'), where('eventId', '==', eg.eventId), where('ean', '==', eg.ean), where('returnedAt', '==', null));
             const snap = await getDocs(q);
-            if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
+            const openLoan = snap.empty ? null : snap.docs[0];
+            const returnShelfId = openLoan?.data()?.shelfId || eg.shelfId;
+            if (openLoan) await updateDoc(doc(db, 'loans', openLoan.id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
             scanResult.className = 'sv-scan-result is-visible sv-result--in';
             scanResult.innerHTML = `
                 ${eg.bggImageUrl ? `<img src="${escapeHTML(eg.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : ''}
                 <div class="sv-scan-result__body">
                     <p class="sv-scan-result__title">${escapeHTML(liveGameName(eg))} zurückgelegt ✅</p>
-                    <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> einräumen.</p>
+                    <p class="cl-muted" style="margin:0;">Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, returnShelfId))}</strong> einräumen.</p>
                 </div>`;
             playScanBeep();
-            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, eg.shelfId))}</strong> lagern.`, false, { duration: getScanToastDurationMs() });
+            showToast(`<strong>${escapeHTML(liveGameName(eg))}</strong> zurückgelegt. Bitte in <strong>${escapeHTML(shelfNameFor(eg.eventId, returnShelfId))}</strong> lagern.`, false, { duration: getScanToastDurationMs() });
         } catch (err) { console.error('Rückgabe-Fehler:', err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
