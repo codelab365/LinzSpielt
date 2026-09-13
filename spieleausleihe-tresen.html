@@ -322,6 +322,20 @@
     </div>
 </div>
 
+<!-- Popup: Regal-Auswahl beim Ausleihen, nur wenn das Spiel in mehr als
+     einem Regal geführt wird (siehe Regal-Konflikt-Hinweis) — damit bei der
+     Rückgabe genau gesagt werden kann, wohin das Exemplar gehört. -->
+<div id="shelf-pick-overlay" class="td-return-overlay">
+    <div class="td-return-card">
+        <div class="td-return-card__icon">📖</div>
+        <p class="td-return-card__title" id="shelf-pick-title"></p>
+        <p class="cl-muted">Aus welchem Regal wird dieses Exemplar entnommen?</p>
+        <select id="shelf-pick-select" class="cl-select" style="width:100%; margin-top:.8rem; font-size:1.1rem; padding:.6rem;"></select>
+        <button type="button" id="shelf-pick-confirm-btn" class="cl-btn cl-btn--signal td-btn-xl" style="margin-top:1rem;">Bestätigen</button>
+        <button type="button" id="shelf-pick-cancel-btn" class="cl-btn cl-btn--ghost cl-btn--sm" style="margin-top:.6rem;">Abbrechen</button>
+    </div>
+</div>
+
 <!-- Detailansicht (identisch zur Ansicht für Besucher:innen) -->
 <div id="td-detail-overlay" class="td-detail-overlay">
     <div class="td-detail-modal">
@@ -734,32 +748,45 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('desk-list-empty').classList.toggle('cl-hidden', list.length > 0);
         const showDuration = !!currentEvent?.showLoanDuration;
         document.getElementById('desk-th-duration').classList.toggle('cl-hidden', !showDuration);
-        body.innerHTML = list.map(g => {
+        body.innerHTML = list.flatMap(g => {
             const qty = lendQty(g), avail = g.availableQuantity ?? qty, out = qty - avail;
             const publisherQty = pubQty(g);
             const game = g;
-            // Ausleihbare Exemplare und Verlagstisch-Exemplare schließen sich
-            // nicht mehr aus — ein Spiel kann beides gleichzeitig sein, daher
-            // eigener Zusatz-Badge statt eines exklusiven Status.
-            const statusLabel = qty > 0 ? (avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen') : null;
-            const statusCls = avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus';
-            return `<tr>
+            const commonCols = `
                 <td class="td-game-cell" data-id="${g.id}">${g.bggImageUrl ? `<img class="td-thumb" src="${escapeHTML(g.bggImageUrl)}" alt="" referrerpolicy="no-referrer">` : '<div class="td-thumb--placeholder" title="Noch kein Bild hinterlegt">🎲</div>'}</td>
                 <td class="td-game-cell" data-id="${g.id}">${escapeHTML(liveGameName(g))}</td>
                 <td>${game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers}` : '—'}</td>
                 <td>${game?.rating ? `⭐ ${game.rating.toFixed(1)}` : '—'}</td>
-                <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>
-                <td>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? `<div class="cl-muted" style="font-size:.75rem;">+ auch in ${escapeHTML(otherShelfNames(g).join(', '))}</div>` : ''}</td>
-                ${showDuration ? `<td class="td-duration">${qty > 0 ? loanDurationLabel(g.ean) : '—'}</td>` : ''}
-                <td>
-                    ${statusLabel ? `<span class="td-badge-status ${statusCls}">${statusLabel}</span>` : ''}
-                    ${publisherQty > 0 ? `<span class="td-badge-status td-badge-status--publisher">🏢 ${publisherQty} auf Verlagstisch</span>` : ''}
-                </td>
-                <td>
-                    ${avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
-                    ${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
-                </td>
-            </tr>`;
+                <td>${game?.complexity ? `${complexityLabelDesk(game.complexity)} (${game.complexity.toFixed(1)})` : '—'}</td>`;
+            const rows = [];
+            // Ausleihbarer Teil — eigene Zeile mit Ausleihen/Rückgabe-Buttons.
+            if (qty > 0) {
+                const statusLabel = avail > 0 ? (qty > 1 ? `Verfügbar (${avail}/${qty})` : 'Verfügbar') : 'Ausgeliehen';
+                const statusCls = avail > 0 ? 'td-badge-status--frei' : 'td-badge-status--aus';
+                rows.push(`<tr>
+                    ${commonCols}
+                    <td>${escapeHTML(shelfName(g.shelfId))}${otherShelfNames(g).length ? `<div class="cl-muted" style="font-size:.75rem;">+ auch in ${escapeHTML(otherShelfNames(g).join(', '))}</div>` : ''}</td>
+                    ${showDuration ? `<td class="td-duration">${loanDurationLabel(g.ean)}</td>` : ''}
+                    <td><span class="td-badge-status ${statusCls}">${statusLabel}</span></td>
+                    <td>
+                        ${avail > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-borrow-btn" data-id="${g.id}">1 ausleihen</button>` : ''}
+                        ${out > 0 ? `<button type="button" class="cl-btn cl-btn--ghost cl-btn--sm td-return-btn" data-id="${g.id}">1 zurückgeben</button>` : ''}
+                    </td>
+                </tr>`);
+            }
+            // Verlagstisch-Exemplar(e) — eigene Zeile, keine Ausleihen/
+            // Rückgabe-Buttons: dauerhaft ausgestellt, nicht ausleihbar.
+            // Entfernbar nur im Verwaltungstool (Stückzahl dort auf 0 setzen).
+            if (publisherQty > 0) {
+                rows.push(`<tr>
+                    ${commonCols}
+                    <td class="cl-muted">Verlagstisch</td>
+                    ${showDuration ? `<td class="td-duration">—</td>` : ''}
+                    <td><span class="td-badge-status td-badge-status--publisher">🏢 ${publisherQty > 1 ? `${publisherQty}× ` : ''}auf Verlagstisch</span></td>
+                    <td class="cl-muted" style="font-size:.8rem;">nur im Verwaltungstool entfernbar</td>
+                </tr>`);
+            }
+            return rows;
         }).join('');
         updateDeskFilterCount();
     }
@@ -797,13 +824,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const returnBtn = e.target.closest('.td-return-btn');
         if (returnBtn) {
             const eg = allEventGames.find(g => g.id === returnBtn.dataset.id);
-            if (eg) { returnOne(eg); playScanBeep(); }
+            if (eg) returnOne(eg);
             return;
         }
         const borrowBtn = e.target.closest('.td-borrow-btn');
         if (borrowBtn) {
             const eg = allEventGames.find(g => g.id === borrowBtn.dataset.id);
-            if (eg) { borrowOne(eg); playScanBeep(); }
+            if (eg) borrowOne(eg);
             return;
         }
         const gameCell = e.target.closest('.td-game-cell');
@@ -991,24 +1018,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function commitAction(eg, action) {
         if (action === 'borrow') await borrowOne(eg); else await returnOne(eg);
-        playScanBeep();
         scanInput.focus();
     }
 
     async function borrowOne(eg) {
+        // Ist das Spiel auf mehr als ein Regal aufgeteilt (siehe Regal-
+        // Konflikt-Hinweis im Verwaltungstool), muss angegeben werden, aus
+        // welchem Regal das jetzt ausgeliehene Exemplar tatsächlich
+        // entnommen wird — sonst weiß später niemand mehr, wohin es bei der
+        // Rückgabe wieder gehört.
+        let shelfIdForLoan = eg.shelfId;
+        if (otherShelfNames(eg).length > 0) {
+            const picked = await pickShelfForBorrow(eg);
+            if (picked === null) return; // Abgebrochen — keine Ausleihe durchführen
+            shelfIdForLoan = picked;
+        }
         const egRef = doc(db, 'eventGames', eg.id);
         try {
             await addDoc(collection(db, 'loans'), {
                 ean: eg.ean, gameName: liveGameName(eg), eventId: eg.eventId, eventName: currentEvent ? currentEvent.name : '',
-                shelfId: eg.shelfId, borrowedAt: serverTimestamp(), returnedAt: null
+                shelfId: shelfIdForLoan, borrowedAt: serverTimestamp(), returnedAt: null
             });
             await updateDoc(egRef, { availableQuantity: increment(-1), lastActivityAt: serverTimestamp() });
+            playScanBeep();
             showScanResultBox({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', cls: 'td-scan-result--out' });
             const mode = currentEvent?.borrowMessageMode === 'timer' ? 'timer' : 'confirm';
             const seconds = currentEvent?.borrowMessageSeconds ?? 5;
-            showActionOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: shelfName(eg.shelfId), borrowMode: true, mode, seconds });
-            logActivity('out', liveGameName(eg), shelfName(eg.shelfId));
+            showActionOverlay({ icon: '📖', title: `${liveGameName(eg)} ausgeliehen`, sub: 'Viel Spaß!', shelf: shelfName(shelfIdForLoan), borrowMode: true, mode, seconds });
+            logActivity('out', liveGameName(eg), shelfName(shelfIdForLoan));
         } catch (err) { console.error(err); showToast('Ausleihe fehlgeschlagen.', true); }
+    }
+
+    // Zeigt das Regal-Auswahl-Popup und löst mit der gewählten Regal-ID auf,
+    // oder mit null bei "Abbrechen".
+    function pickShelfForBorrow(eg) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('shelf-pick-overlay');
+            const select = document.getElementById('shelf-pick-select');
+            document.getElementById('shelf-pick-title').textContent = liveGameName(eg);
+            const choices = [eg.shelfId, ...(eg.otherShelfIds || [])];
+            select.innerHTML = choices.map(id => `<option value="${id}">${escapeHTML(shelfName(id))}</option>`).join('');
+            overlay.classList.add('is-visible');
+            function cleanup() {
+                overlay.classList.remove('is-visible');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            }
+            const confirmBtn = document.getElementById('shelf-pick-confirm-btn');
+            const cancelBtn = document.getElementById('shelf-pick-cancel-btn');
+            function onConfirm() { cleanup(); resolve(select.value); }
+            function onCancel() { cleanup(); resolve(null); }
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+        });
     }
 
     async function returnOne(eg) {
@@ -1016,13 +1078,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const q = query(collection(db, 'loans'), where('eventId', '==', eg.eventId), where('ean', '==', eg.ean), where('returnedAt', '==', null));
             const snap = await getDocs(q);
-            if (!snap.empty) await updateDoc(doc(db, 'loans', snap.docs[0].id), { returnedAt: serverTimestamp() });
+            // Genau bekannt statt nur vermutet: welches Regal stand im
+            // Ausleih-Datensatz dieses Exemplars (siehe borrowOne)? Nur wenn
+            // das (z.B. bei älteren, vor dieser Funktion entstandenen
+            // Ausleihen) fehlt, auf das allgemeine Regal des Spiels zurückfallen.
+            const openLoan = snap.empty ? null : snap.docs[0];
+            const returnShelfId = openLoan?.data()?.shelfId || eg.shelfId;
+            if (openLoan) await updateDoc(doc(db, 'loans', openLoan.id), { returnedAt: serverTimestamp() });
             await updateDoc(egRef, { availableQuantity: increment(1), lastActivityAt: serverTimestamp() });
-            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(eg.shelfId))}</strong>${otherShelfNames(eg).length ? ` <span class="cl-muted">(oder ${escapeHTML(otherShelfNames(eg).join(', '))})</span>` : ''}`, cls: 'td-scan-result--in' });
+            playScanBeep();
+            showScanResultBox({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: `Bitte einräumen in: <strong>${escapeHTML(shelfName(returnShelfId))}</strong>`, cls: 'td-scan-result--in' });
             const mode = currentEvent?.returnMessageMode === 'timer' ? 'timer' : 'confirm';
             const seconds = currentEvent?.returnMessageSeconds ?? 5;
-            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(eg.shelfId) + (otherShelfNames(eg).length ? ` (oder ${otherShelfNames(eg).join(', ')})` : ''), borrowMode: false, mode, seconds });
-            logActivity('in', liveGameName(eg), shelfName(eg.shelfId));
+            showActionOverlay({ icon: '✅', title: `${liveGameName(eg)} zurückgelegt`, sub: 'Bitte einräumen in:', shelf: shelfName(returnShelfId), borrowMode: false, mode, seconds });
+            logActivity('in', liveGameName(eg), shelfName(returnShelfId));
         } catch (err) { console.error(err); showToast('Rückgabe fehlgeschlagen.', true); }
     }
 
