@@ -657,10 +657,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('desk-always-stat').innerHTML = `<span>${borrowedTotal}</span> Spiel-Exemplar(e) gerade ausgeliehen`;
 
         document.getElementById('desk-stats').innerHTML = `
-            <div class="td-stat-box"><div class="td-stat-box__num">${total}</div><div class="td-stat-box__label">Spiele gesamt</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${total}</div><div class="td-stat-box__label">Exemplare gesamt</div></div>
             <div class="td-stat-box"><div class="td-stat-box__num">${available}</div><div class="td-stat-box__label">Verfügbar</div></div>
             <div class="td-stat-box"><div class="td-stat-box__num">${borrowedTotal}</div><div class="td-stat-box__label">Exemplare draußen</div></div>
-            <div class="td-stat-box"><div class="td-stat-box__num">${distinctBorrowed}</div><div class="td-stat-box__label">Verschiedene Spiele draußen</div></div>`;
+            <div class="td-stat-box"><div class="td-stat-box__num">${distinctBorrowed}</div><div class="td-stat-box__label">Verschiedene Spiele draußen</div></div>
+            <div class="td-stat-box"><div class="td-stat-box__num">${allEventGames.length}</div><div class="td-stat-box__label">Titel gesamt</div></div>`;
 
         renderDeskList();
     }
