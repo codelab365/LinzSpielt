@@ -474,16 +474,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const available = currentEventGames.reduce((sum, g) => sum + (g.availableQuantity ?? (g.quantity ?? 1)), 0);
         const borrowed = total - available;
         statsEl.innerHTML = `
-            <span class="ov-stat"><strong>${total}</strong> Spiele gesamt</span>
+            <span class="ov-stat"><strong>${total}</strong> Exemplare gesamt</span>
             <span class="ov-stat"><strong>${available}</strong> verfügbar</span>
-            <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>`;
+            <span class="ov-stat"><strong>${borrowed}</strong> ausgeliehen</span>
+            <span class="ov-stat"><strong>${currentEventGames.length}</strong> Titel</span>`;
 
         document.getElementById('ov-pagination').classList.toggle('cl-hidden', filtered.length <= PAGE_SIZE);
-        document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
+        document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Titel)`;
         document.getElementById('ov-page-prev').disabled = currentPage <= 1;
         document.getElementById('ov-page-next').disabled = currentPage >= totalPages;
         document.getElementById('ov-pagination-bottom').classList.toggle('cl-hidden', filtered.length <= PAGE_SIZE);
-        document.getElementById('ov-page-info-bottom').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
+        document.getElementById('ov-page-info-bottom').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Titel)`;
         document.getElementById('ov-page-prev-bottom').disabled = currentPage <= 1;
         document.getElementById('ov-page-next-bottom').disabled = currentPage >= totalPages;
     }
