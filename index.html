@@ -147,6 +147,11 @@
             </table>
             <p id="ov-empty" class="ov-empty cl-hidden">Keine Spiele gefunden.</p>
         </div>
+        <div id="ov-pagination-bottom" class="ov-pagination cl-hidden" style="margin-top: var(--cl-space-2);">
+            <button type="button" id="ov-page-prev-bottom" class="cl-btn cl-btn--ghost cl-btn--sm">← Zurück</button>
+            <span id="ov-page-info-bottom" class="cl-muted" style="font-size:.85rem;"></span>
+            <button type="button" id="ov-page-next-bottom" class="cl-btn cl-btn--ghost cl-btn--sm">Weiter →</button>
+        </div>
         <p class="ov-footer-note">Daten aktualisieren sich automatisch. Zeile anklicken für Details. Powered by <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>.</p>
     </div>
 
@@ -255,6 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
     [playersFilter, statusFilter, shelfFilter, complexityFilter, sortSelect].forEach(el => el.addEventListener('change', renderFromPage1));
     document.getElementById('ov-page-prev').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     document.getElementById('ov-page-next').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    document.getElementById('ov-page-prev-bottom').addEventListener('click', () => { currentPage--; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    document.getElementById('ov-page-next-bottom').addEventListener('click', () => { currentPage++; render(); document.getElementById('ov-pagination').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
     // --- Kompaktes Filter-Panel: eingeklappt per Default, zeigt Anzahl aktiver Filter ---
     const filterToggle = document.getElementById('ov-filter-toggle');
@@ -475,6 +482,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ov-page-info').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
         document.getElementById('ov-page-prev').disabled = currentPage <= 1;
         document.getElementById('ov-page-next').disabled = currentPage >= totalPages;
+        document.getElementById('ov-pagination-bottom').classList.toggle('cl-hidden', filtered.length <= PAGE_SIZE);
+        document.getElementById('ov-page-info-bottom').textContent = `Seite ${currentPage} von ${totalPages} (${filtered.length} Spiele)`;
+        document.getElementById('ov-page-prev-bottom').disabled = currentPage <= 1;
+        document.getElementById('ov-page-next-bottom').disabled = currentPage >= totalPages;
     }
 
     tableBody.addEventListener('click', (e) => {
