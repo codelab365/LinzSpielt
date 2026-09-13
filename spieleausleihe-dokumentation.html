@@ -411,11 +411,11 @@ Hier sind meine EAN-Codes:
                 <h2>Verlagstisch (permanent ausgestellte Exemplare)</h2>
                 <p>Für Spiele, die während eines Events dauerhaft auf einem Verlagstisch aufgebaut sind und nicht regulär ausgeliehen werden — z.B. Demo-Exemplare eines Verlags.</p>
                 <ul class="doc-step-list">
-                    <li>In der Tabelle "Spiele bei diesem Event" (Event-Fenster) gibt es je Spiel-Eintrag ein Zahlenfeld <strong>"Verlagstisch"</strong>: wie viele der insgesamt vorhandenen Exemplare permanent auf einem Verlagstisch stehen.</li>
+                    <li><strong>Markieren:</strong> In der Tabelle "Spiele bei diesem Event" (Event-Fenster) gibt es je Spiel-Eintrag ein Zahlenfeld <strong>"Verlagstisch"</strong>: wie viele der insgesamt vorhandenen Exemplare permanent auf einem Verlagstisch stehen.</li>
                     <li>Das ist bewusst eine <strong>Stückzahl</strong>, keine Ja/Nein-Checkbox: Hat ein Spiel z.B. 2 Exemplare und trägst du dort eine 1 ein, bleibt automatisch 1 Exemplar ganz normal ausleihbar (mit eigenem Verfügbar/Ausgeliehen-Status), während das andere fest dem Verlagstisch zugeteilt ist.</li>
-                    <li>Überall, wo der Status angezeigt wird (Verwaltungstool, Ausleihe-Tresen, Ansicht für Besucher:innen, Detailansicht), erscheint zusätzlich zum normalen Verfügbar/Ausgeliehen-Badge der Hinweis <strong>"🏢 X auf Verlagstisch"</strong> — die beiden schließen sich nicht mehr gegenseitig aus.</li>
-                    <li>Sind <strong>alle</strong> Exemplare eines Spiels dem Verlagstisch zugeteilt (kein normal ausleihbares Exemplar mehr übrig), zeigt ein Scan dieses Spiels am Ausleihe-Tresen einen Hinweis statt einer normalen Ausleihe/Rückgabe.</li>
-                    <li>Die Verlagstisch-Stückzahl reduziert sich nicht automatisch — sie muss am Ende des Events wieder manuell auf 0 zurückgesetzt werden, falls die Exemplare dann wieder regulär zur Verfügung stehen sollen.</li>
+                    <li><strong>Anzeige — zwei getrennte Zeilen:</strong> Ist ein Spiel sowohl auf dem Verlagstisch als auch normal ausleihbar, erscheint es in der Ansicht für Besucher:innen und am Ausleihe-Tresen als <strong>zwei eigene Tabellenzeilen</strong> — eine für die ausleihbaren Exemplare (mit normalem Verfügbar/Ausgeliehen-Status, ggf. Ausleihen/Rückgabe-Button) und eine für die Verlagstisch-Exemplare (Regal-Spalte zeigt "Verlagstisch", Status "🏢 X auf Verlagstisch", kein Button). Ist ein Spiel <em>ausschließlich</em> auf dem Verlagstisch, gibt es entsprechend nur die eine Zeile.</li>
+                    <li><strong>Kann nicht regulär zurückgenommen werden:</strong> Ein Scan dieses Spiels am Ausleihe-Tresen betrifft ausschließlich die normal ausleihbaren Exemplare (falls vorhanden) — die Verlagstisch-Zeile hat gar keinen Ausleihen/Rückgabe-Button und reagiert nicht auf Scans. Sind <strong>alle</strong> Exemplare eines Spiels dem Verlagstisch zugeteilt, zeigt ein Scan stattdessen nur einen Hinweis.</li>
+                    <li><strong>Entfernen:</strong> Nur im Verwaltungstool möglich — Zahlenfeld "Verlagstisch" bei diesem Spiel-Eintrag wieder auf 0 setzen (die Stückzahl reduziert sich nicht von selbst, auch nicht am Ende des Events).</li>
                 </ul>
             </section>
 
@@ -463,22 +463,30 @@ Hier sind meine EAN-Codes:
             <section id="events-regal-konflikt">
                 <h2>Regal-Konflikt-Hinweis</h2>
                 <p>Relevant vor allem im Mehrgeräte-Betrieb (mehrere EAN-Scanner gleichzeitig im Einsatz beim Aufbau eines Events): Ohne Absprache kann es passieren, dass ein Spiel in Regal A schon eingeräumt ist, während an einem anderen Gerät dasselbe Spiel gerade für Regal C gescannt wird. Ziel ist dabei immer, Spiele möglichst an einem einzigen Ort zu sammeln.</p>
+                <h3>Ein Regal pro Spiel erzwingen (Standard bei neuen Events)</h3>
                 <ul class="doc-step-list">
-                    <li>Im Event-Fenster unter den Event-Einstellungen die Checkbox <strong>"Beim Einscannen warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist"</strong> aktivieren — standardmäßig <strong>aus</strong>, muss also bewusst pro Event eingeschaltet werden.</li>
-                    <li>Bei aktivierter Checkbox erscheint bei Konflikt <strong>überall gleich</strong> dieselbe Rückfrage — sowohl bei der manuellen Suche im Event-Fenster als auch bei der globalen Schnellerfassung und beim Schnellscan im Event-Fenster (auch beim schnellen, fortlaufenden Scannen): <em>"[Spiel] ist bereits in Regal [A] — bitte dort einräumen."</em>, zusätzlich immer mit einem <strong>Warnton</strong> (deutlich anders als der übliche Erfolgs-Piepton), damit der Hinweis beim Scannen nicht übersehen wird.</li>
-                    <li>Zwei Buttons: <strong>"Bestätigen"</strong> (das gescannte Exemplar wandert physisch ins bestehende Regal A, an der Datenbank ändert sich nichts) oder <strong>"Trotzdem in [C] umräumen"</strong> (das Spiel wird ab jetzt bewusst in zwei Regalen geführt).</li>
-                    <li>Wie lange auf eine Reaktion gewartet wird, legt eine zweite Einstellung direkt darunter fest — dasselbe Muster wie bei der <a href="#events-rueckgabemeldung">Ausleihe-/Rückgabemeldung</a>:</li>
+                    <li>Im Event-Fenster unter den Event-Einstellungen: Checkbox <strong>"Ein Regal pro Spiel erzwingen"</strong> — bei neu angelegten Events standardmäßig <strong>aktiv</strong>. Bereits bestehende, ältere Events haben sie nicht automatisch aktiv (Rückwärtskompatibilität) und müssten sie bei Bedarf manuell einschalten.</li>
+                    <li>Jedes Spiel bleibt dabei fix in dem Regal, in dem es zuerst eingeräumt wurde — dem <strong>Basisregal</strong>. Wird es für ein anderes Regal gescannt (egal ob über manuelle Suche, Schnellerfassung oder Schnellscan), erscheint eine Rückfrage mit einem einzigen Button <strong>"Bestätigen"</strong>: <em>"[Spiel] ist bereits in Regal [Basisregal] — bitte dort einräumen."</em> — inklusive Warnton. Es gibt bewusst keine Zeitautomatik und keine Alternative dazu: Ein Aufteilen auf mehrere Regale ist in diesem Modus schlicht nicht möglich, die Stückzahl wird trotzdem erhöht.</li>
+                    <li>Vorteil: Am Ausleihe-Tresen ist danach immer eindeutig, aus welchem Regal ein Exemplar stammt — die zusätzliche Rückfrage beim Ausleihen (siehe unten) entfällt komplett, weil es gar nicht erst zu einem Spiel in zwei Regalen kommen kann.</li>
+                </ul>
+                <h3>Alternative: nur warnen, Aufteilen auf mehrere Regale bleibt möglich</h3>
+                <p>Wird "Ein Regal pro Spiel erzwingen" für ein Event deaktiviert, erscheinen darunter die bisherigen, flexibleren Einstellungen:</p>
+                <ul class="doc-step-list">
+                    <li>Checkbox <strong>"Stattdessen nur warnen, wenn ein Spiel in diesem Event schon einem anderen Regal zugeordnet ist"</strong> — standardmäßig aus.</li>
+                    <li>Bei aktivierter Checkbox erscheint bei Konflikt dieselbe Rückfrage wie oben, aber jetzt mit einem zweiten Button: <strong>"Trotzdem in [C] umräumen"</strong> — das Spiel wird dann bewusst in zwei Regalen geführt.</li>
+                    <li>Wie lange auf eine Reaktion gewartet wird, legt eine zweite Einstellung fest — dasselbe Muster wie bei der <a href="#events-rueckgabemeldung">Ausleihe-/Rückgabemeldung</a>:</li>
                 </ul>
                 <table class="doc-table">
                     <thead><tr><th>Modus</th><th>Verhalten</th></tr></thead>
                     <tbody>
-                        <tr><td><strong>Manuell bestätigen</strong></td><td>Wartet auf eine aktive Entscheidung, unterbricht dafür auch den Scan-Vorgang. Sinnvoll, wenn Spiele möglichst konsequent im gleichen Regal bleiben sollen — damit wird jeder Konflikt tatsächlich bewusst entschieden, statt sich unbemerkt anzusammeln.</td></tr>
+                        <tr><td><strong>Manuell bestätigen</strong></td><td>Wartet auf eine aktive Entscheidung, unterbricht dafür auch den Scan-Vorgang.</td></tr>
                         <tr><td><strong>Automatisch weiter nach X Sekunden</strong></td><td>Dieselbe Rückfrage erscheint, schließt sich aber nach Ablauf der Zeit von selbst wie "Trotzdem umräumen" (Sekundenzahl frei einstellbar) — der Scan-Vorgang muss dann nicht warten. Wer schnell genug hinschaut, kann trotzdem noch manuell "Bestätigen" wählen, bevor die Zeit abläuft.</td></tr>
                     </tbody>
                 </table>
                 <ul class="doc-step-list">
                     <li><strong>"Bestätigen"</strong>: keine Änderung am Eintrag, die Stückzahl wird trotzdem um 1 erhöht — die Erwartung ist, dass das physische Exemplar ins bestehende Regal A wandert.</li>
-                    <li><strong>"Trotzdem umräumen"</strong> (oder Zeit abgelaufen): der bestehende Eintrag bleibt im alten Regal, die Stückzahl wird ebenfalls erhöht — zusätzlich merkt sich das System "steht auch in Regal C" und zeigt das als kleinen Zusatz überall an, wo das Regal angezeigt wird (Verwaltungstool, Ausleihe-Tresen, Ansicht für Besucher:innen) — ohne Stückzahl-Aufteilung, nur als Hinweis. Bei der Rückgabe ist trotzdem nicht mehr unterscheidbar, welches konkrete Exemplar aus welchem der beiden Regale kam (siehe auch <a href="#mengen">Mengen &amp; Mehrfach-Exemplare</a>). Wird das Regal später manuell über das Dropdown geändert, gilt das als bewusste Konsolidierung — der Zusatz-Hinweis wird dabei gelöscht.</li>
+                    <li><strong>"Trotzdem umräumen"</strong> (oder Zeit abgelaufen): der bestehende Eintrag bleibt im alten Regal, die Stückzahl wird ebenfalls erhöht — zusätzlich merkt sich das System "steht auch in Regal C" und zeigt das als kleinen Zusatz überall an, wo das Regal angezeigt wird (Verwaltungstool, Ausleihe-Tresen, Ansicht für Besucher:innen) — ohne Stückzahl-Aufteilung, nur als Hinweis. Wird das Regal später manuell über das Dropdown geändert, gilt das als bewusste Konsolidierung — der Zusatz-Hinweis wird dabei gelöscht.</li>
+                    <li>Bei einem so aufgeteilten Spiel fragt der Ausleihe-Tresen beim Ausleihen jetzt aktiv nach, aus welchem der beiden Regale das Exemplar entnommen wird (siehe <a href="#ausleihe-logik">Ausleihe/Rückgabe-Logik</a>) — die Rückgabe-Meldung nennt danach exakt das richtige Regal statt nur "oder".</li>
                     <li>Bei Bulk-Importwegen (BGStats-Import, ganze Sammlung ins Event laden) erscheint diese Rückfrage bewusst <strong>nie</strong>, unabhängig vom gewählten Modus — dort läuft niemand interaktiv mit, der sie beantworten könnte.</li>
                 </ul>
             </section>
@@ -602,6 +610,8 @@ Hier sind meine EAN-Codes:
                     <li>Hat ein Spiel nur <strong>ein Exemplar</strong>, ist der nächste Scan eindeutig: verfügbar → wird ausgeliehen, ausgeliehen → wird zurückgegeben. Kein Klicken, keine Rückfrage.</li>
                     <li>Hat ein Spiel <strong>mehrere Exemplare</strong>, aber gerade sind alle verfügbar oder alle draußen, ist es ebenfalls eindeutig und läuft automatisch.</li>
                     <li>Nur wenn ein Spiel mehrere Exemplare hat und <strong>gleichzeitig manche verfügbar und manche draußen</strong> sind, ist ein Scan wirklich mehrdeutig — dann erscheint ein kurzes Pop-up mit zwei Buttons ("📖 Ausleihen" / "↩️ Rückgabe"), einmal antippen, fertig.</li>
+                    <li>Ist "Ein Regal pro Spiel erzwingen" für dieses Event deaktiviert <em>und</em> das Spiel dadurch tatsächlich auf zwei Regale aufgeteilt (siehe <a href="#events-regal-konflikt">Regal-Konflikt-Hinweis</a>), fragt der Ausleihe-Tresen beim Ausleihen zusätzlich per kleinem Auswahl-Popup nach: <strong>"Aus welchem Regal wird dieses Exemplar entnommen?"</strong> — Dropdown mit den beiden (oder mehr) Regalen zur Auswahl. Erst nach Bestätigung wird die Ausleihe gebucht; "Abbrechen" bricht die ganze Ausleihe ab. Bei nur einem Regal entfällt dieser Schritt, wie gehabt, komplett.</li>
+                    <li>Diese Auswahl wird im Ausleihe-Log (<code>loans</code>) mitgespeichert — die Rückgabe-Meldung nennt später deshalb exakt das richtige Regal statt nur eine "oder"-Vermutung.</li>
                 </ul>
             </section>
 
