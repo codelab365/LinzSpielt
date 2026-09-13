@@ -173,7 +173,7 @@
             <div class="qb-brand-row">
                 <a href="#" class="cl-brand"><span style="font-size:1.6rem">🎲</span><span class="cl-brand__name">Spiele<b>ausleihe</b></span></a>
             </div>
-            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v70</span></p>
+            <p class="cl-muted qb-tagline">Verwaltung · Linz Spielt · <span id="app-version">v71</span></p>
         </div>
         <div class="cl-header__spacer"></div>
         <a href="https://codelab365.github.io/LinzSpielt/spieleausleihe-dokumentation.html" target="_blank" rel="noopener noreferrer" class="cl-btn cl-btn--ghost cl-btn--sm">📖 Dokumentation</a>
@@ -804,8 +804,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // =============================================================
-// VERSION: v70 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
+// VERSION: v71 — aktuelle Version, siehe auch Anzeige im Header. Gilt sinngemäß auch für spieleausleihe-tresen.html.
 // Änderungsprotokoll:
+//   v71 — Ansicht für Besucher:innen (index.html): Pagination-Pfeile
+//        ("← Zurück"/"Weiter →") erscheinen jetzt sowohl oberhalb als auch
+//        unterhalb der Tabelle, nicht mehr nur oben — bei langen Listen
+//        muss man dadurch zum Weiterblättern nicht mehr extra nach oben
+//        scrollen.
 //   v70 — Regal-Konflikt-Hinweis inhaltlich überarbeitet, passend zum
 //        eigentlichen Ziel "Spiele möglichst an einem Ort sammeln":
 //        - Wortwahl "umhängen" durch "umräumen" ersetzt.
